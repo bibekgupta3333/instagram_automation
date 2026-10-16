@@ -63,7 +63,7 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
     "flux2-klein-4b": (  # smallest good model: 4.6 GB, Apache-2.0
         "FLUX.2 [klein] 4B (mflux 4-bit)",
         ["mflux-generate-flux2", "--model", "mflux-community/flux2-klein-4b-mflux-q4",
-         "--steps", "4", "--guidance", "1.0"],
+         "--base-model", "flux2-klein-4b", "--steps", "4", "--guidance", "1.0"],
     ),
     "z-image-turbo": (  # best quality <= 6 GB: 5.9 GB, Apache-2.0
         "Z-Image-Turbo (mflux 4-bit)",

@@ -8,14 +8,19 @@ This doc replaces doc 14's image and video picks for a disk-constrained Mac: an 
 
 | Need | Pick | Download | Runtime | Speed *(est. unless marked)* | Licence |
 |---|---|---|---|---|---|
-| **Stills, default** | FLUX.2 klein 4B, 4-bit: `mflux-community/flux2-klein-4b-mflux-q4` | **4.6 GB** | mflux (MLX) | 15–30 s/image. 31.7 s measured on M1 Max | Apache-2.0 |
+| **Stills, default** | FLUX.2 klein 4B, 4-bit, **rendered at 544×960 and upscaled ×4 with Real-ESRGAN**, then scaled to 1080×1920 | **4.7 GB** | mflux + ESRGAN | **9–14 s/image**; full-res 1024² is ~20–25 s | Apache-2.0 + BSD-3 |
+| Stills, fastest | the same + 2-step SANA-Sprint LoRA (`radames/FLUX.2-klein-Sana-Sprint`) | 5.5 GB | mflux `--lora-paths` | **5–8 s/image** | Apache-2.0 |
+| Stills, smallest | klein 4B **3-bit** (`mflux-community/flux2-klein-4b-mflux-q3`) | **3.6 GB** | mflux | same speed; quality loss unmeasured | Apache-2.0 |
 | Stills, best quality | Z-Image-Turbo, 4-bit: `mflux-community/z-image-turbo-mflux-q4` | 5.9 GB | mflux | 35–60 s/image | Apache-2.0 |
 | Text-heavy thumbnails | ERNIE-Image-Turbo 8B, 3-bit: `mflux-community/ernie-image-turbo-mflux-q3` | 5.2 GB | mflux | 50–90 s/image | Apache-2.0 |
-| **Motion, default** | 2.5D parallax: Depth Anything V2 **Small** + DepthFlow | **~0.1 GB** + pip | CoreML / GPU shader | seconds per clip | Apache-2.0 (model) · AGPL-3.0 (DepthFlow tool) |
-| Real AI video (hero clips) | Wan2.2-TI2V-5B **Turbo** (4-step), GGUF Q4 + umT5 Q3 + TAE | **~6.0 GB** | stable-diffusion.cpp (Metal, 35 MB binary) | 2 s clip in 3–6 min; 5 s in 10–20 min. ~96 s for 13 frames measured on M2 24 GB | Apache-2.0 base, but the Turbo distill's licence is **unstated** |
+| **Motion, default** | 2.5D parallax: Depth Anything V2 **Small** + **our own shader** (moderngl/OpenCV, replacing AGPL DepthFlow), plus optional SAM2.1-tiny + LaMa layering | **~0.1–0.45 GB** | CoreML + GPU shader | under 2 s per clip (5–10 s layered) | Apache-2.0 + MIT |
+| Real AI video (hero clips) | **FastWan2.2-TI2V-5B** (3-step DMD) GGUF q6_k + umT5 Q3 + TAE (`Green-Sky/FastWan2.2-TI2V-5B-FullAttn-GGUF`), replacing Turbo | ~7.1 GB (~5.8 at q4_K) | stable-diffusion.cpp (Metal) | **60–90 s** for 33 frames at 480×832, then RIFE to 65 frames | **Apache-2.0 throughout** |
+| AI video, ≤4 GB | LingBot-Video-Dense-1.3B GGUF (Qwen3-VL-4B encoder) | 3.5 GB | stable-diffusion.cpp | 10–25 min/clip (not distilled) | Apache-2.0 |
 | Smoothing | RIFE v4.x (`nihui/rife-ncnn-vulkan` / `hzwer/Practical-RIFE`) | ~0.03 GB | ncnn-Vulkan (MoltenVK) | seconds | MIT |
 
-**Minimum local visual stack:** klein 4-bit plus parallax is **about 5.5 GB** including the mflux install (~0.7 GB). That needs about 16 GB free. Adding Wan Turbo brings it to **about 11.5 GB**, which needs about 22 GB free. Until then, `images=auto` falls back to Pexels and then Bedrock Stable Image Core.
+**Round 2 (smaller, faster, better):** **nothing beats klein 4B or Wan-5B on size, speed and quality at the same time.** The gains come from technique: render small and upscale, use a 2-step LoRA, generate half the frames and interpolate with RIFE, and use licence-clean replacements. See §5–6.
+
+**Minimum local visual stack:** klein 4-bit + ESRGAN + depth is **about 4.8 GB** of models, plus the mflux install (~0.7 GB). That needs about 16 GB free. Adding FastWan brings it to **about 12 GB**, which needs about 22 GB free. Until then, `images=auto` falls back to Pexels and then Bedrock Stable Image Core.
 
 ```mermaid
 flowchart LR
@@ -90,15 +95,63 @@ flowchart LR
 | mflux klein / Z-Image engines (pre-quantized, download guard) | ✅ code + tests. Not run: model not downloaded |
 | `auto` order: **local klein → Pexels → Bedrock Stability → mock** | ✅ local is skipped until its model is cached |
 | Manifest: `flux2-klein-4b-q4` (default image), `z-image-turbo-q4` (optional), `depth-anything-v2-small`, `wan2.2-ti2v-5b-turbo-gguf` (optional, new `video` stage) | ✅ `make models-dry STAGE=video` |
-| Parallax engine (DepthFlow), Wan via sd.cpp, RIFE | ⏳ **not built**. Next step once ~16–22 GB is free |
+| Small render + ESRGAN upscale, own parallax shader, FastWan via sd.cpp, RIFE | ⏳ **not built**. Next step once ~16–22 GB is free |
 
 ## 5. Open questions
 
-1. Whether `mflux-generate-flux2 --model <hf-repo>` loads a pre-quantized repo directly, or needs `--base-model flux2-klein-4b`. Check `--help` after installing.
+1. ~~Whether mflux loads pre-quantized repos~~ **Resolved:** the q3/q4 cards document `--model <repo> --base-model flux2-klein-4b`, and the code uses that form.
 2. DepthFlow's CLI flags and whether it fetches its own depth model. Check that it doesn't pull a non-commercial Base/Large model.
 3. Real M4 Pro timings for klein q4 and Wan Turbo, using `/usr/bin/time -l`. Record them in doc 14 §9.
-4. Licence provenance of the Wan Turbo distill. If an Apache-only chain is required, switch to FastWan2.2.
+4. ~~Wan Turbo licence~~ **Resolved:** switched to FastWan2.2 (Apache throughout). Still to verify: whether sd.cpp's scheduler matches FastWan's DMD timesteps (1000/757/522).
 5. sd.cpp's macOS release build targets macOS 26.6, but this machine runs 26.4. Check that it launches, or build from source.
+
+## 5. Round 2: images (smaller, faster)
+
+Only one measured anchor exists: klein 4B on an **M4 Max** at 1024² takes 10.9–11.6 s for 4 steps (fp16/int8/int4 all similar, so it's compute-bound; peak RAM 9.2–10.9 GiB). The M4 Pro has about half the GPU, which puts it at about 20–25 s. Lower bit depths save **disk, not time**.
+
+| Option | Download | s/image on M4 Pro *(est.)* | Quality | Verdict |
+|---|---|---|---|---|
+| **klein q4 at 544×960 + Real-ESRGAN x4plus → 1080×1920** | 4.69 GB | **9–14** | Same model. ESRGAN sharpens edges and line art but adds no new detail | **New default** |
+| + SANA-Sprint 2-step LoRA | 5.46 GB | **5–8** | Card says it matches 4-step detail, with a warmer, higher-contrast look | The only path to ≤8 s. A/B test it first |
+| klein **q3** | 3.63 GB | same | Unmeasured loss | Smallest acceptable. A/B on 10 diagram prompts |
+| klein GGUF Q2/Q3 + 2-bit Qwen3 + TAEF2 (sd.cpp) | 3.4–3.8 GB | slower than MLX | A 2-bit encoder hurts | No |
+| SANA-Sprint 0.6B GGUF | **2.75 GB** (the only one ≤3 GB) | 2–5 if Metal works | GenEval 0.74, but weak text and fine structure; the card says "research purposes only" | Rejected: worse quality, licence ambiguity, unproven runtime |
+| Z-Image q3 / ERNIE q3 | 4.6 / 5.2 GB | 25–40 / 50–90 | Better text and realism | Hero frames and text-heavy thumbnails only |
+
+Watch list: **Iris-3B Turbo** (Apache, GenEval 0.82, CUDA only for now), **Apple Core AI** models (klein and an EDSR upscaler, but they need **macOS 27**), SnapGen++ (no public weights).
+
+```bash
+mflux-generate-flux2 --model mflux-community/flux2-klein-4b-mflux-q4 --base-model flux2-klein-4b \
+  --width 544 --height 960 --steps 4 --guidance 1.0 --seed 42 --prompt "..." --output a.png
+realesrgan-ncnn-vulkan -i a.png -o b.png -n realesrgan-x4plus      # or the Core ML / MLX port
+ffmpeg -i b.png -vf scale=1080:1920:flags=lanczos c.png
+# fastest: add --lora-paths radames/FLUX.2-klein-Sana-Sprint --lora-scales 1.0 --steps 2
+```
+
+## 6. Round 2: video (smaller, faster, licence-clean)
+
+| Option | Download | Per 2–3 s clip *(est.)* | I2V | Licence | Verdict |
+|---|---|---|---|---|---|
+| **FastWan2.2-TI2V-5B-FullAttn GGUF** (q6_k; q4_K ≈ 2.9 GB DiT) + umT5 Q3_K_S + taew2_2 | 7.1 GB (≈5.8 at q4_K) | **60–90 s** at 3 steps, 33 frames, 480×832 | ✅ | **Apache throughout** | **Replaces Wan Turbo** |
+| HummingbirdXT (AMD, 3-step DMD of TI2V-5B) | needs conversion → ≈5.8 GB | same | ✅ | Apache-2.0 | Alternative; no GGUF yet |
+| Wan2.2-TI2V-5B Turbo (previous pick) | 6.0 GB | 80–120 s; the card recommends 8 steps, not 4 | ✅ | Distill repo has **no licence** | Dropped |
+| FastMetal-1.3B (MLX) + **a pre-encoded motion-prompt bank** | ~1.5 GB at runtime (umT5 deleted after encoding) | ~30–40 s, **measured class** (M4 Max 45 s fast) | ❌ T2V only | Apache-2.0 | Fastest, but can't start from our still |
+| **LingBot-Video-Dense-1.3B GGUF** | **3.53 GB** | 10–25 min (not distilled) | ✅ | Apache-2.0 | The only commercial I2V ≤4 GB. Overnight only |
+| LTX-Video 2B distilled | 6.2 GB | fast | ✅ | Free under $10M revenue | Weaker than Wan-5B |
+
+**Getting to ~60 s per clip:** generate 33 frames, interpolate to 65 with RIFE (measured on M4: ~1.4 s for 41→81 frames), and keep `sd-server` running so the weights stay loaded between clips. The only measured M4 Pro data point is 5B Q8, 33 frames at 480×480, 20 steps ≈ 5 min (sd.cpp PR #1731). A 3-step distill should take about a sixth of that.
+
+**Licence-clean motion** (replaces AGPL DepthFlow):
+1. **Our own parallax shader**: Depth Anything V2 Small (Core ML, Apache) plus about 150 lines of moderngl or OpenCV `remap` (depth-offset UV, dolly/orbit, edge dilation). Under 2 s per clip.
+2. **Layered parallax**: add `apple/coreml-sam2.1-tiny` (0.08 GB) and `Carve/LaMa-ONNX` (~0.2 GB) to fill the gaps behind the foreground. About 5–10 s per still, and clearly better looking.
+3. **RIFE** (MIT) for smoothing and as a frame-count lever. FILM (Apache) is for large motion only.
+
+Rejected for licence: CausVid and Self-Forcing I2V/VACE GGUFs (CC-BY-NC-SA), Hummingbird-I2V 0.9B (AGPL), GIMM-VFI (non-commercial), Depth Pro (licence conflict), DepthFlow and parallax-maker (AGPL). Rejected for size or platform: SANA-Video, Kandinsky-6 Lite, LTX-2.x, TurboDiffusion (CUDA).
+
+### Round 2 sources
+- Images: https://huggingface.co/mlboydaisuke/FLUX.2-klein-4B-CoreAI · https://huggingface.co/ar9av/FLUX.2-klein-4B-mflux-4bit · https://huggingface.co/mflux-community/flux2-klein-4b-mflux-q3 · https://huggingface.co/radames/FLUX.2-klein-Sana-Sprint · https://huggingface.co/madebyollin/taef2 · https://huggingface.co/Ninnix96/Sana-Sprint-0.6B-1024px-GGUF · https://github.com/Loina-AI/stable-diffusion.cpp · https://github.com/apple/coreai-models · https://huggingface.co/speridlabs/iris-3b · https://snap-research.github.io/snapgenplusplus/ · https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged · https://huggingface.co/mlboydaisuke/Real-ESRGAN-x4-CoreML · https://huggingface.co/themindstudio/RealESRGAN-x4plus-mlx · https://derivative.ca/community-post/tutorial/coreml-upscaler/74428 · https://github.com/nordeim/ComfyUI-Mac-Silicon/blob/main/research/mlx-image-gen-mac-2026.md
+- Video: https://huggingface.co/Green-Sky/FastWan2.2-TI2V-5B-FullAttn-GGUF · https://huggingface.co/amd/HummingbirdXT · https://huggingface.co/jboone100/FastWan2.2-TI2V-5B-MLX-q8 · https://haoailab.com/blogs/fastmetal/ · https://github.com/hao-ai-lab/FastVideo · https://huggingface.co/offgrid-ai/LingBot-Video-Dense-1.3B-GGUF · https://huggingface.co/robbyant/lingbot-video-dense-1.3b · https://huggingface.co/calcuis/ltxv-gguf · https://github.com/quanhaol/Wan2.2-TI2V-5B-Turbo · https://github.com/tianweiy/CausVid · https://huggingface.co/amd/AMD-Hummingbird-I2V
+- Motion: https://huggingface.co/apple/coreml-sam2.1-tiny · https://huggingface.co/Carve/LaMa-ONNX · https://huggingface.co/depth-anything/Video-Depth-Anything-Small · https://github.com/google-research/frame-interpolation · https://github.com/GSeanCDAT/GIMM-VFI
 
 ## Sources
 
