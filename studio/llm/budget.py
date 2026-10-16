@@ -1,12 +1,22 @@
 """Bedrock budget guard, token buckets and the per-channel spend ledger (docs 15 §6, §7.5, §7.6).
 
+Since 2026-10-16 every text role runs on Bedrock (draft/metadata/ideation on Haiku 5.5), so
+bulk steps cost money too. Expected spend at full scale (300 Shorts + 80 long-form a month):
+about **$2.56 bulk (Haiku) + $16.22 quality = $18.78, ~$23.50 with 25% retries** (*est.*;
+worked out in infra/LLM_COSTS.md). The default cap is therefore **$30/month**
+($2.50 per channel x 10 + $5 shared pool) instead of the old $25 tier.
+
 - Prices come from docs 15 §2 (global profiles, USD per 1M tokens) and are config: override
   them with a YAML file at ``STUDIO_PRICES_FILE`` (same shape as ``DEFAULT_PRICES``).
+- Haiku 5.5 prompts over 100K input tokens are billed at 5x (model card "Long Context" row).
 - The ledger is SQLite at ``output/ledger.sqlite`` (``STUDIO_LEDGER_PATH``); docs 15 uses
   Postgres, the table shape is the same.
 - Quality roles that do not fit (monthly cap, channel cap or TPM bucket) raise
   ``BudgetDeferred``: the caller re-enqueues. They never drop to local silently.
-- Bulk roles may overflow to Haiku only while monthly headroom is above 30%.
+- Bulk roles queue the same way (they are on Bedrock now). ``may_overflow`` only matters for
+  the opt-in ``STUDIO_LLM=ollama`` mode: local busy -> Haiku only above 30% headroom.
+- The Claude Code backend (``STUDIO_LLM=claude-code``) runs on the user's Claude
+  subscription limits, not Bedrock dollars, so it does not go through this guard.
 """
 
 from __future__ import annotations
@@ -28,6 +38,8 @@ DEFAULT_PRICES: dict[str, tuple[float, float, float, float]] = {
     "opus-5-5": (4.00, 20.00, 0.20, 5.00),
     "local": (0.0, 0.0, 0.0, 0.0),
 }
+# Haiku 5.5 tiered long-context pricing: prompts > 100K tokens cost 5x (docs 15 §2).
+LONG_CONTEXT = {"haiku-5-5": (100_000, 5.0)}
 # Output-token quota burndown (docs 15 §3). Sonnet 5.5 is unpublished: assume 10x (verify).
 DEFAULT_BURNDOWN: dict[str, int] = {"haiku-5-5": 10, "sonnet-5-5": 10, "opus-5-5": 10, "local": 1}
 # Default bucket size = ~80% of the TPM given to LiteLLM in docs 15 §7.4 (set to 80% of the
@@ -69,7 +81,12 @@ def cost_usd(model_key: str, usage: dict[str, Any], prices: dict | None = None) 
     out = usage.get("outputTokens", usage.get("completion_tokens", 0)) or 0
     c_read = usage.get("cacheReadInputTokens", usage.get("cache_read_input_tokens", 0)) or 0
     c_write = usage.get("cacheWriteInputTokens", usage.get("cache_creation_input_tokens", 0)) or 0
-    return (inp * i + out * o + c_read * cr + c_write * cw) / 1e6
+    mult = 1.0
+    if model_key in LONG_CONTEXT:
+        threshold, factor = LONG_CONTEXT[model_key]
+        if inp + c_read + c_write > threshold:
+            mult = factor
+    return mult * (inp * i + out * o + c_read * cr + c_write * cw) / 1e6
 
 
 class TokenBucket:
@@ -184,10 +201,11 @@ class Ledger:
 
 @dataclass
 class BudgetConfig:
-    """$25 tier defaults (docs 15 §6): $2/channel + $5 shared pool, YMYL weight 1.5x."""
+    """Defaults: $30/month = $2.50/channel x 10 + $5 shared pool, YMYL weight 1.5x.
+    (docs 15 §6 $25 tier plus ~$2.60 of Haiku bulk work; see infra/LLM_COSTS.md.)"""
 
-    monthly_cap_usd: float = 25.0
-    per_channel_usd: float = 2.0
+    monthly_cap_usd: float = 30.0
+    per_channel_usd: float = 2.5
     shared_pool_usd: float = 5.0
     accuracy_critical_weight: float = 1.5
     accuracy_critical_channels: frozenset[str] = frozenset()
@@ -199,8 +217,8 @@ class BudgetConfig:
         e = os.environ
         crit = {c.strip() for c in e.get("STUDIO_ACCURACY_CRITICAL_CHANNELS", "").split(",")}
         return cls(
-            monthly_cap_usd=float(e.get("STUDIO_BEDROCK_MONTHLY_USD", 25.0)),
-            per_channel_usd=float(e.get("STUDIO_BEDROCK_CHANNEL_USD", 2.0)),
+            monthly_cap_usd=float(e.get("STUDIO_BEDROCK_MONTHLY_USD", 30.0)),
+            per_channel_usd=float(e.get("STUDIO_BEDROCK_CHANNEL_USD", 2.5)),
             shared_pool_usd=float(e.get("STUDIO_BEDROCK_SHARED_POOL_USD", 5.0)),
             accuracy_critical_channels=frozenset(c for c in crit if c),
         )
@@ -241,8 +259,8 @@ class BudgetGuard:
         return self.config.per_channel_usd * w
 
     def estimate_usd(self, model_key: str, est_in: int, max_out: int) -> float:
-        i, o, _, _ = self.prices.get(model_key, (0.0, 0.0, 0.0, 0.0))
-        return (est_in * i + max_out * o) / 1e6  # worst case: full max_tokens
+        # worst case: full max_tokens (and the long-context multiplier if it applies)
+        return cost_usd(model_key, {"inputTokens": est_in, "outputTokens": max_out}, self.prices)
 
     def _fits_money(self, channel: str, est_usd: float, accuracy_critical: bool) -> str | None:
         mtd = self.ledger.month_to_date()

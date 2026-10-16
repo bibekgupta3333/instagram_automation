@@ -1,17 +1,36 @@
-"""Stage 5: one still per beat. mflux with Z-Image-Turbo (default stills) or FLUX.2 [klein] 4B
-(fast drafts), both Apache-2.0 (doc 14 §6). The mock engine renders a 1080x1920 (or 1920x1080)
-placeholder with ffmpeg: a solid brand colour plus the wrapped visual prompt.
+"""Stage 5: one visual per beat (a still, or a stock clip that render trims and mutes).
+
+Engines (STUDIO_IMAGES_ENGINE or --engine images=NAME; default ``auto``):
+- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default pexels -> bedrock-stability ->
+  mock). Pexels is used only with PEXELS_API_KEY and when the beat suits stock; mock is a loud
+  last resort.
+- ``bedrock-stability``: Stability AI on Bedrock (Core $0.04/image by default; 9:16 shorts,
+  16:9 long-form; brand style appended; seed per job + beat). Capped per video and logged to
+  the spend ledger.
+- ``pexels``: free stock clips/photos, attribution in images/attribution.txt.
+- ``z-image-turbo`` / ``flux2-klein-4b``: local mflux, Apache-2.0 (doc 14 §6). Z-Image-Turbo
+  needs ~11 GB of disk, so it is no longer the default.
+- ``bedrock-luma``: Luma Ray2 hero clip for beat 0 (gated stub; see visuals/luma.py), the
+  rest as ``auto``.
+- ``mock``: a 1080x1920 (or 1920x1080) ffmpeg placeholder (brand colour + wrapped prompt).
+
+Per-beat results live in images/visuals.json, so a resumed run never re-pays for a beat it
+already has.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import shutil
 import subprocess
 import textwrap
+import warnings
 from pathlib import Path
+from typing import Any
 
+from studio.config import VisualsConfig
 from studio.contracts import BrandPack, VideoJob
 from studio.stages.base import (
     EngineUnavailable,
@@ -26,9 +45,14 @@ from studio.stages.base import (
     sha256_bytes,
     write_cache,
 )
+from studio.stages.visuals import BeatSpec, Visual, is_video
+from studio.stages.visuals import luma as luma_src
+from studio.stages.visuals import pexels as pexels_src
+from studio.stages.visuals import stability as stability_src
+from studio.stages.visuals.common import logger, record_cost
 
 STAGE = "images"
-VERSION = 2
+VERSION = 3
 
 # engine id -> (doc 14 model name, default mflux CLI). Check `mflux --help` after installing;
 # override the command with STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
@@ -39,6 +63,10 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
         ["mflux-generate-flux2", "--model", "flux2-klein-4b", "--steps", "4"],
     ),
 }
+
+SOURCE_ENGINES = ("pexels", "bedrock-stability")
+ENGINES = ("auto", "mock", *SOURCE_ENGINES, "bedrock-luma", *MFLUX_MODELS)
+MEDIA_SUFFIXES = (".png", ".jpg", ".jpeg", ".mp4", ".mov", ".m4v", ".webm")
 
 FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -143,33 +171,187 @@ def unload() -> None:
     """mflux runs as a subprocess, so its memory is freed when each call exits."""
 
 
+class ImageBudgetExceeded(StageError):
+    """Paid stills for this video would go over STUDIO_IMAGES_MAX_USD_PER_VIDEO."""
+
+
+class _Run:
+    """Per-run state: config, spend so far, Pexels ids already used (no repeated clips)."""
+
+    def __init__(self, job: VideoJob, brand: BrandPack, cfg: VisualsConfig, total: int):
+        self.job, self.brand, self.cfg, self.total = job, brand, cfg, total
+        self.spent = 0.0
+        self.used: set[str] = set()
+
+
+def _produce(engine: str, spec: BeatSpec, st: _Run) -> Visual:
+    """One beat from one named engine. Raises StageError / NotImplementedError on failure."""
+    if engine == "mock":
+        out = spec.out_stem.with_suffix(".png")
+        _mock_image(out, spec.visual_prompt, spec.index, st.total, st.brand, spec.fmt)
+        return Visual(path=out, kind="image", engine="mock", model="placeholder")
+    if engine in MFLUX_MODELS:
+        out = spec.out_stem.with_suffix(".png")
+        seed = int(sha256_bytes(f"{spec.job_id}:{spec.index}".encode())[:8], 16)
+        _mflux_image(out, spec.prompt, seed, engine, spec.fmt)
+        return Visual(path=out, kind="image", engine=engine, model=MFLUX_MODELS[engine][0])
+    if engine == "pexels":
+        return pexels_src.fetch(spec, api_key=st.cfg.pexels_api_key, used=st.used)
+    if engine == "bedrock-stability":
+        model_id, price = stability_src.resolve_model(st.cfg.stability_model)
+        if st.spent + price > st.cfg.max_image_usd_per_video + 1e-9:
+            raise ImageBudgetExceeded(
+                f"images: ${st.spent + price:.2f} would exceed STUDIO_IMAGES_MAX_USD_PER_VIDEO="
+                f"${st.cfg.max_image_usd_per_video:.2f}"
+            )
+        vis = stability_src.generate(spec, model=st.cfg.stability_model,
+                                     region=st.cfg.bedrock_image_region,
+                                     negative_prompt=st.cfg.negative_prompt)
+        record_cost(channel=st.job.channel, job_id=st.job.job_id, step="images",
+                    model=model_id, usd=vis.usd)
+        return vis
+    if engine == "bedrock-luma":
+        return luma_src.generate(spec, st.cfg)
+    raise StageError(f"images: unknown engine {engine!r} ({', '.join(ENGINES)})")
+
+
+def _auto(spec: BeatSpec, st: _Run, order: tuple[str, ...]) -> Visual:
+    reasons: list[str] = []
+    for engine in order:
+        if engine == "pexels":
+            if not st.cfg.pexels_api_key:
+                reasons.append("pexels: no PEXELS_API_KEY")
+                continue
+            if not pexels_src.suits_stock(spec, st.brand, st.cfg.pexels_channels):
+                reasons.append("pexels: beat/brand style doesn't suit stock")
+                continue
+        if engine == "mock":
+            msg = (f"images: WARNING beat {spec.index:02d} fell back to a MOCK PLACEHOLDER "
+                   f"({'; '.join(reasons) or 'no engines'}). Do not publish this render.")
+            warnings.warn(msg, stacklevel=2)
+            logger.warning(msg)
+            log(st.job, msg)
+        try:
+            return _produce(engine, spec, st)
+        except (StageError, NotImplementedError) as exc:
+            reasons.append(f"{engine}: {exc}")
+            log(st.job, f"images: beat {spec.index:02d} {engine} unavailable: "
+                        f"{str(exc).splitlines()[0][:200]}")
+    raise StageError(f"images: no engine produced beat {spec.index:02d}: {'; '.join(reasons)}")
+
+
+def _beat_visual(engine: str, spec: BeatSpec, st: _Run) -> Visual:
+    if engine == "auto":
+        return _auto(spec, st, st.cfg.auto_order)
+    if engine == "bedrock-luma":
+        if spec.index == 0:  # hero shot only; the rest of the video is `auto`
+            try:
+                return _produce("bedrock-luma", spec, st)
+            except (StageError, NotImplementedError) as exc:
+                log(st.job, f"images: bedrock-luma hero skipped: {str(exc).splitlines()[0]}")
+        return _auto(spec, st, st.cfg.auto_order)
+    return _produce(engine, spec, st)
+
+
+def _manifest_path(img_dir: Path) -> Path:
+    return img_dir / "visuals.json"
+
+
+def _load_manifest(img_dir: Path) -> dict[str, Any]:
+    try:
+        return json.loads(_manifest_path(img_dir).read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_manifest(img_dir: Path, key: str, entries: list[dict[str, Any]]) -> None:
+    path = _manifest_path(img_dir)
+    tmp = path.with_suffix(".json.part")
+    tmp.write_text(json.dumps({"key": key, "beats": entries}, indent=1))
+    tmp.replace(path)
+
+
+def _write_attribution(img_dir: Path, visuals: list[Visual]) -> None:
+    lines = [v.source["credit"] for v in visuals if v.engine == "pexels" and v.source.get("credit")]
+    path = img_dir / "attribution.txt"
+    if lines:
+        path.write_text("\n".join(dict.fromkeys(lines)) + "\n")
+    else:
+        path.unlink(missing_ok=True)
+
+
 def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     if job.script is None:
         raise StageError("images: no script")
     engine = ctx.engine("images")
-    if engine != "mock" and engine not in MFLUX_MODELS:
-        raise StageError(f"images: unknown engine {engine!r} (mock, {', '.join(MFLUX_MODELS)})")
+    if engine not in ENGINES:
+        raise StageError(f"images: unknown engine {engine!r} ({', '.join(ENGINES)})")
+    cfg = VisualsConfig.from_env()
     img_dir = Path(job.workdir) / "images"
     img_dir.mkdir(parents=True, exist_ok=True)
-    prompts = [image_prompt(b.visual_prompt, brand) for b in job.script.beats]
-    outs = [img_dir / f"beat_{i:02d}.png" for i in range(len(prompts))]
-    key = hash_inputs(STAGE, VERSION, engine, job.format, prompts, brand.palette, brand.name)
-    if is_cached(job, STAGE, key, outs, ctx):
-        job.image_paths = outs
+    beats = job.script.beats
+    prompts = [image_prompt(b.visual_prompt, brand) for b in beats]
+    config_part = {"order": list(cfg.auto_order), "stability": cfg.stability_model,
+                   "neg": cfg.negative_prompt} if engine != "mock" else {}
+    key = hash_inputs(STAGE, VERSION, engine, config_part, job.format, prompts, brand.palette,
+                      brand.name)
+    beat_keys = [hash_inputs(STAGE, VERSION, engine, config_part, job.format, p,
+                             b.visual_prompt, brand.palette, brand.name, i)
+                 for i, (p, b) in enumerate(zip(prompts, beats, strict=True))]
+
+    manifest = _load_manifest(img_dir)
+    prior = {e.get("beat_key"): e for e in manifest.get("beats", []) if isinstance(e, dict)}
+    prior_vis = [Visual.from_json(e["visual"]) for e in manifest.get("beats", [])
+                 if isinstance(e, dict) and "visual" in e]
+    fell_back = any(v.engine == "mock" for v in prior_vis) and engine != "mock"
+    if (manifest.get("key") == key and len(prior_vis) == len(beats) and not fell_back
+            and is_cached(job, STAGE, key, [v.path for v in prior_vis], ctx)):
+        job.image_paths = [v.path for v in prior_vis]
         log(job, "images: cached, skipped")
         return job
 
-    for stale in img_dir.glob("beat_*.png"):
-        if stale not in outs:
+    st = _Run(job, brand, cfg, len(beats))
+    visuals: list[Visual] = []
+    entries: list[dict[str, Any]] = []
+    for i, (beat, prompt) in enumerate(zip(beats, prompts, strict=True)):
+        spec = BeatSpec(job_id=job.job_id, channel=job.channel, index=i, fmt=job.format,
+                        visual_prompt=beat.visual_prompt, prompt=prompt,
+                        out_stem=img_dir / f"beat_{i:02d}", style_prompt=brand.style_prompt)
+        old = prior.get(beat_keys[i])
+        vis: Visual | None = None
+        if old and not ctx.force:
+            cand = Visual.from_json(old["visual"])
+            if cand.path.exists() and (cand.engine != "mock" or engine == "mock"):
+                vis = cand  # already paid for / downloaded: reuse
+        if vis is None:
+            for stale in img_dir.glob(f"beat_{i:02d}.*"):
+                if stale.suffix.lower() in MEDIA_SUFFIXES or stale.name.endswith(".part"):
+                    stale.unlink()
+            vis = _beat_visual(engine, spec, st)
+        st.spent += vis.usd
+        if vis.source.get("id") is not None and vis.engine == "pexels":
+            st.used.add(f"{vis.kind if vis.kind == 'video' else 'photo'}:{vis.source['id']}")
+        visuals.append(vis)
+        entries.append({"beat": i, "beat_key": beat_keys[i], "visual": vis.to_json()})
+        _write_manifest(img_dir, "", entries)  # partial: progress survives a crash
+
+    outs = [v.path for v in visuals]
+    for stale in img_dir.glob("beat_*"):
+        if stale not in outs and (stale.suffix.lower() in MEDIA_SUFFIXES
+                                  or stale.name.endswith(".part")):
             stale.unlink()
-    for i, (prompt, out) in enumerate(zip(prompts, outs, strict=True)):
-        if engine == "mock":
-            _mock_image(out, job.script.beats[i].visual_prompt, i, len(prompts), brand, job.format)
-        else:
-            seed = int(sha256_bytes(f"{job.job_id}:{i}".encode())[:8], 16)
-            _mflux_image(out, prompt, seed, engine, job.format)
+    _write_manifest(img_dir, key, entries)
+    _write_attribution(img_dir, visuals)
     job.image_paths = outs
-    model = "placeholder" if engine == "mock" else MFLUX_MODELS[engine][0]
-    write_cache(job, STAGE, key, outs, model=model, prompts=prompts)
-    log(job, f"images: {engine} ({model}) {len(outs)} stills")
+    counts: dict[str, int] = {}
+    for v in visuals:
+        counts[f"{v.engine}/{v.kind}"] = counts.get(f"{v.engine}/{v.kind}", 0) + 1
+    models = sorted({v.model for v in visuals})
+    write_cache(job, STAGE, key, outs, model=",".join(models), prompts=prompts,
+                usd=round(st.spent, 4), engines=counts)
+    summary = ", ".join(f"{k}={n}" for k, n in sorted(counts.items()))
+    log(job, f"images: {engine} {len(outs)} visuals ({summary}) ${st.spent:.2f}")
+    clips = sum(is_video(p) for p in outs)
+    if clips:
+        log(job, f"images: {clips} stock clips; credits in images/attribution.txt")
     return job

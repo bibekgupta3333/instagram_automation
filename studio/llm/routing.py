@@ -1,16 +1,25 @@
-"""Role -> model routing policy (docs 15 §5, local model choice from docs 14).
+"""Role -> model routing policy (docs 15 §5, revised 2026-10-16: no local LLM by default).
 
-Every LLM call in the pipeline names a *role* (the pipeline step). The table below maps the
-role to a lane (local Ollama vs Amazon Bedrock), a step class (bulk vs quality) and the
-LiteLLM model-group alias defined in ``infra/litellm/config.yaml``.
+Every LLM call in the pipeline names a *role* (the pipeline step). The table below maps each
+role to a step class (bulk vs quality) and a Claude 5.5 tier on **Amazon Bedrock**:
 
-Rules (docs 15 §7.1):
-- **bulk** roles run locally. If local is busy/down they MAY overflow to Bedrock Haiku 5.5,
-  but only while budget headroom is above 30%.
-- **quality** roles run on Bedrock. When Bedrock is throttled or over budget they QUEUE
-  (``BudgetDeferred``); they never silently fall back to a local model.
+- bulk roles (ideation, outline, draft, metadata, ...) -> **Haiku 5.5**
+- quality roles (polish, fact_check, title_rank, ...)  -> **Sonnet 5.5**
+- dispute escalation (``escalate=True``)               -> **Opus 5.5**
 
-All model identifiers are config values (env vars) so they can be changed without code edits.
+The same tiers are used by the Claude Code backend (``STUDIO_LLM=claude-code``) through the
+``haiku`` / ``sonnet`` / ``opus`` aliases (``ModelSpec.claude_code_model``).
+
+Local Ollama is an explicit opt-in only (``STUDIO_LLM=ollama``). Even then, only bulk roles
+may run locally (``Route.local``); quality roles never fall back to a local model
+(docs 15 §7.1). Over budget, every Bedrock role **queues** (``BudgetDeferred``).
+
+Model identifiers are config values:
+- per tier:  ``BEDROCK_HAIKU_MODEL_ID`` / ``BEDROCK_SONNET_MODEL_ID`` / ``BEDROCK_OPUS_MODEL_ID``
+- per role:  ``STUDIO_BEDROCK_MODEL_<ROLE>`` (e.g. ``STUDIO_BEDROCK_MODEL_DRAFT``), and
+  ``STUDIO_BEDROCK_MODEL_ESCALATION`` for the dispute model. A per-role override keeps the
+  price key of the tier its id names (``haiku``/``sonnet``/``opus``), else the role's tier.
+- Claude Code: ``STUDIO_CLAUDE_CODE_MODEL_<ROLE>`` (alias or full model name).
 """
 
 from __future__ import annotations
@@ -28,49 +37,53 @@ def _env(name: str, default: str) -> str:
 
 
 # --- Model identifiers (config) ------------------------------------------------------------
-# Local workhorse: docs 14 §3 recommends Qwen3.5-9B (Ollama tag `qwen3.5:9b`). Gemma 4 12B
-# (`gemma4:12b`) is the A/B alternative. Override with STUDIO_LOCAL_MODEL.
-LOCAL_MODEL_DEFAULT = "qwen3.5:9b"
-
-# Bedrock global cross-Region inference profiles as documented in docs 15 §2.
-# TODO-verify: confirm exact IDs with `aws bedrock list-inference-profiles` in Phase 0; docs 15
-# lists them from the model cards but they have not been called from this account yet.
+# Global cross-Region inference profiles. Verified 2026-10-16 against the Bedrock model cards
+# ("Programmatic Access" table): e.g.
+# https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html
+# Not yet called from the user's account (no key configured at the time of writing).
 BEDROCK_HAIKU_DEFAULT = "global.anthropic.claude-haiku-5-5"
 BEDROCK_SONNET_DEFAULT = "global.anthropic.claude-sonnet-5-5"
 BEDROCK_OPUS_DEFAULT = "global.anthropic.claude-opus-5-5"
 
+# Optional local workhorse (STUDIO_LLM=ollama only). docs 14 §3.
+LOCAL_MODEL_DEFAULT = "qwen3.5:9b"
+
 
 @dataclass(frozen=True)
 class ModelSpec:
-    key: str  # short key used by the budget/price table: "local", "haiku-5-5", ...
+    key: str  # price/budget key: "haiku-5-5", "sonnet-5-5", "opus-5-5", "local"
     lane: Lane
     gateway_model: str  # LiteLLM model_name (infra/litellm/config.yaml)
-    provider_model: str  # Ollama tag or Bedrock model id / inference profile
+    provider_model: str  # Bedrock inference profile / model id, or Ollama tag
+    claude_code_model: str = ""  # `claude --model` value (alias or full name)
 
 
 def models() -> dict[str, ModelSpec]:
     """Model catalogue, resolved from env each call so tests/ops can override."""
     return {
-        "local": ModelSpec(
-            "local", "local", "local-bulk", _env("STUDIO_LOCAL_MODEL", LOCAL_MODEL_DEFAULT)
-        ),
         "haiku-5-5": ModelSpec(
             "haiku-5-5",
             "bedrock",
             "bedrock-haiku",
             _env("BEDROCK_HAIKU_MODEL_ID", BEDROCK_HAIKU_DEFAULT),
+            "haiku",
         ),
         "sonnet-5-5": ModelSpec(
             "sonnet-5-5",
             "bedrock",
             "bedrock-sonnet",
             _env("BEDROCK_SONNET_MODEL_ID", BEDROCK_SONNET_DEFAULT),
+            "sonnet",
         ),
         "opus-5-5": ModelSpec(
             "opus-5-5",
             "bedrock",
             "bedrock-opus",
             _env("BEDROCK_OPUS_MODEL_ID", BEDROCK_OPUS_DEFAULT),
+            "opus",
+        ),
+        "local": ModelSpec(
+            "local", "local", "local-bulk", _env("STUDIO_LOCAL_MODEL", LOCAL_MODEL_DEFAULT)
         ),
     }
 
@@ -79,9 +92,9 @@ def models() -> dict[str, ModelSpec]:
 class Route:
     role: str
     step_class: StepClass
-    model: ModelSpec
-    overflow: ModelSpec | None = None  # bulk only: used when local is busy and budget allows
-    escalation: ModelSpec | None = None  # quality only: used on dispute (fact_check -> Opus)
+    model: ModelSpec  # always a Bedrock tier
+    escalation: ModelSpec | None = None  # dispute model (polish/fact_check -> Opus 5.5)
+    local: ModelSpec | None = None  # bulk only, used solely with STUDIO_LLM=ollama
     reason: str = ""
 
     @property
@@ -89,35 +102,33 @@ class Route:
         return self.model.lane
 
 
-# role -> (class, model key, overflow key, escalation key, reason). docs 15 §5.
-_TABLE: dict[str, tuple[StepClass, str, str | None, str | None, str]] = {
-    # bulk / local
-    "ideation": ("bulk", "local", "haiku-5-5", None, "high volume, low stakes"),
-    "outline": ("bulk", "local", "haiku-5-5", None, "templated, structural"),
-    "draft": ("bulk", "local", "haiku-5-5", None, "bulk words; quality comes at polish"),
-    "metadata": ("bulk", "local", "haiku-5-5", None, "formulaic descriptions/tags/captions"),
-    "thumbnail_text": ("bulk", "local", "haiku-5-5", None, "3-5 words"),
-    "title_variants": ("bulk", "local", "haiku-5-5", None, "local generates 10 candidates"),
-    "translation_draft": ("bulk", "local", "haiku-5-5", None, "optional ES captions"),
-    "claim_extraction": ("bulk", "local", "haiku-5-5", None, "feeds the fact-check step"),
-    "qa_judge": ("bulk", "local", "haiku-5-5", None, "non-YMYL QA judge"),
-    # overflow is a lane, but callers may also request it explicitly
-    "overflow": ("bulk", "haiku-5-5", None, None, "explicit bulk overflow to Haiku 5.5"),
-    # quality / Bedrock
-    "polish": ("quality", "sonnet-5-5", None, "opus-5-5", "long-form polish drives RPM"),
-    "polish_short": ("quality", "haiku-5-5", None, None, "Haiku 5.5 is cheap enough"),
+# role -> (class, model key, escalation key, reason). docs 15 §5 (all text on Bedrock).
+_TABLE: dict[str, tuple[StepClass, str, str | None, str]] = {
+    # bulk -> Haiku 5.5
+    "ideation": ("bulk", "haiku-5-5", None, "high volume, low stakes"),
+    "outline": ("bulk", "haiku-5-5", None, "templated, structural"),
+    "draft": ("bulk", "haiku-5-5", None, "bulk words; quality comes at polish"),
+    "metadata": ("bulk", "haiku-5-5", None, "formulaic descriptions/tags/captions"),
+    "thumbnail_text": ("bulk", "haiku-5-5", None, "3-5 words"),
+    "title_variants": ("bulk", "haiku-5-5", None, "generates 10 candidates"),
+    "translation_draft": ("bulk", "haiku-5-5", None, "optional ES captions"),
+    "claim_extraction": ("bulk", "haiku-5-5", None, "feeds the fact-check step"),
+    "qa_judge": ("bulk", "haiku-5-5", None, "non-YMYL QA judge"),
+    "overflow": ("bulk", "haiku-5-5", None, "explicit cheap lane (Haiku 5.5)"),
+    # quality -> Sonnet 5.5 (Haiku where docs 15 says it is enough)
+    "polish": ("quality", "sonnet-5-5", "opus-5-5", "long-form polish drives RPM"),
+    "polish_short": ("quality", "haiku-5-5", None, "Haiku 5.5 is cheap enough"),
     "fact_check": (
         "quality",
         "sonnet-5-5",
-        None,
         "opus-5-5",
         "accuracy-critical channels; disputed claims escalate to Opus 5.5",
     ),
-    "fact_check_light": ("quality", "haiku-5-5", None, None, "cheap second opinion"),
-    "title_rank": ("quality", "sonnet-5-5", None, None, "CTR lever for long-form"),
-    "comment_mining": ("quality", "haiku-5-5", None, None, "cluster summaries, <100K prompt"),
-    "translation_qa": ("quality", "haiku-5-5", None, None, "low volume QA"),
-    "qa_judge_ymyl": ("quality", "sonnet-5-5", None, None, "Bedrock judge for YMYL"),
+    "fact_check_light": ("quality", "haiku-5-5", None, "cheap second opinion"),
+    "title_rank": ("quality", "sonnet-5-5", None, "CTR lever for long-form"),
+    "comment_mining": ("quality", "haiku-5-5", None, "cluster summaries, <100K prompt"),
+    "translation_qa": ("quality", "haiku-5-5", None, "low volume QA"),
+    "qa_judge_ymyl": ("quality", "sonnet-5-5", None, "Bedrock judge for YMYL"),
 }
 
 ROLES: frozenset[str] = frozenset(_TABLE)
@@ -127,26 +138,51 @@ class UnknownRole(KeyError):
     pass
 
 
+def _key_for_id(model_id: str, default: str) -> str:
+    low = model_id.lower()
+    for tier in ("opus", "sonnet", "haiku"):
+        if tier in low:
+            return f"{tier}-5-5"
+    return default
+
+
+def _override(spec: ModelSpec, env_suffix: str) -> ModelSpec:
+    """Apply STUDIO_BEDROCK_MODEL_<X> / STUDIO_CLAUDE_CODE_MODEL_<X> overrides."""
+    bedrock_id = os.environ.get(f"STUDIO_BEDROCK_MODEL_{env_suffix}")
+    cc = os.environ.get(f"STUDIO_CLAUDE_CODE_MODEL_{env_suffix}")
+    if bedrock_id:
+        key = _key_for_id(bedrock_id, spec.key)
+        spec = replace(
+            spec,
+            key=key,
+            provider_model=bedrock_id,
+            gateway_model=f"bedrock-{key.split('-')[0]}",
+        )
+    if cc:
+        spec = replace(spec, claude_code_model=cc)
+    return spec
+
+
 def resolve(role: str, *, escalate: bool = False) -> Route:
     """Return the route for ``role``. ``escalate=True`` swaps in the escalation model
     (e.g. a disputed fact-check goes to Opus 5.5)."""
     try:
-        step_class, model_key, overflow_key, esc_key, reason = _TABLE[role]
+        step_class, model_key, esc_key, reason = _TABLE[role]
     except KeyError:
         raise UnknownRole(f"unknown LLM role {role!r}; known: {sorted(ROLES)}") from None
     cat = models()
     route = Route(
         role=role,
         step_class=step_class,
-        model=cat[model_key],
-        overflow=cat[overflow_key] if overflow_key else None,
-        escalation=cat[esc_key] if esc_key else None,
+        model=_override(cat[model_key], role.upper()),
+        escalation=_override(cat[esc_key], "ESCALATION") if esc_key else None,
+        local=cat["local"] if step_class == "bulk" else None,
         reason=reason,
     )
     if escalate:
         if route.escalation is None:
             raise ValueError(f"role {role!r} has no escalation model")
-        route = replace(route, model=route.escalation, escalation=None)
+        route = replace(route, model=route.escalation, escalation=None, local=None)
     return route
 
 

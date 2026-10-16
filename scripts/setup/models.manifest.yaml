@@ -13,6 +13,9 @@
 #   size_gb         approximate download size, GB (decimal)
 #   licence         weights licence (SPDX-ish)
 #   commercial_use  true only for licences that allow monetised channels
+# Default pull set (no --include-optional) = tts + asr + image. Text runs on Bedrock /
+# Claude Code, so every llm model is optional.
+#
 #   optional        true = not pulled by default (needs --include-optional), not in the
 #                   required disk total
 #   verified        what was checked on 2026-10-16 (see `verified_how`); false = unverified
@@ -26,6 +29,7 @@ disk_buffer_gb: 10
 
 models:
   # ---------------------------------------------------------------- LLM
+  # All optional: text runs on Bedrock / Claude Code (studio/llm). Kept for offline experiments.
   - name: qwen3.5-9b
     stage: llm
     purpose: "Workhorse: scripts, hooks, titles, tags, JSON metadata (doc 14 §3)"
@@ -34,7 +38,7 @@ models:
     size_gb: 7.6
     licence: apache-2.0
     commercial_use: true
-    optional: false
+    optional: true   # text runs on Bedrock / Claude Code
     verified: true
     verified_how: "tag listed on ollama.com/library/qwen3.5/tags (7.6 GB); HF Qwen/Qwen3.5-9B licence apache-2.0"
 
@@ -46,7 +50,7 @@ models:
     size_gb: 7.7
     licence: apache-2.0
     commercial_use: true
-    optional: true
+    optional: true   # text runs on Bedrock / Claude Code
     verified: true
     verified_how: "tag listed on ollama.com/library/gemma4/tags (7.7 GB); HF google/gemma-4-12B-it licence apache-2.0"
 
@@ -58,7 +62,7 @@ models:
     size_gb: 14.0
     licence: apache-2.0
     commercial_use: true
-    optional: true   # Bedrock does fact-checking; pull later for offline fact-check
+    optional: true   # text runs on Bedrock / Claude Code (incl. fact-check)
     verified: true
     verified_how: "tag listed on ollama.com/library/gpt-oss/tags (14 GB); HF openai/gpt-oss-20b licence apache-2.0"
 
@@ -68,6 +72,8 @@ models:
     purpose: "Default narrator via mlx-audio, preset/blended voices only (doc 14 §4)"
     runtime: hf
     source: "mlx-community/Kokoro-82M-bf16"
+    # skip the duplicate voices/*.pt (torch) copies; mlx-audio loads voices/*.safetensors
+    include: ["*.json", "*.safetensors", "voices/*.safetensors", "*.md", "*.txt"]
     size_gb: 0.4
     licence: apache-2.0
     commercial_use: true

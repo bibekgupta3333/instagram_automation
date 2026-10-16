@@ -12,14 +12,33 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Heavy local ML stack (docs/4-production/14). Install only when disk space allows.
-local-ml = ["mlx-audio", "parakeet-mlx", "mflux"]
-bedrock = ["boto3>=1.35"]
+# Local ML (docs/4-production/14). Text runs on Bedrock / Claude Code, so no local LLMs.
+# local-audio: Kokoro-82M TTS (mlx-audio) + word-timestamp captions (parakeet-mlx).
+# mlx-audio does not declare Kokoro's G2P: it imports `misaki` at runtime. `misaki[en]` would
+# drag in spacy-curated-transformers -> torch (~0.4 GB), but the default (trf=False) path only
+# needs spacy + the small English model, so we list misaki's English deps by hand.
+local-audio = [
+  "mlx-audio>=0.5.9",
+  "parakeet-mlx>=0.5.3",
+  "misaki>=0.9.4",
+  "num2words>=0.5.14",
+  "spacy>=3.8,<3.9",
+  "en-core-web-sm",
+  "phonemizer-fork>=3.3",
+  "espeakng-loader>=0.2.4",
+]
+local-image = ["mflux"]
+local-ml = ["studio[local-audio,local-image]"]  # compatibility: union of the two
+bedrock = ["boto3>=1.39"]  # 1.39+ reads AWS_BEARER_TOKEN_BEDROCK (Bedrock API keys)
 gateway = ["litellm[proxy]"]
 flows = ["prefect>=3.0"]
 
 [project.scripts]
 studio = "studio.cli:app"
+
+[tool.uv.sources]
+# spaCy model used by misaki's English G2P (spacy.cli.download needs pip, absent in uv venvs).
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.6"]

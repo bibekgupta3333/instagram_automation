@@ -78,8 +78,10 @@ def build_context(
     settings = settings or get_settings()
     base = dict(MOCK_ENGINES if mock else {**DEFAULT_ENGINES, **settings.engines})
     base.update(engines or {})
+    # `llm=mock` mocks only the text stages, e.g. real audio without a Bedrock key.
+    mock_llm = mock or base.pop("llm", None) == "mock"
     return StageContext(
-        settings=settings, chat=chat or get_chat_client(mock), engines=base, force=force
+        settings=settings, chat=chat or get_chat_client(mock_llm), engines=base, force=force
     )
 
 
@@ -184,9 +186,16 @@ def make_video(
     ctx = ctx or build_context(mock, engines, chat, settings, force)
     job = plan_job(channel, topic, format, ctx.settings, job_id)
     brand = load_brand(channel, ctx.settings.brand_dir)
-    for name, fn in STAGES:
-        if not run_stage(name, fn, job, brand, ctx):
-            break
+    try:
+        for name, fn in STAGES:
+            ok = run_stage(name, fn, job, brand, ctx)
+            if name in UNLOAD:
+                UNLOAD[name]()  # one heavy model resident at a time (doc 14 §9.1)
+            if not ok:
+                break
+    finally:
+        for unload in UNLOAD.values():
+            unload()
     return job
 
 

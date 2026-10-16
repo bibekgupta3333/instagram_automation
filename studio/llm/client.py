@@ -1,9 +1,10 @@
-"""OpenAI-compatible chat client (implements ``studio.contracts.ChatClient``).
+"""LLM client factory (``get_client``), OpenAI-compatible client, and the offline mock.
 
-Talks to either
-- the **LiteLLM proxy** (``LITELLM_BASE_URL``; model = LiteLLM group alias such as
-  ``local-bulk`` / ``bedrock-sonnet``, see infra/litellm/config.yaml), or
-- **Ollama directly** (``OLLAMA_BASE_URL``; ``/v1/chat/completions``; local roles only).
+``get_client()`` picks the backend from ``STUDIO_LLM`` (default ``bedrock``; see its docstring).
+The OpenAI-compatible client here talks to either
+- the **LiteLLM proxy** (``STUDIO_LLM=gateway``; model = LiteLLM group alias such as
+  ``bedrock-haiku`` / ``bedrock-sonnet``, see infra/litellm/config.yaml), or
+- **Ollama directly** (``STUDIO_LLM=ollama``, opt-in; bulk roles only).
 
 Retries 429/5xx/529 with exponential backoff + jitter and honours ``Retry-After`` (docs 15 §7.5).
 Quality roles never silently fall back to local (docs 15 §7.1): if Bedrock is not reachable,
@@ -23,7 +24,8 @@ from typing import Any, Literal
 
 import httpx
 
-from studio.llm.budget import BudgetDeferred, BudgetGuard, cost_usd, estimate_tokens
+from studio.contracts import ChatClient
+from studio.llm.budget import BudgetDeferred, BudgetGuard, estimate_tokens
 from studio.llm.routing import ModelSpec, Route, resolve
 
 log = logging.getLogger(__name__)
@@ -215,77 +217,38 @@ class OpenAICompatClient:
         escalate: bool = False,
     ) -> str:
         route = resolve(role, escalate=escalate)
-        if route.lane == "local":
-            return self._complete_bulk(route, messages, json_schema, max_tokens)
+        if self.mode == "ollama":
+            return self._complete_local(route, messages, json_schema, max_tokens)
         return self._complete_bedrock(route, route.model, messages, json_schema, max_tokens)
 
-    def _complete_bulk(self, route: Route, messages, json_schema, max_tokens) -> str:
+    def _complete_local(self, route: Route, messages, json_schema, max_tokens) -> str:
+        """Opt-in Ollama mode (STUDIO_LLM=ollama): bulk roles only."""
         ctx = self.context
-        try:
-            text, usage, served = self._call(
-                route.model,
-                messages,
-                role=route.role,
-                json_schema=json_schema,
-                max_tokens=max_tokens,
-            )
-        except LLMUnavailable:
-            if route.overflow is None or self.mode != "gateway":
-                raise
-            est_in = estimate_tokens(messages)
-            if self.budget is not None and not self.budget.may_overflow(
-                channel=ctx.channel,
-                model_key=route.overflow.key,
-                est_in=est_in,
-                max_out=max_tokens,
-            ):
-                raise BudgetDeferred(
-                    "local busy and Bedrock headroom <= 30%: wait for local",
-                    retry_after=600,
-                    role=route.role,
-                ) from None
-            log.info("bulk role %s overflowing to %s", route.role, route.overflow.key)
-            return self._complete_bedrock(route, route.overflow, messages, json_schema, max_tokens)
+        spec = route.local
+        if spec is None:
+            if not self.allow_local_quality:
+                raise LLMUnavailable(
+                    f"role {route.role!r} needs Bedrock ({route.model.provider_model}) but "
+                    "STUDIO_LLM=ollama; quality steps never fall back to local."
+                )
+            # Dev-only escape hatch (STUDIO_LLM_LOCAL_QUALITY=1). Logged loudly.
+            log.warning("role %s served LOCALLY: not production quality", route.role)
+            spec = resolve("draft").local
+            assert spec is not None
+        text, usage, _ = self._call(
+            spec, messages, role=route.role, json_schema=json_schema, max_tokens=max_tokens
+        )
         if self.budget is not None:
-            if "haiku" in served.lower():  # LiteLLM router fell back local-bulk -> bedrock-haiku
-                self.budget.ledger.record(
-                    channel=ctx.channel,
-                    job_id=ctx.job_id,
-                    step=route.role,
-                    route="bedrock",
-                    model="haiku-5-5",
-                    usage=usage,
-                    usd=cost_usd("haiku-5-5", usage, self.budget.prices),
-                    outcome="overflow",
-                )
-            else:
-                self.budget.record_local(
-                    role=route.role, channel=ctx.channel, job_id=ctx.job_id, usage=usage
-                )
+            self.budget.record_local(
+                role=route.role, channel=ctx.channel, job_id=ctx.job_id, usage=usage
+            )
         return text
 
     def _complete_bedrock(
         self, route: Route, spec: ModelSpec, messages, json_schema, max_tokens
     ) -> str:
+        """Gateway mode: every role is a Bedrock model group behind LiteLLM."""
         ctx = self.context
-        if self.mode != "gateway":
-            if self.allow_local_quality:
-                # Dev-only escape hatch (STUDIO_LLM_LOCAL_QUALITY=1). Logged loudly.
-                log.warning(
-                    "role %s served LOCALLY (no gateway): not production quality", route.role
-                )
-                text, _, _ = self._call(
-                    resolve("draft").model,
-                    messages,
-                    role=route.role,
-                    json_schema=json_schema,
-                    max_tokens=max_tokens,
-                )
-                return text
-            raise LLMUnavailable(
-                f"role {route.role!r} needs Bedrock ({spec.provider_model}) but only Ollama is "
-                "configured; set LITELLM_BASE_URL. Quality steps never fall back to local."
-            )
         admission = None
         if self.budget is not None:
             admission = self.budget.admit(
@@ -310,7 +273,7 @@ class OpenAICompatClient:
                     job_id=ctx.job_id,
                     outcome="throttled",
                 )
-            # Quality step: queue, don't degrade (docs 15 §7.1)
+            # queue, don't degrade (docs 15 §7.1)
             raise BudgetDeferred(
                 f"Bedrock unavailable: {exc}", retry_after=300, role=route.role
             ) from exc
@@ -393,30 +356,59 @@ class MockChatClient:
         return f"[mock {role}] " + (messages[-1].get("content", "")[:80] if messages else "")
 
 
+Backend = Literal["bedrock", "claude-code", "gateway", "ollama", "mock"]
+BACKENDS: tuple[str, ...] = ("bedrock", "claude-code", "gateway", "ollama", "mock")
+
+
 def get_client(
     *, budget: BudgetGuard | None = None, transport: httpx.BaseTransport | None = None
-) -> OpenAICompatClient | MockChatClient:
-    """Factory from env:
-    STUDIO_LLM=mock -> MockChatClient; else LITELLM_BASE_URL -> gateway;
-    else OLLAMA_BASE_URL (default http://localhost:11434) -> direct Ollama (local roles only).
-    Budget guard is on for the gateway unless STUDIO_BUDGET=off."""
+) -> ChatClient:
+    """Factory from ``STUDIO_LLM`` (default ``bedrock``):
+
+    - ``bedrock``     direct Converse (studio.llm.bedrock); API key in AWS_BEARER_TOKEN_BEDROCK,
+                      else AWS_PROFILE / default chain. Budget guard on.
+    - ``claude-code`` ``claude -p`` headless (studio.llm.claude_code); uses the user's Claude
+                      subscription limits, no $ ledger.
+    - ``gateway``     LiteLLM proxy at LITELLM_BASE_URL (default http://localhost:4000), which
+                      fronts the same Bedrock models. Budget guard on.
+    - ``ollama``      opt-in local Ollama at OLLAMA_BASE_URL, bulk roles only.
+    - ``mock``        offline MockChatClient.
+
+    ``STUDIO_BUDGET=off`` disables the budget guard."""
     e = os.environ
-    if e.get("STUDIO_LLM", "").lower() == "mock":
+    backend = (e.get("STUDIO_LLM") or "bedrock").strip().lower()
+    if backend in ("claude_code", "claudecode", "claude"):
+        backend = "claude-code"
+    if backend == "mock":
         return MockChatClient()
-    if e.get("LITELLM_BASE_URL"):
-        if budget is None and e.get("STUDIO_BUDGET", "on").lower() != "off":
-            budget = BudgetGuard()
+
+    def _guard() -> BudgetGuard | None:
+        if budget is not None:
+            return budget
+        return BudgetGuard() if e.get("STUDIO_BUDGET", "on").lower() != "off" else None
+
+    if backend == "bedrock":
+        from studio.llm.bedrock import BedrockConverseClient
+
+        return BedrockConverseClient(budget=_guard())
+    if backend == "claude-code":
+        from studio.llm.claude_code import ClaudeCodeClient
+
+        return ClaudeCodeClient()
+    if backend == "gateway":
         return OpenAICompatClient(
-            e["LITELLM_BASE_URL"],
+            e.get("LITELLM_BASE_URL") or "http://localhost:4000",
             mode="gateway",
             api_key=e.get("LITELLM_API_KEY") or None,
-            budget=budget,
+            budget=_guard(),
             transport=transport,
         )
-    return OpenAICompatClient(
-        e.get("OLLAMA_BASE_URL") or "http://localhost:11434",
-        mode="ollama",
-        budget=budget,
-        transport=transport,
-        allow_local_quality=e.get("STUDIO_LLM_LOCAL_QUALITY") == "1",
-    )
+    if backend == "ollama":
+        return OpenAICompatClient(
+            e.get("OLLAMA_BASE_URL") or "http://localhost:11434",
+            mode="ollama",
+            budget=budget,
+            transport=transport,
+            allow_local_quality=e.get("STUDIO_LLM_LOCAL_QUALITY") == "1",
+        )
+    raise ValueError(f"unknown STUDIO_LLM={backend!r}; expected one of {', '.join(BACKENDS)}")

@@ -64,16 +64,24 @@ section "Disk space vs models.manifest.yaml"
 FREE="$(free_gb "$REPO_ROOT")"
 if REQ="$(manifest total 2>/dev/null)" && BUF="$(manifest buffer 2>/dev/null)"; then
   REQ_OPT="$(manifest total --include-optional)"
-  NEED="$(gb_add "$REQ" "$BUF")"
+  # Only models still to download count against free disk (present ones are already paid for).
+  TODO=0
+  while IFS=$'\t' read -r _ _ runtime source size _; do
+    if [[ "$runtime" == "ollama" ]]; then ollama_running && ollama_has "$source" && continue
+    else hf_has "$source" && continue; fi
+    TODO="$(gb_add "$TODO" "$size")"
+  done < <(manifest list)
+  NEED="$(gb_add "$TODO" "$BUF")"
   info "free on $(df -P "$REPO_ROOT" | awk 'NR==2 {print $6}'): ${FREE} GB"
-  info "models (required): ${REQ} GB, with optional: ${REQ_OPT} GB, buffer: ${BUF} GB"
+  info "models (required: tts + asr + image): ${REQ} GB, with optional: ${REQ_OPT} GB, buffer: ${BUF} GB"
+  info "no local LLMs required: text runs on Bedrock / Claude Code (see .env.example)"
   while IFS=$'\t' read -r st rq op; do
     info "  stage ${st}: ${rq} GB$( [[ "$op" != "0.0" ]] && echo " (+${op} GB optional)")"
   done < <(manifest stages)
   if gb_lt "$FREE" "$NEED"; then
-    fail "free ${FREE} GB < required ${NEED} GB (models ${REQ} + buffer ${BUF}). Free up disk first (SETUP.md §2)"
+    fail "free ${FREE} GB < required ${NEED} GB (still to download ${TODO} + buffer ${BUF}). Free up disk first (SETUP.md §2)"
   else
-    pass "free ${FREE} GB >= required ${NEED} GB"
+    pass "free ${FREE} GB >= required ${NEED} GB (still to download ${TODO} + buffer ${BUF})"
   fi
 else
   fail "could not read scripts/setup/models.manifest.yaml (needs PyYAML in .venv)"
@@ -117,23 +125,15 @@ else
 fi
 
 # --------------------------------------------------------------------------- ollama
-section "Ollama"
+section "Ollama (optional: text runs on Bedrock / Claude Code)"
 if have ollama; then
   OV="$(ollama --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -1)"
-  OMAJ="${OV%%.*}"; OREST="${OV#*.}"; OMIN="${OREST%%.*}"
-  if [[ -n "$OV" ]] && (( OMAJ > 0 || OMIN >= 40 )); then
-    pass "ollama installed: $OV ($(command -v ollama)); >= 0.40 runs qwen3.5/gemma4 on MLX"
-  else
-    warn "ollama installed: ${OV:-unknown}. docs 14 wants >= 0.40 for the MLX backend"
-  fi
+  info "ollama installed: ${OV:-unknown} ($(command -v ollama)). Only needed for offline LLM experiments"
   if ollama_running; then
-    pass "ollama server running at ${OLLAMA_BASE_URL:-http://localhost:11434}"
-    info "local models: $(ollama list 2>/dev/null | awk 'NR>1 {print $1}' | tr '\n' ' ')"
-  else
-    warn "ollama server not running (make ollama)"
+    info "ollama server running; local models: $(ollama list 2>/dev/null | awk 'NR>1 {print $1}' | tr '\n' ' ')"
   fi
 else
-  fail "ollama: missing (https://ollama.com/download or brew install ollama)"
+  info "ollama not installed (not needed: text runs on Bedrock / Claude Code)"
 fi
 
 # --------------------------------------------------------------------------- python
@@ -151,6 +151,13 @@ if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
   else
     warn "studio.cli not importable yet (CLI still being built). smoke-mock will SKIP"
   fi
+  for mod in mlx_audio misaki en_core_web_sm parakeet_mlx; do
+    if "$REPO_ROOT/.venv/bin/python" -c "import $mod" >/dev/null 2>&1; then
+      pass "local audio: $mod importable"
+    else
+      warn "local audio: $mod missing. Run: uv sync --extra local-audio --extra bedrock --group dev"
+    fi
+  done
 else
   fail "no .venv. Run: uv sync"
 fi

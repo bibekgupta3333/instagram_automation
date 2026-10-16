@@ -4,8 +4,14 @@ This guide sets up the local video studio from
 [docs/4-production/14-local-models-mac-m4.md](docs/4-production/14-local-models-mac-m4.md) ("doc 14").
 All the scripts live in `scripts/setup/`, and every step has a `make` target.
 
+> **Text runs on Bedrock / Claude Code, not locally.** Scripts, metadata and fact-checks go
+> through `studio/llm` (`STUDIO_LLM=bedrock` or `claude-code`); set it up from
+> [.env.example](.env.example). No local LLM (and no Ollama) is needed. Only **audio**
+> (Kokoro TTS + parakeet captions) and **images** (mflux) run on the Mac.
+
 ```
-make preflight  →  make tools  →  make models  →  make smoke
+make preflight  →  make tools  →  make deps-audio  →  make models-audio  →  make smoke
+                                  (then, when disk allows: uv sync --extra local-image; make models STAGE=image)
 ```
 
 ---
@@ -19,15 +25,20 @@ make preflight  →  make tools  →  make models  →  make smoke
 | git, Python ≥ 3.12, uv | `uv --version` | `brew install uv` |
 | Node ≥ 18 | `node --version` | Remotion renderer |
 | FFmpeg with VideoToolbox and libass | `make preflight` | Homebrew's `ffmpeg` has both |
-| Ollama ≥ 0.40 | `ollama --version` | 0.40+ runs qwen3.5/gemma4 on MLX |
-| **~32 GB free disk** (default) | `df -h ~` | Default minimal models are 21.5 GB plus a 10 GB buffer. All models: 61.9 GB |
+| Ollama ≥ 0.40 (optional) | `ollama --version` | Only for offline LLM experiments; text runs on Bedrock / Claude Code |
+| **~14 GB free disk** for audio | `df -h ~` | Audio runtime ~0.8 GB + audio models 2.9 GB + 10 GB buffer. Add 11 GB for the default image model (~25 GB total for tts + asr + image) |
 
 Then set up the project:
 
 ```bash
 uv sync                    # base deps + dev group (small)
-cp .env.example .env       # fill in placeholders; AWS_PROFILE = a *personal* account only
+cp .env.example .env       # STUDIO_LLM=bedrock|claude-code; AWS_PROFILE = a *personal* account only
+make deps-audio            # = uv sync --extra local-audio --extra bedrock --group dev (~0.8 GB)
 ```
+
+Extras: `local-audio` (mlx-audio, parakeet-mlx, misaki G2P + spaCy `en_core_web_sm`, no torch),
+`local-image` (mflux), `local-ml` (both, kept for compatibility), `bedrock` (boto3).
+`uv sync` installs exactly the extras you name, so keep `--extra bedrock` when adding audio.
 
 ## 2. Free up disk first
 
@@ -58,19 +69,24 @@ holds the repo, so check the SSD yourself with `df -h /Volumes/SSD`.
 ## 3. Disk needed per stage
 
 Generated from `scripts/setup/models.manifest.yaml`. Every listed model is licensed for commercial use.
+The default pull set (`make models`) is **tts + asr + image**. Every LLM is optional because
+text runs on Bedrock / Claude Code.
 
 | Stage | Models | Download (GB) |
 |---|---|---|
-| llm | `qwen3.5:9b` (7.6); optional `gpt-oss:20b` (14.0, offline fact-check) and `gemma4:12b` (7.7) | **7.6** (+21.7 optional) |
-| tts | `mlx-community/Kokoro-82M-bf16` | **0.4** |
-| asr | `mlx-community/parakeet-tdt-0.6b-v2` (CC-BY-4.0: credit NVIDIA) | **2.5** |
+| tts | `mlx-community/Kokoro-82M-bf16` (safetensors only; 0.35 on disk) | **0.4** |
+| asr | `mlx-community/parakeet-tdt-0.6b-v2` (CC-BY-4.0: credit NVIDIA; 2.3 on disk) | **2.5** |
 | image | `mflux-community/z-image-turbo-mflux-q8` (11.0); optional `flux2-klein-4b-mflux-q8` (8.6) | **11.0** (+8.6 optional) |
+| llm | all optional, text runs on Bedrock / Claude Code: `qwen3.5:9b` (7.6), `gemma4:12b` (7.7), `gpt-oss:20b` (14.0) | **0** (+29.3 optional) |
 | music | optional `ACE-Step/Ace-Step1.5` (MIT) | **0** (+10.1 optional) |
-| **Total (default minimal)** | | **21.5** (61.9 with `--include-optional`) |
-| Python `local-ml` extras (mlx-audio, parakeet-mlx, mflux + torch/mlx deps) | | ~2–4 (est.) |
+| **Total (default: tts + asr + image)** | | **13.9** (61.9 with `--include-optional`) |
+| Python `local-audio` extra (mlx 235 MB, llvmlite 125, scipy 71, transformers 55, spaCy + model 37, …) | | **~0.73** (measured) |
+| Python `local-image` extra (mflux + deps) | | ~1–2 (est.) |
 | Remotion + its headless Chromium (npm) | | ~0.5–1 (est.) |
 
-The image models use 8-bit pre-quantised mflux builds. The upstream bf16 repos are 24–33 GB each.
+Every pull needs the model size **plus 10 GB** free; preflight counts only models not yet
+downloaded. The image models use 8-bit pre-quantised mflux builds. The upstream bf16 repos are
+24–33 GB each.
 
 ## 4. Steps
 
@@ -79,12 +95,12 @@ The image models use 8-bit pre-quantised mflux builds. The upstream bf16 repos a
 This is read-only. It reports PASS/WARN/FAIL for:
 
 - chip and RAM
-- free disk against the manifest
+- free disk against the manifest (models still to download + 10 GB; no LLMs)
 - brew, uv, node and ffmpeg versions
 - the VideoToolbox h264/hevc encoders and libass
-- Ollama installed and running
+- Ollama (informational only; not needed)
 - `iogpu.wired_limit_mb`
-- whether `.venv` imports `studio`
+- whether `.venv` imports `studio` and the local audio packages
 
 Use `bash scripts/setup/00-preflight.sh --strict` to exit 1 on any FAIL (for CI).
 
@@ -100,28 +116,28 @@ Homebrew formula. Add it with `bash scripts/setup/10-install-tools.sh --with-rhu
 
 ```bash
 make models-dry                       # plan + disk check, downloads nothing
-make ollama                           # in a second terminal: LLM pulls need the server
-make models STAGE=llm                 # one stage at a time is easiest on disk
-make models STAGE=tts
-make models STAGE=asr
-make models STAGE=image
-make models STAGE=music
-make models OPTIONAL=1 STAGE=llm      # also gemma4:12b
+make models-audio                     # Kokoro (0.4 GB) then parakeet (2.5 GB)
+make models STAGE=image               # Z-Image-Turbo q8 (11 GB) — needs 21 GB free
+make models                           # the whole default set: tts + asr + image
+make models STAGE=music OPTIONAL=1    # ACE-Step, when space allows
+make models STAGE=llm OPTIONAL=1      # only for offline LLM experiments (needs make ollama)
 ```
 
-- LLMs come through `ollama pull`. HF repos come through `hf download` (falling back to `huggingface-cli`, then
+- HF repos come through `hf download` (falling back to `huggingface-cli`, then
   `uvx --from huggingface_hub hf`) into the HF cache. Use
   `bash scripts/setup/20-pull-models.sh --dest models` to put them in `./models/<repo>` instead (git-ignored).
 - Models that are already present are skipped.
-- Install the runtimes when there's room: `uv sync --extra local-ml` (mlx-audio,
-  parakeet-mlx, mflux). For music, clone ACE-Step into `vendor/ACE-Step-1.5` (or set
-  `ACE_STEP_DIR`) and run `uv sync` there.
+- Runtimes: `make deps-audio` for audio; `uv sync --extra local-audio --extra local-image
+  --extra bedrock --group dev` once there is room for mflux. For music, clone ACE-Step into
+  `vendor/ACE-Step-1.5` (or set `ACE_STEP_DIR`) and run `uv sync` there.
 
 ### 4.4 `make smoke`
 
-This renders a 5-second 1080×1920 test clip through each stage: LLM hook → Kokoro voice →
-parakeet word timings → Z-Image still → ACE-Step bed → FFmpeg render with burned-in libass
-captions, encoded with `h264_videotoolbox`.
+This renders a 5-second 1080×1920 test clip through each stage: (optional local LLM hook) →
+Kokoro voice → parakeet word timings → Z-Image still → ACE-Step bed → FFmpeg render with
+burned-in libass captions, encoded with `h264_videotoolbox`. The TTS and ASR stages call the
+pipeline's own engines (`studio.stages.tts` / `captions`) and report the real-time factor and
+how closely parakeet's word starts match Kokoro's own timings.
 
 - If a stage's model or tool is missing, the stage is **SKIPPED** with a reason. It doesn't fail.
 - The render stage always runs, using placeholders for any skipped inputs. That proves
@@ -132,11 +148,18 @@ captions, encoded with `h264_videotoolbox`.
 `make smoke-mock` runs `uv run studio make --mock` with no models. It SKIPs until the
 `studio` CLI exists. Pass extra args with `make smoke-mock ARGS="..."`.
 
-Then do the doc 14 §9.6 week-1 benchmark:
+A real audio run of the whole pipeline (text still mock, images placeholder):
+`uv run studio make --channel gravity-what-if --topic "..." --engine images=mock` with
+`STUDIO_LLM` set in `.env`. Captions engines: `parakeet` (default, measures the audio),
+`kokoro-timestamps` (reuses Kokoro's own word timings from `tts_words.json`, no second model)
+and `mock`.
 
-1. Run `ollama run qwen3.5:9b --verbose` and note the tokens/s.
-2. Time 20 Kokoro minutes and 20 stills.
-3. Repeat after 30 minutes of load to see the effect of heat.
+Measured on this Mac (M4 Pro 24 GB), 34 s short: Kokoro ~1.5 s load + ~1.7 s synthesis
+(RTF ≈ 0.05), MLX peak ~1.9 GB; parakeet ~4 s first load, ~0.4–0.9 s per transcribe, MLX
+peak ~4.4 GB; parakeet and Kokoro word starts agree to ~0.09 s on average.
+
+Then do the doc 14 §9.6 week-1 benchmark: time 20 Kokoro minutes and 20 stills, then repeat
+after 30 minutes of load to see the effect of heat.
 
 ## 5. GPU wired-memory limit (optional, you run it)
 
@@ -150,7 +173,10 @@ sudo sysctl iogpu.wired_limit_mb=0           # revert
 
 Never set it above about 20 GB on a 24 GB Mac. Even with the limit raised, run **one heavy model at a time**.
 
-## 6. Ollama and the MLX backend (doc 14 §3)
+## 6. Ollama and the MLX backend (optional; doc 14 §3)
+
+Not part of the default setup: text runs on Bedrock / Claude Code (see `.env.example`).
+Keep this only for offline LLM experiments.
 
 - From **Ollama ≥ 0.40** (v0.40.0, 2026-09-25), supported architectures (qwen3.5/3.6/3.8, gemma4) run
   **on MLX by default** on Apple Silicon. The March 2026 preview required "> 32 GB", so
@@ -190,13 +216,16 @@ Never set it above about 20 GB on a 24 GB Mac. Even with the limit raised, run *
 |---|---|
 | Preflight `[FAIL] free X GB < required Y GB` | See §2. Pull one stage at a time; each model needs its size + 10 GB free |
 | `20-pull-models.sh` exits 1 "Refusing to download" | Same as above. This is by design |
-| `ollama server not running` | `make ollama` in another terminal, or open the Ollama app |
+| `ollama server not running` | Only matters for optional local LLM pulls: `make ollama` |
 | `ollama pull` slow or stalls | Re-run; pulls resume. Check `df -h` |
 | Model runs at a few tokens/s, `ollama ps` shows CPU/GPU split | The model doesn't fit the wired limit. Use the 9B, close apps, see §5 |
 | `MPS backend out of memory` (mflux, ACE-Step) | `ollama stop <model>` first; use `-q 8` or `-q 4`; raise the wired limit |
 | ffmpeg lacks libass / `No such filter: 'ass'` | `brew reinstall ffmpeg`; make sure `/opt/homebrew/bin` comes first on `PATH` |
 | `h264_videotoolbox` errors | Some sizes need even dimensions; use `-pix_fmt yuv420p`. Fall back to `-c:v libx264` |
 | `venv cannot import studio` | `uv sync` from the repo root |
+| `Kokoro requires the optional 'misaki' package` / spaCy `en_core_web_sm` missing | `make deps-audio` (the extra pins the spaCy model wheel; `spacy download` needs pip, which uv venvs lack) |
+| `uv sync` removed boto3 or mflux | `uv sync` keeps only the extras you name: pass every one you need (`--extra local-audio --extra bedrock …`) |
+| `tts: unknown Kokoro US voice(s)` | Use a voice from `KOKORO_US_VOICES` in `studio/stages/tts.py` (or `STUDIO_KOKORO_ANY_VOICE=1`) |
 | `smoke-mock` SKIPs | The `studio` CLI (`studio/cli.py`) isn't built yet. This is expected for now |
 | mflux/mlx-audio flag errors in smoke | Their CLIs change often. Check `--help` and adjust `scripts/setup/30-smoke-test.sh` |
 | `hf download` 401/403 | The listed repos are public, so check `HF_TOKEN` isn't set to a stale value |

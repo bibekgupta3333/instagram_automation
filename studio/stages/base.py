@@ -20,7 +20,7 @@ from typing import Any
 from studio.config import Settings
 from studio.contracts import ChatClient, VideoJob
 
-DEFAULT_ENGINES = {"tts": "kokoro", "captions": "parakeet", "images": "z-image-turbo"}
+DEFAULT_ENGINES = {"tts": "kokoro", "captions": "parakeet", "images": "auto"}
 MOCK_ENGINES = {"tts": "mock", "captions": "mock", "images": "mock"}
 
 

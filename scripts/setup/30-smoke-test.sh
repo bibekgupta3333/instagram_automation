@@ -2,6 +2,7 @@
 # Smoke test: render a 5-second test clip through each local stage (docs 14 §9.6).
 #
 # Usage: scripts/setup/30-smoke-test.sh [--stage llm|tts|asr|image|music|render|all]
+#        (llm is optional: text runs on Bedrock / Claude Code; tts + asr use studio's engines)
 #        scripts/setup/30-smoke-test.sh --mock [-- extra args for `studio make`]
 #
 # Real mode: every stage whose model/tool is missing is SKIPPED with a reason, never
@@ -78,7 +79,7 @@ echo "Smoke test — stage=$STAGE  output: $OUT"
 
 # --------------------------------------------------------------------------- LLM
 if want llm; then
-  section "LLM (Ollama)"
+  section "LLM (optional local Ollama; text normally runs on Bedrock / Claude Code)"
   IFS=$'\t' read -r _ _ _ LLM_TAG _ <<<"$(model_field llm)"
   if ! have ollama; then
     skip "ollama not installed"
@@ -105,44 +106,71 @@ if want llm; then
 fi
 
 # --------------------------------------------------------------------------- TTS
+# Real audio path: the same code the pipeline runs (studio.stages.tts / captions), not the
+# library CLIs, so a pass here means `studio make` will voice and caption for real.
 if want tts; then
-  section "TTS (Kokoro via mlx-audio)"
+  section "TTS (Kokoro via mlx-audio, studio.stages.tts)"
   IFS=$'\t' read -r _ _ _ TTS_REPO _ <<<"$(model_field tts)"
-  if ! py_has mlx_audio; then
-    skip "mlx-audio not installed in .venv (uv sync --extra local-ml, when disk allows)"
+  if ! py_has mlx_audio || ! py_has misaki; then
+    skip "mlx-audio/misaki not installed in .venv (uv sync --extra local-audio --extra bedrock --group dev)"
   elif ! hf_has "$TTS_REPO"; then
-    skip "model $TTS_REPO not downloaded (make models STAGE=tts)"
+    skip "model $TTS_REPO not downloaded (make models-audio)"
   else
-    rm -f "$OUT"/tts*.wav
-    if (cd "$OUT" && timed "TTS" "$PY" -m mlx_audio.tts.generate --model "$TTS_REPO" \
-          --text "$SMOKE_TEXT" --voice am_michael --file_prefix tts >"$OUT/tts.log" 2>&1); then
-      wavs=("$OUT"/tts*.wav); wav="${wavs[0]}"
-      if [[ -f "$wav" ]]; then mv -f "$wav" "$OUT/voice.wav"; pass "TTS wrote $OUT/voice.wav"
-      else fail "TTS ran but wrote no wav (see $OUT/tts.log)"; fi
+    rm -f "$OUT/voice.wav" "$OUT/tts_words.json"
+    if (cd "$REPO_ROOT" && timed "TTS" "$PY" - "$OUT" "$SMOKE_TEXT" >"$OUT/tts.log" 2>&1 <<'PY'
+import json, sys, time
+from pathlib import Path
+from studio.stages import tts
+out, text = Path(sys.argv[1]), sys.argv[2]
+t0 = time.time()
+durs, words = tts._kokoro_tts([{"text": text}], out / "voice.wav", "am_michael", 1.0)
+el = time.time() - t0
+(out / "tts_words.json").write_text(json.dumps(words, indent=1))
+print(f"audio {sum(durs):.2f}s in {el:.2f}s (RTF {el / max(sum(durs), 1e-6):.3f}), {len(words)} words")
+tts.unload()
+PY
+    ) && [[ -f "$OUT/voice.wav" ]]; then
+      pass "TTS wrote $OUT/voice.wav: $(grep RTF "$OUT/tts.log" | tail -1)"
     else
-      fail "TTS failed (see $OUT/tts.log; mlx-audio flags may have changed: python -m mlx_audio.tts.generate --help)"
+      fail "TTS failed (see $OUT/tts.log)"
     fi
   fi
 fi
 
 # --------------------------------------------------------------------------- ASR
 if want asr; then
-  section "ASR (parakeet-mlx word timings)"
+  section "ASR (parakeet-mlx word timings, studio.stages.captions)"
   IFS=$'\t' read -r _ _ _ ASR_REPO _ <<<"$(model_field asr)"
-  PARAKEET=""
-  if have parakeet-mlx; then PARAKEET="parakeet-mlx"
-  elif [[ -x "$REPO_ROOT/.venv/bin/parakeet-mlx" ]]; then PARAKEET="$REPO_ROOT/.venv/bin/parakeet-mlx"; fi
-  if [[ -z "$PARAKEET" ]]; then
-    skip "parakeet-mlx not installed (uv sync --extra local-ml, or uv tool install parakeet-mlx)"
+  if ! py_has parakeet_mlx; then
+    skip "parakeet-mlx not installed in .venv (uv sync --extra local-audio --extra bedrock --group dev)"
   elif ! hf_has "$ASR_REPO"; then
-    skip "model $ASR_REPO not downloaded (make models STAGE=asr)"
+    skip "model $ASR_REPO not downloaded (make models-audio)"
   elif [[ ! -f "$OUT/voice.wav" ]]; then
     skip "no $OUT/voice.wav to transcribe (TTS stage skipped)"
   else
-    if timed "ASR" "$PARAKEET" "$OUT/voice.wav" --model "$ASR_REPO" --output-format json \
-         --output-dir "$OUT" >"$OUT/asr.log" 2>&1; then
-      jsons=("$OUT"/voice*.json)
-      pass "ASR wrote ${jsons[0]}"
+    if (cd "$REPO_ROOT" && timed "ASR" "$PY" - "$OUT" >"$OUT/asr.log" 2>&1 <<'PY'
+import json, sys
+from pathlib import Path
+from studio.stages import captions
+out = Path(sys.argv[1])
+words = captions.parakeet_words(out / "voice.wav")
+(out / "words.json").write_text(json.dumps(words, indent=1))
+kk = out / "tts_words.json"
+if kk.exists() and words:
+    import difflib
+    ref = json.loads(kk.read_text())
+    norm = lambda ws: [w["text"].strip(".,?!;:").lower() for w in ws]  # noqa: E731
+    sm = difflib.SequenceMatcher(a=norm(words), b=norm(ref), autojunk=False)
+    d = [abs(words[i + k]["start"] - ref[j + k]["start"])
+         for i, j, n in sm.get_matching_blocks() for k in range(n)]
+    print(f"{len(words)} words; {len(d)} match Kokoro's own timings, "
+          f"mean |start delta| {sum(d) / max(len(d), 1):.3f}s")
+else:
+    print(f"{len(words)} words")
+captions.unload()
+PY
+    ) && [[ -s "$OUT/words.json" ]]; then
+      pass "ASR wrote $OUT/words.json: $(grep " words" "$OUT/asr.log" | tail -1)"
     else
       fail "ASR failed (see $OUT/asr.log)"
     fi
@@ -158,7 +186,7 @@ if want image; then
     if have "$c" || [[ -x "$c" ]]; then MFLUX_BIN="$c"; break; fi
   done
   if [[ -z "$MFLUX_BIN" ]]; then
-    skip "mflux not installed (uv sync --extra local-ml, or uv tool install mflux)"
+    skip "mflux not installed (uv sync --extra local-image, or uv tool install mflux)"
   elif ! hf_has "$IMG_REPO"; then
     skip "model $IMG_REPO not downloaded (make models STAGE=image)"
   else

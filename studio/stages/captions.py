@@ -1,5 +1,6 @@
-"""Stage 4: captions. Word timestamps from parakeet-mlx (doc 14 §5), or a mock engine that
-spreads each segment's words evenly over its narration time. Writes words.json, a styled
+"""Stage 4: captions. Word timestamps from parakeet-mlx (doc 14 §5, default), from Kokoro's
+own timings (`kokoro-timestamps`, no second model), or a mock engine that spreads each
+segment's words evenly over its narration time. Writes words.json, a styled
 .ass (big centred karaoke-style words in the brand palette, 9:16 safe margins) and an .srt.
 """
 
@@ -26,9 +27,11 @@ from studio.stages.base import (
 )
 
 STAGE = "captions"
-VERSION = 1
+VERSION = 2
 PARAKEET_MODEL = os.environ.get("STUDIO_PARAKEET_MODEL", "mlx-community/parakeet-tdt-0.6b-v2")
 FONT = os.environ.get("STUDIO_CAPTION_FONT", "Arial Black")
+CHUNK_S = 120.0  # parakeet chunk length for long narration (its CLI default)
+CHUNK_OVER_S = 150.0  # transcribe in one pass below this
 
 _parakeet: Any = None
 
@@ -63,35 +66,78 @@ def _load_parakeet() -> Any:
     global _parakeet
     if _parakeet is None:
         try:
-            from parakeet_mlx import from_pretrained  # lazy: optional local-ml extra
+            from parakeet_mlx import from_pretrained  # lazy: optional local-audio extra
         except ImportError as exc:
             raise EngineUnavailable(
-                "Captions engine 'parakeet' needs parakeet-mlx, which is not installed. Install the "
-                "local-ml extra (`uv sync --extra local-ml`) or use --mock / --engine captions=mock."
+                "Captions engine 'parakeet' needs parakeet-mlx, which is not installed. Install "
+                "the local-audio extra (`uv sync --extra local-audio`) or use --mock / "
+                "--engine captions=mock (or captions=kokoro-timestamps after a kokoro TTS run)."
             ) from exc
         _parakeet = from_pretrained(PARAKEET_MODEL)
     return _parakeet
 
 
 def parakeet_words(audio: Path) -> list[Word]:
-    result = _load_parakeet().transcribe(str(audio))
+    """Word timings from parakeet-mlx (verified on 0.5.3).
+
+    `from_pretrained(repo).transcribe(path)` returns an AlignedResult whose sentences hold
+    sub-word AlignedTokens (`text`, `start`, `end`, seconds). A token starting with a space
+    begins a new word; others (sub-words, punctuation) continue the previous one. Audio is
+    decoded with ffmpeg. Long narration is chunked to bound memory.
+    """
+    model = _load_parakeet()
+    kwargs: dict[str, Any] = {}
+    if media_duration(audio) > CHUNK_OVER_S:
+        kwargs = {"chunk_duration": CHUNK_S, "overlap_duration": 15.0}
+    result = model.transcribe(str(audio), **kwargs)
+    _clear_mlx_cache()  # don't let freed Metal buffers pile up across a batch
     words: list[Word] = []
+    new_word = True
     for sentence in result.sentences:
         for tok in sentence.tokens:
             text = tok.text
-            if not words or text.startswith(" "):
-                if text.strip():
-                    words.append({"text": text.strip(), "start": tok.start, "end": tok.end})
-            else:  # sub-word continuation
-                words[-1]["text"] += text
-                words[-1]["end"] = tok.end
+            if not text.strip():  # a bare "▁" token: the next token starts a word
+                new_word = True
+                continue
+            if new_word or not words or text[0].isspace():
+                words.append({"text": text.strip(), "start": round(tok.start, 3),
+                              "end": round(tok.end, 3)})
+            else:  # sub-word or punctuation continuation
+                words[-1]["text"] += text.strip()
+                words[-1]["end"] = round(tok.end, 3)
+            new_word = False
+        new_word = True  # sentences never run into each other
     return words
 
 
+def kokoro_words(workdir: Path) -> list[Word]:
+    """Kokoro's own word timings (tts_words.json), written by the kokoro TTS engine.
+
+    They come from the predicted phoneme durations that produced the audio, so they need no
+    second model; they track parakeet within ~0.1 s on our tests. Parakeet stays the default
+    because it measures the audio rather than trusting the synthesiser.
+    """
+    path = workdir / "tts_words.json"
+    if not path.exists():
+        raise StageError("captions: kokoro-timestamps needs tts_words.json from the kokoro TTS "
+                         "engine (re-run tts with --engine tts=kokoro, or use parakeet)")
+    return json.loads(path.read_text())
+
+
+def _clear_mlx_cache() -> None:
+    try:
+        import mlx.core as mx
+    except ImportError:
+        return
+    mx.clear_cache()
+
+
 def unload() -> None:
+    """Free the resident ASR model (run_batch calls this after the captions stage)."""
     global _parakeet
     _parakeet = None
     gc.collect()
+    _clear_mlx_cache()
 
 
 # ---------------------------------------------------------------- writers
@@ -196,7 +242,9 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     timings_path = workdir / "timings.json"
     ass, srt, words_path = workdir / "captions.ass", workdir / "captions.srt", workdir / "words.json"
     engine = ctx.engine("captions")
-    key = hash_inputs(STAGE, VERSION, engine, audio, timings_path, brand.palette, job.format, FONT)
+    tts_words = workdir / "tts_words.json"
+    key = hash_inputs(STAGE, VERSION, engine, audio, timings_path, brand.palette, job.format, FONT,
+                      tts_words if engine == "kokoro-timestamps" else None)
     if is_cached(job, STAGE, key, [ass, srt, words_path], ctx):
         job.captions_path = ass
         log(job, "captions: cached, skipped")
@@ -206,9 +254,16 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
         timings = json.loads(timings_path.read_text()) if timings_path.exists() else {}
         words = mock_words(timings, media_duration(audio))
     elif engine == "parakeet":
+        from studio.stages import tts
+
+        tts.unload()  # TTS is done for this job; keep one model resident (doc 14 §9)
         words = parakeet_words(audio)
+    elif engine == "kokoro-timestamps":
+        words = kokoro_words(workdir)
     else:
-        raise StageError(f"captions: unknown engine {engine!r} (parakeet, mock)")
+        raise StageError(
+            f"captions: unknown engine {engine!r} (parakeet, kokoro-timestamps, mock)"
+        )
     if not words:
         raise StageError("captions: no words recognised")
 

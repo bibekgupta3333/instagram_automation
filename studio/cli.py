@@ -30,7 +30,10 @@ console = Console()
 MockOpt = Annotated[bool, typer.Option("--mock", help="Offline: mock LLM, TTS, captions, images.")]
 EngineOpt = Annotated[
     list[str] | None,
-    typer.Option("--engine", help="Override a stage engine, e.g. tts=mock or images=flux2-klein-4b."),
+    typer.Option(
+        "--engine",
+        help="Override a stage engine, e.g. tts=mock, images=flux2-klein-4b, llm=mock.",
+    ),
 ]
 ForceOpt = Annotated[bool, typer.Option("--force", help="Ignore cache keys and re-run all stages.")]
 
@@ -39,8 +42,10 @@ def _engines(values: list[str] | None) -> dict[str, str]:
     out = {}
     for v in values or []:
         stage, sep, name = v.partition("=")
-        if not sep or stage not in ("tts", "captions", "images"):
-            raise typer.BadParameter(f"--engine expects tts|captions|images=NAME, got {v!r}")
+        if not sep or stage not in ("tts", "captions", "images", "llm"):
+            raise typer.BadParameter(
+                f"--engine expects tts|captions|images|llm=NAME, got {v!r}"
+            )
         out[stage] = name
     return out
 

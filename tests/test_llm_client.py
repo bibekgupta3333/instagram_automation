@@ -83,7 +83,7 @@ def test_json_schema_payload_shape():
         [{"role": "user", "content": "x"}], role="metadata", json_schema=schema, max_tokens=300
     )
     assert json.loads(out) == {"title": "T"}
-    assert seen["model"] == "local-bulk"  # gateway alias
+    assert seen["model"] == "bedrock-haiku"  # gateway alias: metadata runs on Haiku 5.5
     assert seen["max_tokens"] == 300
     assert seen["response_format"] == {
         "type": "json_schema",
@@ -102,7 +102,7 @@ def test_ollama_mode_uses_provider_tag_and_refuses_quality(monkeypatch):
 
     c, _ = make(handler, mode="ollama")
     c.complete([{"role": "user", "content": "x"}], role="draft")
-    assert seen["model"] == "qwen3.5:9b"
+    assert seen["model"] == "qwen3.5:9b"  # opt-in Ollama mode only
     with pytest.raises(LLMUnavailable, match="never fall back to local"):
         c.complete([{"role": "user", "content": "x"}], role="polish")
 
@@ -135,18 +135,53 @@ def test_bedrock_outage_defers_quality_role(tmp_path):
         c.complete([{"role": "user", "content": "x"}], role="fact_check")
 
 
-def test_get_client_env(monkeypatch):
-    monkeypatch.setenv("STUDIO_LLM", "mock")
+@pytest.fixture
+def no_llm_env(monkeypatch, tmp_path):
+    for k in ("STUDIO_LLM", "LITELLM_BASE_URL", "OLLAMA_BASE_URL", "STUDIO_BUDGET"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("STUDIO_LEDGER_PATH", str(tmp_path / "ledger.sqlite"))
+    return monkeypatch
+
+
+def test_get_client_defaults_to_bedrock_with_budget(no_llm_env):
+    from studio.llm.bedrock import BedrockConverseClient
+
+    c = get_client()
+    assert isinstance(c, BedrockConverseClient)
+    assert isinstance(c.budget, BudgetGuard)  # guard on by default
+    assert c._rt is None  # boto3 client is created lazily: no AWS access at construction
+    no_llm_env.setenv("STUDIO_BUDGET", "off")
+    assert get_client().budget is None
+
+
+@pytest.mark.parametrize("value", ["claude-code", "CLAUDE-CODE", "claude_code"])
+def test_get_client_claude_code(no_llm_env, value):
+    from studio.llm.claude_code import ClaudeCodeClient
+
+    no_llm_env.setenv("STUDIO_LLM", value)
+    assert isinstance(get_client(), ClaudeCodeClient)
+
+
+def test_get_client_gateway_ollama_mock_and_unknown(no_llm_env):
+    no_llm_env.setenv("STUDIO_LLM", "mock")
     assert isinstance(get_client(), MockChatClient)
-    monkeypatch.delenv("STUDIO_LLM")
-    monkeypatch.setenv("LITELLM_BASE_URL", "http://gw.test:4000")
-    monkeypatch.setenv("STUDIO_BUDGET", "off")
+    no_llm_env.setenv("STUDIO_LLM", "gateway")
+    no_llm_env.setenv("STUDIO_BUDGET", "off")
     c = get_client()
     assert isinstance(c, OpenAICompatClient) and c.mode == "gateway"
-    monkeypatch.delenv("LITELLM_BASE_URL")
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
+    assert c.base_url == "http://localhost:4000"
+    no_llm_env.setenv("LITELLM_BASE_URL", "http://gw.test:4000")
+    assert get_client().base_url == "http://gw.test:4000"
+    # LITELLM_BASE_URL alone no longer switches the backend: bedrock stays the default
+    no_llm_env.delenv("STUDIO_LLM")
+    assert not isinstance(get_client(), OpenAICompatClient)
+    no_llm_env.setenv("STUDIO_LLM", "ollama")
+    no_llm_env.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
     c = get_client()
     assert c.mode == "ollama" and c.base_url == "http://ollama.test:11434"
+    no_llm_env.setenv("STUDIO_LLM", "local-llama")
+    with pytest.raises(ValueError, match="unknown STUDIO_LLM"):
+        get_client()
 
 
 def test_mock_client_satisfies_protocol_and_schema():
