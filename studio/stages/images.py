@@ -52,15 +52,23 @@ from studio.stages.visuals import stability as stability_src
 from studio.stages.visuals.common import logger, record_cost
 
 STAGE = "images"
-VERSION = 3
+VERSION = 4  # 4: pre-quantized 4-bit repos, no on-the-fly -q (docs 18)
 
 # engine id -> (doc 14 model name, default mflux CLI). Check `mflux --help` after installing;
 # override the command with STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
+# Always point mflux at PRE-QUANTIZED repos. `-q N` on a base model id makes mflux download
+# the full-precision weights first (Z-Image 32.9 GB, klein 4B ~16 GB) - see doc 18 §3.
+# Whether a repo id also needs `--base-model` is unverified: check `--help` after install.
 MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
-    "z-image-turbo": ("Z-Image-Turbo", ["mflux-generate-z-image-turbo", "--steps", "9"]),
-    "flux2-klein-4b": (
-        "FLUX.2 [klein] 4B",
-        ["mflux-generate-flux2", "--model", "flux2-klein-4b", "--steps", "4"],
+    "flux2-klein-4b": (  # smallest good model: 4.6 GB, Apache-2.0
+        "FLUX.2 [klein] 4B (mflux 4-bit)",
+        ["mflux-generate-flux2", "--model", "mflux-community/flux2-klein-4b-mflux-q4",
+         "--steps", "4", "--guidance", "1.0"],
+    ),
+    "z-image-turbo": (  # best quality <= 6 GB: 5.9 GB, Apache-2.0
+        "Z-Image-Turbo (mflux 4-bit)",
+        ["mflux-generate-z-image-turbo", "--model", "mflux-community/z-image-turbo-mflux-q4",
+         "--steps", "9"],
     ),
 }
 
@@ -153,15 +161,37 @@ def _mflux_cmd(engine: str) -> list[str]:
         ) from exc
     override = os.environ.get("STUDIO_MFLUX_CMD_" + engine.upper().replace("-", "_"))
     cmd = shlex.split(override) if override else list(MFLUX_MODELS[engine][1])
+    repo = _mflux_repo(cmd)
+    if repo and not _hf_cached(repo) and os.environ.get("STUDIO_ALLOW_MODEL_DOWNLOAD") != "1":
+        # Never let a render silently trigger a multi-GB download (disk is tight; doc 18 §3).
+        raise EngineUnavailable(
+            f"{engine}: model {repo} is not downloaded. Run `make models STAGE=image` "
+            "(disk-checked) or set STUDIO_ALLOW_MODEL_DOWNLOAD=1"
+        )
     if not shutil.which(cmd[0]):
         raise EngineUnavailable(f"{cmd[0]} not on PATH; set STUDIO_MFLUX_CMD_* to the mflux CLI")
     return cmd
 
 
+def _mflux_repo(cmd: list[str]) -> str | None:
+    if "--model" in cmd:
+        value = cmd[cmd.index("--model") + 1]
+        return value if "/" in value else None
+    return None
+
+
+def _hf_cached(repo: str) -> bool:
+    """True if the HF cache already holds weights for `repo` (no network call)."""
+    hub = Path(os.environ.get("HF_HUB_CACHE")
+               or Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub")
+    snaps = hub / f"models--{repo.replace('/', '--')}" / "snapshots"
+    return snaps.is_dir() and any(p.suffix == ".safetensors" for p in snaps.rglob("*"))
+
+
 def _mflux_image(out: Path, prompt: str, seed: int, engine: str, fmt: str) -> None:
     w, h = gen_size(fmt)
     cmd = [*_mflux_cmd(engine), "--prompt", prompt, "--width", str(w), "--height", str(h),
-           "-q", "8", "--seed", str(seed), "--output", str(out)]
+           "--seed", str(seed), "--output", str(out)]
     proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if proc.returncode != 0 or not out.exists():
         raise StageError(f"mflux failed for {out.name}: {proc.stderr.strip()[-800:]}")

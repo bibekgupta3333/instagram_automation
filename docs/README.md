@@ -101,6 +101,7 @@ flowchart LR
 
 - [04 — Content pipeline architecture](4-production/04-content-pipeline-architecture.md): repo comparison (fork MoneyPrinterTurbo), vendor pricing, reference architecture, cost per video.
 - [14 — Local models on M4 Pro 24 GB](4-production/14-local-models-mac-m4.md): what runs locally, licences, install commands, nightly batch, throughput.
+- [18 — Lightweight local image and video models](4-production/18-local-image-video-models.md): open-source image and video models of 6 GB or less, runtimes (mflux, stable-diffusion.cpp), disk traps. Supersedes 14 §6–7.
 - [09 — AI avatar presenters](4-production/09-ai-avatar-presenters.md): HeyGen, Hedra and open-source avatar models, licence traps, persona spec, avatar QA.
 
 ## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))

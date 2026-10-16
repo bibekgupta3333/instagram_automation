@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 MANIFEST = Path(__file__).with_name("models.manifest.yaml")
-STAGES = ("llm", "tts", "asr", "image", "music")
+STAGES = ("llm", "tts", "asr", "image", "video", "music")
 
 
 def load() -> dict:

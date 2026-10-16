@@ -4,7 +4,7 @@ SETUP := scripts/setup
 
 # make models               default set = tts + asr + image (text runs on Bedrock / Claude Code,
 #                           so every llm model is optional)
-# make models STAGE=tts     one stage (llm | tts | asr | image | music | all)
+# make models STAGE=tts     one stage (llm | tts | asr | image | video | music | all)
 STAGE ?= all
 # make models OPTIONAL=1  also pulls models marked optional (local LLMs, flux2-klein, ACE-Step)
 OPTIONAL ?=

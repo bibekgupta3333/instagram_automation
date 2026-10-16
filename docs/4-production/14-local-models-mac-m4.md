@@ -110,6 +110,8 @@ ASR needs about 1–3 GB, so it can share memory with the TTS stage.
 
 ---
 
+> **Update 2026-10-16:** for this disk-constrained machine, §6–7 are superseded by [18](18-local-image-video-models.md), which uses 4-bit image models and Wan Turbo GGUF video.
+
 ## 6. Image generation (stills, thumbnails, character keyframes)
 
 | Model | Params | Runs via | Memory (8-bit / 4-bit, est.) | Speed at 1024 px on M4 Pro | Licence (commercial?) | Verdict |

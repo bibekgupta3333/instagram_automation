@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Download the local model stack listed in scripts/setup/models.manifest.yaml.
 #
-# Usage: scripts/setup/20-pull-models.sh [--stage llm|tts|asr|image|music|all]
+# Usage: scripts/setup/20-pull-models.sh [--stage llm|tts|asr|image|video|music|all]
 #                                        [--dry-run] [--include-optional] [--dest hf-cache|models]
 #   --stage             only that stage (default: all)
 #   --dry-run           print the plan and the disk check, download nothing
@@ -29,7 +29,7 @@ while (($#)); do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-case "$STAGE" in llm|tts|asr|image|music|all) ;; *) echo "bad --stage: $STAGE" >&2; exit 2 ;; esac
+case "$STAGE" in llm|tts|asr|image|video|music|all) ;; *) echo "bad --stage: $STAGE" >&2; exit 2 ;; esac
 case "$DEST" in hf-cache|models) ;; *) echo "bad --dest: $DEST" >&2; exit 2 ;; esac
 
 BUF="$(manifest buffer)"

@@ -19,7 +19,7 @@ DEFAULT_BRAND_DIR = REPO_ROOT / "brand_packs"
 # The local mflux engines (z-image-turbo, flux2-klein-4b) stay selectable, and become the better
 # default once Z-Image-Turbo (~11 GB) fits on disk (doc 14 §6).
 DEFAULT_IMAGES_ENGINE = "auto"
-DEFAULT_AUTO_ORDER = ("pexels", "bedrock-stability", "mock")
+DEFAULT_AUTO_ORDER = ("flux2-klein-4b", "pexels", "bedrock-stability", "mock")
 
 
 def _env_float(name: str, default: float) -> float:
@@ -34,7 +34,9 @@ def _env_float(name: str, default: float) -> float:
 class VisualsConfig:
     """Env-driven knobs for the images stage (studio/stages/images.py, studio/stages/visuals/).
 
-    STUDIO_IMAGES_AUTO_ORDER      comma list tried per beat by `auto` (default pexels,bedrock-stability,mock)
+    STUDIO_IMAGES_AUTO_ORDER      comma list tried per beat by `auto`
+                                  (default flux2-klein-4b,pexels,bedrock-stability,mock; local mflux
+                                  is skipped unless its pre-quantized model is already downloaded)
     STUDIO_STABILITY_MODEL        core | sd3.5-large | ultra | a raw Bedrock model id (default core)
     STUDIO_BEDROCK_IMAGE_REGION   Stability on Bedrock is us-west-2 (model cards, 2026-10-16)
     STUDIO_IMAGES_MAX_USD_PER_VIDEO  hard cap on paid stills per video (default $1.00)

@@ -95,30 +95,54 @@ models:
     verified_how: "HF API: repo exists, licence cc-by-4.0, model.safetensors 2.47 GB"
 
   # ---------------------------------------------------------------- Image
-  - name: z-image-turbo-q8
+  - name: flux2-klein-4b-q4
     stage: image
-    purpose: "Default still / keyframe model via mflux, 8-bit pre-quantised (doc 14 §6)"
+    purpose: "Default local still / keyframe model via mflux, 4-bit pre-quantized (doc 18 §1)"
     runtime: hf
-    source: "mflux-community/z-image-turbo-mflux-q8"
-    size_gb: 11.0
+    source: "mflux-community/flux2-klein-4b-mflux-q4"
+    size_gb: 4.6
     licence: apache-2.0
     commercial_use: true
     optional: false
     verified: true
-    verified_how: "HF API: repo exists, apache-2.0, 10.99 GB. Upstream Tongyi-MAI/Z-Image-Turbo is 32.9 GB (bf16/fp32), so use this pre-quantised build. That mflux loads it via --model/--path is NOT yet tested"
+    verified_how: "HF file-tree API via doc 18 research: 4.57 GB (transformer 2.15, Qwen3 TE 2.27, VAE 0.17). M1 Max 31.7 s/image measured (lilting.ch). mflux --model <repo> form NOT yet tested"
 
-  - name: flux2-klein-4b-q8
+  - name: z-image-turbo-q4
     stage: image
-    purpose: "Fast drafts and thumbnails via mflux, 8-bit pre-quantised (doc 14 §6)"
+    purpose: "Higher-quality stills via mflux, 4-bit pre-quantized (doc 18 §1)"
     runtime: hf
-    source: "mflux-community/flux2-klein-4b-mflux-q8"
-    include: ["text_encoder/*", "transformer/*", "vae/*", "*.json", "*.txt", "tokenizer*/*"]
-    size_gb: 8.6
+    source: "mflux-community/z-image-turbo-mflux-q4"
+    size_gb: 5.9
     licence: apache-2.0
     commercial_use: true
-    optional: true   # second image model; Z-Image covers the default stack
+    optional: true   # pull instead of / after klein when disk allows
     verified: true
-    verified_how: "HF API: repo exists, apache-2.0; ~8.6 GB of weights (repo lists files twice, so total is 17.1 GB without the include filter). Upstream black-forest-labs/FLUX.2-klein-4B is apache-2.0. mflux loading NOT yet tested"
+    verified_how: "HF file-tree API via doc 18 research: 5.89 GB. Same files as filipstrand/Z-Image-Turbo-mflux-4bit. The q8 build (11 GB) and base repo (32.9 GB) are disk traps"
+
+  # ---------------------------------------------------------------- Video
+  - name: depth-anything-v2-small
+    stage: video
+    purpose: "Monocular depth for 2.5D parallax b-roll (DepthFlow), the default motion layer (doc 18 §2)"
+    runtime: hf
+    source: "apple/coreml-depth-anything-v2-small"
+    size_gb: 0.1
+    licence: apache-2.0
+    commercial_use: true
+    optional: false
+    verified: false
+    verified_how: "Doc 18 research: ~50-99 MB, Apache-2.0 (Small only; Base/Large are non-commercial). DepthFlow (AGPL-3.0, pip) may fetch its own depth model; check before pulling"
+
+  - name: wan2.2-ti2v-5b-turbo-gguf
+    stage: video
+    purpose: "Real image-to-video hero clips, 4-step distill, via stable-diffusion.cpp (doc 18 §2)"
+    runtime: hf
+    source: "jc-builds/Wan2.2-TI2V-5B-Turbo-iOS"
+    size_gb: 6.0
+    licence: apache-2.0
+    commercial_use: true
+    optional: true   # ~6 GB; pull once ~16 GB is free. Turbo distill's upstream licence is unstated
+    verified: false
+    verified_how: "Doc 18 research: DiT Q4_K_S 3.1 GB + umT5 Q3_K_S 2.9 GB + TAE 23 MB. M2 24 GB measured ~96 s for 13 frames at 480x832. Upstream quanhaol/Wan2.2-TI2V-5B-Turbo states no licence; FastWan2.2 (Apache) is the clean fallback"
 
   # ---------------------------------------------------------------- Music
   - name: ace-step-1.5
