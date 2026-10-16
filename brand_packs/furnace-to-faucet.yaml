@@ -1,0 +1,43 @@
+# Doc 13 §3.8 · Batch C · 🟡 explains and prices, never a DIY how-to (17 §Policy screen)
+slug: furnace-to-faucet
+name: Furnace to Faucet
+handle: "@furnacetofaucet"
+niche: How a US home's systems work (HVAC, plumbing, roofs, electrical) and what repairs cost by region; no DIY
+presenter: faceless
+palette: ["#3B2F2A", "#D9653B", "#7FA7B8"]
+voice: {engine: kokoro, voice: am_puck, speed: 1.05}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "curiosity gap: 'Nobody explains how a heat pump pulls heat out of freezing air.'"
+  - "result first: open on the regional cost card ('$1,800 in Ohio. $3,400 in Boston. Same water heater.')"
+  - "contrarian: 'Roofs don't fail at the shingles.'"
+  - "x-ray reveal: the house cutaway already highlighting one system"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "anyone can do this"
+  - "save thousands doing it yourself"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "no live-panel or gas 'anyone can do it' content and no DIY how-to steps (17)"
+  - "no asbestos or lead how-tos (17)"
+  - "no AI 'licensed electrician' or contractor persona (17)"
+  - "no fake before/after shots (17)"
+  - "every cost figure is dated and sourced (17)"
+  - "no financing (HELOCs, loans, resale ROI); code and permit law only as 'check your local code' (13 §3.8)"
+accuracy_critical: true
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "3D cutaway house cross-section, walnut #3B2F2A structure, copper pipe #D9653B plumbing, duct blue #7FA7B8 HVAC, one system highlighted, soft studio light, no people, no tools in hands"

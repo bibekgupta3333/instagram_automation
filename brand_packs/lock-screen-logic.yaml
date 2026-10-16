@@ -1,0 +1,43 @@
+# Doc 13 §3.7 · Batch B · 🟡 defensive and conceptual only (17 §Policy screen)
+slug: lock-screen-logic
+name: Lock Screen Logic
+handle: "@lockscreenlogic"
+niche: Cybersecurity and online privacy explained as attack-flow diagrams, defensive and conceptual only
+presenter: faceless
+palette: ["#121417", "#2BD9A0", "#FFB000"]
+voice: {engine: kokoro, voice: af_sarah, speed: 1.05}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: 'This text message just emptied someone's inbox. Here's the one setting that stops it.'"
+  - "curiosity gap: 'Nobody tells you what data brokers already know about you.'"
+  - "contrarian: 'Your long password isn't what protects you.'"
+  - "direct callout: 'If you reuse one password, watch this.'"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "hacker tricks"
+  - "hack anyone"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "no exploit walkthroughs against systems we don't own and no 'how to gain unauthorized access' (17)"
+  - "no phishing kits, credential-theft steps, paywall bypass or stalkerware (17)"
+  - "no VPN geo-unblocking pitches; VPNs are for privacy only (13 §3.7)"
+  - "no one else's demo footage; our own screens and attack-flow diagrams only"
+  - "identity-theft recovery stays general (no finance advice); privacy law stays descriptive (no legal advice)"
+  - "no hoodie-hacker stock imagery"
+accuracy_critical: true
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "clean attack-flow diagram style, terminal black #121417 background, signal green #2BD9A0 flow arrows, alert amber #FFB000 warnings, minimal phone and laptop line icons, no hooded figures, no real brand logos"

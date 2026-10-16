@@ -1,0 +1,42 @@
+# Doc 13 §3.1 · Batch C · 🟡 market data only, no advice (12 §2)
+slug: square-foot-money
+name: Square Foot Money
+handle: "@squarefootmoney"
+niche: US real estate market data and mortgage mechanics (PITI, PMI, escrow, closing costs)
+presenter: faceless
+palette: ["#1D3557", "#A0522D", "#E9D8A6"]
+voice: {engine: kokoro, voice: am_michael, speed: 1.05}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: open on the number ('This $400,000 home costs $11,000 before you get the keys.')"
+  - "curiosity gap: 'Nobody explains why your mortgage payment went up when your rate didn't.'"
+  - "contrarian: 'Your down payment isn't the biggest cost of buying.'"
+  - "map reveal: open mid-zoom on a US price map"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "this is not financial advice but"
+  - "you should buy now"
+  - "best time to buy"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "market data and mechanics only; no buy/sell or mortgage advice and no 'you should' recommendations (12 §2, 11 §1)"
+  - "no fair-housing steering: never call neighbourhoods good or bad for a group of people (13 §3.1)"
+  - "every price or rate figure is dated and sourced"
+  - "say lender links may be affiliate links"
+accuracy_critical: true
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "clean animated data map and chart style, blueprint navy #1D3557 with brick #A0522D and sand #E9D8A6 accents, flat vector, crisp labels, no people's faces, no logos"

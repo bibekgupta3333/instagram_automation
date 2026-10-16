@@ -1,0 +1,39 @@
+# Doc 13 §3.4 · Batch C · 🟢
+slug: car-cost-truth
+name: Car Cost Truth
+handle: "@carcosttruth"
+niche: The total cost of buying, leasing, financing and owning a US car
+presenter: faceless
+palette: ["#2B2D31", "#F26B1D", "#C7CCD1"]
+voice: {engine: kokoro, voice: am_eric, speed: 1.05}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: 'This $35,000 car really costs $52,000.'"
+  - "contrarian: 'Leasing isn't throwing money away. Here's the math.'"
+  - "stakes/countdown: 'Your new car loses 20% before your first payment.'"
+  - "list with payoff tease: '4 costs nobody quotes you at the dealer.'"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "dealers hate this"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "educational only, not financial advice; no 'you should' loan or lease recommendations"
+  - "AI renders or licensed footage only; never ripped reviews; check press-kit image rights (08 §8)"
+  - "keep clear of TrueCar's look and any OEM logo implying affiliation"
+accuracy_critical: false
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "cinematic automotive b-roll look, asphalt #2B2D31 tones, signal orange #F26B1D data overlays, chrome #C7CCD1 highlights, generic unbranded cars, no logos or badges"

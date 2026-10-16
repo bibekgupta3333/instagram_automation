@@ -1,0 +1,41 @@
+# Doc 13 §3.9 · Batch B · 🟡 engineering only, never crashes (17 §Policy screen)
+slug: wing-and-turbine
+name: Wing and Turbine
+handle: "@wingandturbine"
+niche: Aviation and how airliner systems work (wings, turbofans, pressurization, autopilot); no crash content
+presenter: faceless
+palette: ["#1C2B39", "#D8DEE4", "#3A86FF"]
+voice: {engine: kokoro, voice: af_nova, speed: 1.0}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: 'Ninety percent of this engine's thrust never touches the fire.'"
+  - "curiosity gap: 'Nobody explains why cabin lights dim before landing.'"
+  - "question: 'Why do airliners cruise at 35,000 feet and not 20,000?'"
+  - "mid-action cold open: a turbofan cutaway already spinning up"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "terrifying moment"
+  - "brace for impact"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "no crash content: no realistic AI crash recreations, no victims in thumbnails, no hijacking detail, no conspiracy pieces (17)"
+  - "no AI 'pilot' persona with credentials; the narrator makes no pilot claim (13 §3.9)"
+  - "no spotter or cockpit footage, airline ads, airline or Airbus press-kit images, or ATC audio (13 §3.9)"
+  - "airports only as aircraft operations; airline finances belong to Business Model Files"
+accuracy_critical: true
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "3D aircraft systems cutaway diagram, night sky #1C2B39 background, aluminum #D8DEE4 airframe, nav-light blue #3A86FF airflow lines, generic unbranded airliner, no airline livery, no insignia"

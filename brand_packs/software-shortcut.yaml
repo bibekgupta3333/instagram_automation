@@ -1,0 +1,43 @@
+# Doc 13 §3.2 · Batch B · AI avatar "Jules", disclosed, PiP <=40% of a Short (12 §3)
+slug: software-shortcut
+name: Software Shortcut
+handle: "@softwareshortcut"
+niche: Hands-on AI and SaaS tool tutorials for small-business people (Notion, Zapier, Sheets, AI tools)
+presenter: avatar
+avatar_name: Jules
+palette: ["#1E1E24", "#5B4BDB", "#B6F36A"]
+voice: {engine: kokoro, voice: af_heart, speed: 1.1}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: show the finished workflow, then 'here's the 3-click setup'"
+  - "direct callout: 'If you still copy invoices by hand, stop scrolling.'"
+  - "list with payoff tease: '3 Sheets formulas that replace a paid tool. #1 is wild.'"
+  - "mid-action cold open on the real screen"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "as a human"
+  - "game changer"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "Jules is an AI-generated presenter; never claim to be human; on-screen 'AI-generated presenter' label on sponsor reads (NY GBL §396-b, 11 §4)"
+  - "teach tools only, never the business model (that is Business Model Files)"
+  - "never cover security or privacy tools like VPNs or password managers (that is Lock Screen Logic)"
+  - "never run ranking or ad experiments (that is Rank Test Lab)"
+  - "no Apple Shortcuts icon style or implied affiliation with any vendor"
+accuracy_critical: false
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "clean software UI screenshot style, graphite #1E1E24 background, violet #5B4BDB highlights, lime #B6F36A cursor accents, sharp flat UI, no real brand logos"

@@ -1,0 +1,63 @@
+# LiteLLM proxy: one OpenAI-compatible endpoint in front of Ollama and Amazon Bedrock.
+# Follows docs 15 §7.4. No credentials are stored here: every secret or location comes from env.
+#   OLLAMA_BASE_URL       e.g. http://localhost:11434 (same var the studio uses)
+#   AWS_PROFILE           your Bedrock-invoke-only profile; leave it EMPTY to use the default
+#                         AWS credential chain. Never commit a profile name here.
+#   AWS_REGION            e.g. us-east-1 (global.* inference profiles)
+#   LITELLM_MASTER_KEY    admin key for the proxy; give each channel its own virtual key
+# Model-group names (local-bulk, bedrock-*) must match studio/llm/routing.py.
+
+model_list:
+  - model_name: local-bulk                       # Ollama workhorse (docs 14: qwen3.5:9b)
+    litellm_params:
+      model: ollama_chat/qwen3.5:9b              # keep in sync with STUDIO_LOCAL_MODEL
+      api_base: os.environ/OLLAMA_BASE_URL
+  # Optional mlx_lm.server in the same group (load-balanced). Uncomment when it is running:
+  # - model_name: local-bulk
+  #   litellm_params:
+  #     model: openai/mlx-community/Qwen3.5-9B-4bit
+  #     api_base: os.environ/MLX_API_BASE        # e.g. http://127.0.0.1:8081/v1
+  #     api_key: none
+
+  # TODO-verify: these global.* inference-profile IDs come from docs 15 §2. Check them with
+  # `aws bedrock list-inference-profiles`. Set tpm to about 80% of the APPLIED quota.
+  - model_name: bedrock-haiku
+    litellm_params:
+      model: bedrock/converse/global.anthropic.claude-haiku-5-5
+      aws_profile_name: os.environ/AWS_PROFILE
+      aws_region_name: os.environ/AWS_REGION
+      tpm: 200000
+  - model_name: bedrock-sonnet
+    litellm_params:
+      model: bedrock/converse/global.anthropic.claude-sonnet-5-5
+      aws_profile_name: os.environ/AWS_PROFILE
+      aws_region_name: os.environ/AWS_REGION
+      tpm: 200000
+  - model_name: bedrock-opus
+    litellm_params:
+      model: bedrock/converse/global.anthropic.claude-opus-5-5
+      aws_profile_name: os.environ/AWS_PROFILE
+      aws_region_name: os.environ/AWS_REGION
+      tpm: 100000
+
+litellm_settings:
+  num_retries: 3              # per model group, before fallbacks
+  allowed_fails: 3
+  cooldown_time: 30
+  request_timeout: 600
+  drop_params: true           # e.g. drop params Ollama doesn't support
+  max_budget: 25              # USD, proxy-wide outer guard ($25 tier, docs 15 §6)
+  budget_duration: 30d
+
+router_settings:
+  enable_pre_call_checks: true
+  fallbacks:
+    - {"local-bulk": ["bedrock-haiku"]}       # local down/busy -> cheap cloud overflow
+    - {"bedrock-opus": ["bedrock-sonnet"]}    # quality tier steps down, never to local
+  # bedrock-sonnet and bedrock-haiku have NO fallback. The app catches 429 and re-enqueues
+  # them (BudgetDeferred).
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Per-channel virtual keys (max_budget, budget_duration: 30d) need a database:
+  # database_url: os.environ/LITELLM_DATABASE_URL

@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "buffer": {
+      "type": "http",
+      "url": "https://mcp.buffer.com/mcp",
+      "headers": { "Authorization": "Bearer ${BUFFER_READONLY_KEY}" }
+    },
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./output"]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@brave/brave-search-mcp-server"],
+      "env": { "BRAVE_API_KEY": "${BRAVE_API_KEY}" }
+    },
+    "aws-docs": {
+      "command": "uvx",
+      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "env": { "FASTMCP_LOG_LEVEL": "ERROR" }
+    },
+    "youtube-readonly": {
+      "disabled": true,
+      "command": "yutu",
+      "args": ["mcp"],
+      "env": {
+        "YUTU_CREDENTIAL": "${YUTU_READONLY_CREDENTIAL}",
+        "YUTU_CACHE_TOKEN": "${YUTU_READONLY_TOKEN}"
+      }
+    }
+  }
+}

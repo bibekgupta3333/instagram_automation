@@ -1,0 +1,40 @@
+# Doc 13 §3.3 · Batch A (pilot) · 🟢 · fallback handle @bizmodelfiles
+slug: business-model-files
+name: Business Model Files
+handle: "@businessmodelfiles"
+niche: How well-known US companies actually make money, from public filings
+presenter: faceless
+palette: ["#E8D3A2", "#111111", "#2F6B4F"]
+voice: {engine: kokoro, voice: am_onyx, speed: 1.05}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "contrarian: 'Costco doesn't make its money on groceries.'"
+  - "curiosity gap: 'Nobody talks about who really pays for airport lounges.'"
+  - "result first: open on the profit number stamped on a case file"
+  - "question: 'How does a free app make 13 billion dollars?'"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "you should buy this stock"
+  - "to the moon"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "not investment advice; never recommend buying or selling any security"
+  - "figures come from public filings (10-K, earnings calls) and are cited"
+  - "no reused TV or documentary footage"
+accuracy_critical: false
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "documentary case-file style, manila folder #E8D3A2 paper texture, black #111111 type, ledger green #2F6B4F chart lines, top-down desk photo look, no real company logos"

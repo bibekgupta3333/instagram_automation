@@ -1,27 +1,34 @@
 # Multi-Channel AI Content Automation: Plan
 
-This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them.
+> **Status:** current · **Updated:** 2026-10-16 · Master index for the planning docs.
 
-## The plan in brief
+This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–17) as a stable ID, so citations like "04 §5" still work after the move into folders.
 
-- **The goal, reframed.** 1M followers in a week isn't realistic: about 0% for a new account. Only people who were already famous have done it (01 §1). **1M combined views in week 1 is a realistic stretch goal** (250k is the commitment). The real milestones are 10k followers in month 1 and the first channel eligible for monetisation by month 3.
-- **The biggest risk is platform policy, not tooling.** YouTube's "inauthentic content" rule (July 2025) and Meta's crackdown on unoriginal content target exactly this model: templated, mass-produced faceless AI. YouTube has terminated such channels in batches, and one termination can spread to all of an owner's channels (03).
-- **So the pipeline is automated, with a person in the loop.** Each channel gets its own brand pack. Scripts are fact-checked, a similarity check runs across channels, a person reviews before anything is published, and AI disclosure is turned on.
-- **The money is in long-form.** Shorts and Reels build the audience but pay pennies per 1,000 views. Revenue comes from long-form YouTube, affiliate links, products and, eventually, selling channels (02 §3, 06 §10).
-- **Buffer handles short-form only.** Its new GraphQL API (beta, May 2026) can post Shorts, Reels and FB Reels from code. **Long-form YouTube must go through the YouTube Data API directly** (05).
-- **The portfolio stays out of YouTube's AI-persona sensitive topics.** YouTube's verified rule (July 2026) removes monetisation from a whole channel where an AI persona gives health, legal, finance or political advice, and disclaimers don't change that (11). So the finance and legal channels were dropped (17). The two avatars only host tutorials.
-- **The stack is local-first on a Mac M4 Pro with 24 GB** (14):
-  - Qwen3.5-9B / Gemma 4 12B write scripts, through Ollama's MLX backend.
-  - Kokoro does the voice, parakeet-mlx the captions, Z-Image / FLUX.2 klein the images and ACE-Step the music. All are licensed for commercial use.
-  - Rendering happens overnight, stage by stage.
-  - Video generation and lip-sync aren't practical on the Mac, so they go to cloud APIs.
-- **Limited Bedrock is used for judgement, not volume** (15). Claude Sonnet 5.5 polishes scripts and fact-checks the finance and legal channels, and Opus 5.5 settles disputed claims, all for about $25–30 a month. One LiteLLM gateway sits in front of both local models and Bedrock.
-- **Agents, MCP and tool calling** (16): only the Trend Scout and Fact-Checker are tool-using agents (Strands Agents). Rendering and publishing are plain code, queued by Prefect. Buffer's official MCP is read-only, and **nothing publishes without a human approval**.
-- **Cost** *(est.)*: about **$550–700 a month** in cash with the local-first stack, plus about 55–65 h of review and screen-recording time for 3 tutorial channels (12 §5).
+## Start here
 
-## The 10 channels (final brands, from [12](12-final-portfolio.md) and [13](13-channel-brands.md))
+1. Read [12 — Final portfolio](2-channels/12-final-portfolio.md): the 10 channels, presenters, stack, disclosure and budget.
+2. Then [13 — Channel brands](2-channels/13-channel-brands.md): names, handles and brand packs.
+3. Then [07 — Execution roadmap](1-strategy/07-execution-roadmap.md): the dated plan and decisions still open.
+4. Before producing anything, skim [03](3-policy/03-platform-policies-and-risks.md) and [11](3-policy/11-avatar-and-ymyl-policy.md) for the red lines.
+5. Building the pipeline? Go to [4-production](4-production/README.md) and [5-automation](5-automation/README.md), then the code (see Implementation).
+6. [archive/](archive/README.md) holds superseded docs. Don't plan from them.
 
-Each channel covers its own subject domain, aims at **US AdSense value**, and stays **outside YouTube's AI-persona sensitive topics** (health, legal, finance advice, politics). The 5 finance and legal channels were removed on 2026-10-16 and replaced by the niches chosen in [17](17-replacement-niches.md).
+## Key findings
+
+- **Goal, reframed.** 1M followers in a week is about 0% for a new account (01 §1). **1M combined views in week 1** is the stretch goal (250k committed); real milestones are 10k followers in month 1 and the first monetisable channel by month 3.
+- **The biggest risk is platform policy, not tooling.** YouTube's "inauthentic content" rule and Meta's unoriginal-content crackdown target templated faceless AI; one termination can spread to all of an owner's channels (03).
+- **Automated, with a person in the loop.** Per-channel brand packs, fact-checks, a cross-channel similarity check, human review before publishing, AI disclosure on.
+- **The money is in long-form.** Shorts/Reels build audience; revenue comes from long-form YouTube, affiliates, products and eventually channel sales (02 §3, 06 §10).
+- **Buffer handles short-form only** (GraphQL API, beta May 2026). **Long-form goes through the YouTube Data API** (05).
+- **No AI-persona sensitive topics.** YouTube demonetises a whole channel where an AI persona gives health, legal, finance or political advice, disclaimers notwithstanding (11), so the finance/legal channels were replaced (17). The two avatars only host tutorials.
+- **Local-first on a Mac M4 Pro 24 GB** (14): Qwen3.5-9B / Gemma 4 12B scripts via Ollama MLX; Kokoro voice, parakeet-mlx captions, Z-Image / FLUX.2 klein images, ACE-Step music, rendered overnight. Video generation and lip-sync go to cloud APIs.
+- **Bedrock for judgement, not volume** (15): Sonnet 5.5 polish and fact-check, Opus 5.5 for disputes, about $25–30/month, behind one LiteLLM gateway.
+- **Agents only where they help** (16): Trend Scout and Fact-Checker are Strands agents; rendering and publishing are plain code queued by Prefect. **Nothing publishes without human approval.**
+- **Cost** *(est.)*: about **$550–700/month** cash plus 55–65 h/month of review and screen recording (12 §5).
+
+## The 10 channels (final brands, from [12](2-channels/12-final-portfolio.md) and [13](2-channels/13-channel-brands.md))
+
+Each channel covers its own subject domain, aims at **US AdSense value**, and stays **outside YouTube's AI-persona sensitive topics**. The 5 finance and legal channels were removed on 2026-10-16 and replaced by the niches chosen in [17](2-channels/17-replacement-niches.md).
 
 | # | Brand | Handle (YT/IG/FB) | Niche | Presenter | US long-form RPM *(est.)* | Batch |
 |---|---|---|---|---|---|---|
@@ -38,42 +45,103 @@ Each channel covers its own subject domain, aims at **US AdSense value**, and st
 
 YouTube handles and .com domains looked free on 2026-10-16. **Instagram and Facebook are unverified.** Claim everything on the same day.
 
-## System overview
+## How the docs relate
 
 ```mermaid
 flowchart LR
-    A[Ideas<br/>trends + comments] --> B[AI production<br/>script · voice · visuals · edit]
-    B --> C{Fact-check +<br/>similarity check}
-    C --> D{Human review}
-    D -->|approved| E[(Public CDN)]
-    E --> F[Buffer API] --> G[YT Shorts · IG Reels · FB Reels]
-    E --> H[YouTube Data API] --> I[YT long-form]
-    G & I --> J[Analytics] -->|winners → 10 variations| A
+    subgraph S[1-strategy]
+        D01[01 Reality check] --> D07[07 Roadmap]
+        D06[06 Growth playbook] --> D07
+    end
+    subgraph C[2-channels]
+        D08[08 US RPM] --> D17[17 Replacement niches]
+        D17 --> D12[12 Final portfolio]
+        D12 --> D13[13 Brands]
+    end
+    subgraph P[3-policy]
+        D03[03 Platform policies] --> D11[11 Avatar & YMYL]
+    end
+    subgraph R[4-production]
+        D04[04 Pipeline] --> D14[14 Local models]
+        D04 --> D09[09 Avatars]
+    end
+    subgraph A[5-automation]
+        D15[15 Bedrock routing] --> D16[16 MCP & agents]
+        D16 --> D05[05 Buffer]
+    end
+    S --> C --> P --> R --> A
+    D12 -.-> D07
+    D11 -.->|AI-persona rule| D17
+    X[(archive: 02, 10)] -.->|superseded by| D12
 ```
 
-The full version is in [07 §6](07-execution-roadmap.md#6-end-to-end-system).
+## 1-strategy: goals and plan ([folder](1-strategy/README.md))
 
-## Documents
+- [01 — Reality check and goals](1-strategy/01-reality-check-and-goals.md): growth base rates, the probability-weighted outcome table, North Star metrics.
+- [06 — Growth playbook](1-strategy/06-growth-playbook.md): hooks, retention, packaging, cross-posting, the experiment loop, KPIs, monetisation.
+- [07 — Execution roadmap](1-strategy/07-execution-roadmap.md): phased Gantt from 19 Oct 2026, checklists, targets, budget, open decisions.
 
-| Doc | Read it for |
-|---|---|
-| [01 — Reality check and goals](01-reality-check-and-goals.md) | Growth base rates, what MrBeast actually did, the probability-weighted outcome table, the North Star metrics |
-| [02 — Niche selection](02-niche-selection.md) | The 19-niche scoring matrix, RPM by niche, the 10-channel portfolio, rejected niches |
-| [03 — Platform policies and risks](03-platform-policies-and-risks.md) | Rules per platform, red lines, the risk register, the pre-launch checklist, the "safe to publish?" flowchart |
-| [04 — Content pipeline architecture](04-content-pipeline-architecture.md) | A comparison of open-source repos (fork MoneyPrinterTurbo), vendor pricing, the reference architecture, cost per video |
-| [05 — Distribution via Buffer](05-distribution-buffer.md) | Buffer's capabilities and API, pricing, the posting schedule for 30 profiles, fallbacks (Publer, upload-post) |
-| [06 — Growth playbook](06-growth-playbook.md) | Hooks, retention, packaging, algorithm notes, cross-posting rules, the experiment loop, KPIs, monetisation |
-| [07 — Execution roadmap](07-execution-roadmap.md) | Phased Gantt chart from 19 Oct 2026, checklists, targets, budget, decisions still open |
-| [08 — High-CPM US niches](08-high-cpm-us-niches.md) | US RPM by niche, attracting US viewers, posting times, seasonality |
-| [09 — AI avatar presenters](09-ai-avatar-presenters.md) | HeyGen, Hedra and other APIs, open-source models and their licence traps, persona spec, avatar QA |
-| [10 — AI cartoon characters](10-ai-cartoon-characters.md) | Keeping characters consistent, rig + AI hybrid, character bible, staying out of "made for kids" (*reference only; no cartoon channels in the final portfolio*) |
-| [11 — Avatar and YMYL policy](11-avatar-and-ymyl-policy.md) | Verified AI-persona rules, rules per niche, disclaimer templates, US law |
-| [12 — Final portfolio](12-final-portfolio.md) | **The decision:** 10 channels × presenter × stack × disclosure settings × budget |
-| [13 — Channel brands](13-channel-brands.md) | 10 brand packs: handles, taglines, bios, palettes, logo ideas, starter titles, availability checks |
-| [14 — Local models on M4 Pro 24 GB](14-local-models-mac-m4.md) | What runs locally (LLM, TTS, ASR, image, music), licences, install commands, nightly batch, throughput |
-| [15 — Bedrock hybrid routing](15-bedrock-hybrid-routing.md) | Local vs Bedrock for each step, quotas, budget tiers, LiteLLM gateway, spend guard |
-| [16 — MCP and agent orchestration](16-mcp-agent-orchestration.md) | MCP servers, agent vs plain-code roles, Strands/Prefect, `.mcp.json`, security, speed playbook |
-| [17 — Replacement niches](17-replacement-niches.md) | Why the 5 YMYL channels were removed, the 18-niche scoring, policy screen, production feasibility, final picks |
+## 2-channels: what we publish ([folder](2-channels/README.md))
+
+- [12 — Final portfolio](2-channels/12-final-portfolio.md): **the decision**: 10 channels × presenter × stack × disclosure × budget.
+- [13 — Channel brands](2-channels/13-channel-brands.md): 10 brand packs (handles, taglines, palettes, starter titles, availability checks).
+- [17 — Replacement niches](2-channels/17-replacement-niches.md): why the 5 YMYL channels went, the 18-niche scoring and the final picks.
+- [08 — High-CPM US niches](2-channels/08-high-cpm-us-niches.md): US RPM by niche, attracting US viewers, posting times, seasonality.
+
+## 3-policy: red lines ([folder](3-policy/README.md))
+
+- [03 — Platform policies and risks](3-policy/03-platform-policies-and-risks.md): per-platform rules, risk register, pre-launch checklist, "safe to publish?" flowchart.
+- [11 — Avatar and YMYL policy](3-policy/11-avatar-and-ymyl-policy.md): verified AI-persona rules, per-niche rules, disclaimer templates, US law.
+
+## 4-production: making the videos ([folder](4-production/README.md))
+
+- [04 — Content pipeline architecture](4-production/04-content-pipeline-architecture.md): repo comparison (fork MoneyPrinterTurbo), vendor pricing, reference architecture, cost per video.
+- [14 — Local models on M4 Pro 24 GB](4-production/14-local-models-mac-m4.md): what runs locally, licences, install commands, nightly batch, throughput.
+- [09 — AI avatar presenters](4-production/09-ai-avatar-presenters.md): HeyGen, Hedra and open-source avatar models, licence traps, persona spec, avatar QA.
+
+## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))
+
+- [05 — Distribution via Buffer](5-automation/05-distribution-buffer.md): Buffer API and pricing, the 30-profile schedule, fallbacks (Publer, upload-post).
+- [15 — Bedrock hybrid routing](5-automation/15-bedrock-hybrid-routing.md): local vs Bedrock per step, quotas, budget tiers, LiteLLM gateway, spend guard.
+- [16 — MCP and agent orchestration](5-automation/16-mcp-agent-orchestration.md): MCP servers, agent vs plain-code roles, Strands/Prefect, `.mcp.json`, security.
+
+## archive: superseded ([folder](archive/README.md))
+
+- [02 — Niche selection](archive/02-niche-selection.md): the original 19-niche matrix and portfolio, replaced by 12 and 13.
+- [10 — AI cartoon characters](archive/10-ai-cartoon-characters.md): character consistency and rigs; no cartoon channels in the final portfolio.
+
+## Doc status
+
+| Doc | Status | Last updated |
+|---|---|---|
+| 01 Reality check and goals | reference | 2026-10-16 |
+| 02 Niche selection | archived | 2026-10-16 |
+| 03 Platform policies and risks | current | 2026-10-16 |
+| 04 Content pipeline architecture | current | 2026-10-16 |
+| 05 Distribution via Buffer | current | 2026-10-16 |
+| 06 Growth playbook | current | 2026-10-16 |
+| 07 Execution roadmap | current | 2026-10-16 |
+| 08 High-CPM US niches | reference | 2026-10-16 |
+| 09 AI avatar presenters | current | 2026-10-16 |
+| 10 AI cartoon characters | archived | 2026-10-16 |
+| 11 Avatar and YMYL policy | current | 2026-10-16 |
+| 12 Final portfolio | current | 2026-10-16 |
+| 13 Channel brands | current | 2026-10-16 |
+| 14 Local models on M4 Pro | current | 2026-10-16 |
+| 15 Bedrock hybrid routing | current | 2026-10-16 |
+| 16 MCP and agent orchestration | current | 2026-10-16 |
+| 17 Replacement niches | reference | 2026-10-16 |
+
+**current** = plan from it · **reference** = research a current doc rests on · **archived** = superseded, kept for history.
+
+## Implementation
+
+The plan is being built in this repo:
+
+- [`SETUP.md`](../SETUP.md) at the repo root: install and run instructions (start there).
+- [`studio/`](../studio/): the Python pipeline (stages, LLM routing, flows, publishing), following 04, 14, 15 and 16.
+- [`brand_packs/`](../brand_packs/): one YAML per channel, built from the brand packs in 13.
+- [`scripts/setup/`](../scripts/setup/): machine setup, including the local model manifest (14).
 
 ## Open questions to verify
 

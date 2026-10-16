@@ -1,0 +1,40 @@
+# Doc 13 §3.6 · Batch A (pilot) · 🟢 · red lines from 17 §Policy screen
+slug: megabuild-blueprint
+name: Megabuild Blueprint
+handle: "@megabuildblueprint"
+niche: Engineering megaprojects (bridges, dams, tunnels, ports, chip fabs, gigafactories); never aircraft
+presenter: faceless
+palette: ["#0E2A47", "#F5F1E6", "#E8752A"]
+voice: {engine: kokoro, voice: am_echo, speed: 1.0}
+platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
+shorts_per_day: 1.0
+longform_per_week: 2.0
+hook_styles:
+  - "result first: open on the finished structure at full scale, then rewind to bare ground"
+  - "curiosity gap: 'Nobody explains why the Golden Gate is never finished being painted.'"
+  - "scale shock: 'This tunnel moved enough rock to build 85 Great Pyramids.'"
+  - "mid-action cold open: a blueprint cutaway already building layer by layer"
+banned_templates:
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+  - "without further ado"
+  - "let's dive in"
+  - "smash that like"
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "thanks for watching"
+  - "how it's made"
+red_lines:
+  - "no credential words or titles for the narrator or presenter (Dr, CFP, CPA, Attorney, Expert, Advisor, Guru, Pilot, Captain, Electrician, Contractor, Hacker) (13 §5)"
+  - "no income guarantees or get-rich framing (FTC)"
+  - "never kid-appealing; Not made for kids on every video (11 §5)"
+  - "disclose affiliate links spoken and on screen before the endorsement (17)"
+  - "no disaster porn; collapse or disaster episodes use non-exploitative framing and no unsourced death counts (17)"
+  - "no reused Discovery, How It's Made or TV clips, and no others' drone footage (17)"
+  - "state-backed projects (NEOM, Belt and Road) stay factual, not political (17)"
+  - "never covers aircraft (that is Wing and Turbine)"
+accuracy_critical: false
+ai_disclosure: true
+made_for_kids: false
+style_prompt: "isometric blueprint cutaway, drafting blue #0E2A47 background, white and vellum #F5F1E6 linework, safety orange #E8752A highlights, technical dimension arrows, layered 3D construction, no people"

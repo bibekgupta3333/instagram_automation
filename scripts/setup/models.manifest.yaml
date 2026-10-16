@@ -1,0 +1,128 @@
+# Local model manifest for the recommended stack in docs 14 (Apple M4 Pro, 24 GB).
+#
+# Read by scripts/setup/00-preflight.sh (disk requirement), 20-pull-models.sh
+# (downloads) and 30-smoke-test.sh (presence checks) via scripts/setup/manifest.py.
+#
+# Fields
+#   name            short id used by the scripts
+#   stage           llm | tts | asr | image | music
+#   purpose         what the pipeline uses it for
+#   runtime         ollama (pulled with `ollama pull`) | hf (Hugging Face repo download)
+#   source          Ollama tag or HF repo id
+#   include         optional HF allow-patterns (only these files are downloaded)
+#   size_gb         approximate download size, GB (decimal)
+#   licence         weights licence (SPDX-ish)
+#   commercial_use  true only for licences that allow monetised channels
+#   optional        true = not pulled by default (needs --include-optional), not in the
+#                   required disk total
+#   verified        what was checked on 2026-10-16 (see `verified_how`); false = unverified
+#
+# Only commercially usable weights belong here. Non-commercial models (FLUX.1-dev,
+# FLUX.2-klein-9B, Qwen-Image-2.1, F5-TTS, MusicGen, Higgs TTS 3) are excluded on purpose.
+
+version: 1
+checked: "2026-10-16"
+disk_buffer_gb: 10
+
+models:
+  # ---------------------------------------------------------------- LLM
+  - name: qwen3.5-9b
+    stage: llm
+    purpose: "Workhorse: scripts, hooks, titles, tags, JSON metadata (doc 14 §3)"
+    runtime: ollama
+    source: "qwen3.5:9b"
+    size_gb: 7.6
+    licence: apache-2.0
+    commercial_use: true
+    optional: false
+    verified: true
+    verified_how: "tag listed on ollama.com/library/qwen3.5/tags (7.6 GB); HF Qwen/Qwen3.5-9B licence apache-2.0"
+
+  - name: gemma4-12b
+    stage: llm
+    purpose: "Workhorse alternative for A/B on voice and tone (doc 14 §3)"
+    runtime: ollama
+    source: "gemma4:12b"
+    size_gb: 7.7
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "tag listed on ollama.com/library/gemma4/tags (7.7 GB); HF google/gemma-4-12B-it licence apache-2.0"
+
+  - name: gpt-oss-20b
+    stage: llm
+    purpose: "Smart pass: fact-check critic, outline, planner agent (doc 14 §3)"
+    runtime: ollama
+    source: "gpt-oss:20b"
+    size_gb: 14.0
+    licence: apache-2.0
+    commercial_use: true
+    optional: true   # Bedrock does fact-checking; pull later for offline fact-check
+    verified: true
+    verified_how: "tag listed on ollama.com/library/gpt-oss/tags (14 GB); HF openai/gpt-oss-20b licence apache-2.0"
+
+  # ---------------------------------------------------------------- TTS
+  - name: kokoro-82m
+    stage: tts
+    purpose: "Default narrator via mlx-audio, preset/blended voices only (doc 14 §4)"
+    runtime: hf
+    source: "mlx-community/Kokoro-82M-bf16"
+    size_gb: 0.4
+    licence: apache-2.0
+    commercial_use: true
+    optional: false
+    verified: true
+    verified_how: "HF API: repo exists, licence apache-2.0, 0.39 GB. Upstream: hexgrad/Kokoro-82M"
+
+  # ---------------------------------------------------------------- ASR
+  - name: parakeet-tdt-0.6b-v2
+    stage: asr
+    purpose: "Word-level caption timings via parakeet-mlx (doc 14 §5). Credit NVIDIA (CC-BY-4.0)"
+    runtime: hf
+    source: "mlx-community/parakeet-tdt-0.6b-v2"
+    size_gb: 2.5
+    licence: cc-by-4.0
+    commercial_use: true
+    optional: false
+    verified: true
+    verified_how: "HF API: repo exists, licence cc-by-4.0, model.safetensors 2.47 GB"
+
+  # ---------------------------------------------------------------- Image
+  - name: z-image-turbo-q8
+    stage: image
+    purpose: "Default still / keyframe model via mflux, 8-bit pre-quantised (doc 14 §6)"
+    runtime: hf
+    source: "mflux-community/z-image-turbo-mflux-q8"
+    size_gb: 11.0
+    licence: apache-2.0
+    commercial_use: true
+    optional: false
+    verified: true
+    verified_how: "HF API: repo exists, apache-2.0, 10.99 GB. Upstream Tongyi-MAI/Z-Image-Turbo is 32.9 GB (bf16/fp32), so use this pre-quantised build. That mflux loads it via --model/--path is NOT yet tested"
+
+  - name: flux2-klein-4b-q8
+    stage: image
+    purpose: "Fast drafts and thumbnails via mflux, 8-bit pre-quantised (doc 14 §6)"
+    runtime: hf
+    source: "mflux-community/flux2-klein-4b-mflux-q8"
+    include: ["text_encoder/*", "transformer/*", "vae/*", "*.json", "*.txt", "tokenizer*/*"]
+    size_gb: 8.6
+    licence: apache-2.0
+    commercial_use: true
+    optional: true   # second image model; Z-Image covers the default stack
+    verified: true
+    verified_how: "HF API: repo exists, apache-2.0; ~8.6 GB of weights (repo lists files twice, so total is 17.1 GB without the include filter). Upstream black-forest-labs/FLUX.2-klein-4B is apache-2.0. mflux loading NOT yet tested"
+
+  # ---------------------------------------------------------------- Music
+  - name: ace-step-1.5
+    stage: music
+    purpose: "One-night instrumental bed library per channel (doc 14 §8)"
+    runtime: hf
+    source: "ACE-Step/Ace-Step1.5"
+    size_gb: 10.1
+    licence: mit
+    commercial_use: true
+    optional: true   # music: build each channel library once when space allows
+    verified: true
+    verified_how: "HF API: repo exists, licence mit, 10.09 GB (turbo DiT 4.8 + 5Hz LM 1.7B 3.7 + Qwen3-Embedding 1.2 + VAE). Code: github.com/ace-step/ACE-Step-1.5 (may fetch the same weights itself)"
