@@ -144,6 +144,18 @@ models:
     verified: false
     verified_how: "Doc 18 round 2: DiT q6_k 4.21 GB (+ umT5 Q3_K_S 2.86 + taew2_2 0.02 = 7.1 GB). Apache at every layer, replacing Wan2.2-Turbo (distill repo has no licence). DMD timesteps vs sd.cpp scheduler unverified"
 
+  - name: wan2.1-t2v-1.3b-gguf
+    stage: video
+    purpose: "Text-to-video generic cutaways (clouds, traffic, machinery), via stable-diffusion.cpp; NOT image-to-video (doc 18 §7)"
+    runtime: hf
+    source: "calcuis/wan-1.3b-gguf"
+    size_gb: 4.5
+    licence: apache-2.0
+    commercial_use: true
+    optional: true   # ~4.5 GB with umT5 Q3_K_S (city96/umt5-xxl-encoder-gguf) + Wan2.1 VAE; needs ~15 GB free
+    verified: false
+    verified_how: "Doc 18 research: DiT ~1.4 GB (Q8) + umT5 Q3_K_S 2.86 + VAE 0.25. Exact GGUF filenames in calcuis/wan-1.3b-gguf not checked. Undistilled: est. 3-6 min/clip on M4 Pro. Avoid CausVid/Self-Forcing distills (CC-BY-NC-SA)"
+
   - name: lingbot-video-dense-1.3b-gguf
     stage: video
     purpose: "Smallest commercial I2V (<=4 GB), Qwen3-VL-4B text encoder; slow (not distilled), overnight only (doc 18 §6)"

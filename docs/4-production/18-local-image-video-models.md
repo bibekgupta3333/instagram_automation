@@ -153,6 +153,18 @@ Rejected for licence: CausVid and Self-Forcing I2V/VACE GGUFs (CC-BY-NC-SA), Hum
 - Video: https://huggingface.co/Green-Sky/FastWan2.2-TI2V-5B-FullAttn-GGUF · https://huggingface.co/amd/HummingbirdXT · https://huggingface.co/jboone100/FastWan2.2-TI2V-5B-MLX-q8 · https://haoailab.com/blogs/fastmetal/ · https://github.com/hao-ai-lab/FastVideo · https://huggingface.co/offgrid-ai/LingBot-Video-Dense-1.3B-GGUF · https://huggingface.co/robbyant/lingbot-video-dense-1.3b · https://huggingface.co/calcuis/ltxv-gguf · https://github.com/quanhaol/Wan2.2-TI2V-5B-Turbo · https://github.com/tianweiy/CausVid · https://huggingface.co/amd/AMD-Hummingbird-I2V
 - Motion: https://huggingface.co/apple/coreml-sam2.1-tiny · https://huggingface.co/Carve/LaMa-ONNX · https://huggingface.co/depth-anything/Video-Depth-Anything-Small · https://github.com/google-research/frame-interpolation · https://github.com/GSeanCDAT/GIMM-VFI
 
+## 7. Wan 2.1 1.3B (requested evaluation)
+
+**It only does text-to-video**, so it can't animate our scene still. Use it for **generic cutaways** where matching the still's style doesn't matter (clouds, traffic, machinery, space), and keep FastWan2.2-5B for image-to-video hero shots.
+
+| Way to run it | Download | Disk free needed | Per 2–3 s clip on M4 Pro | Licence |
+|---|---|---|---|---|
+| GGUF in stable-diffusion.cpp (Q8 DiT ~1.4 + umT5 Q3_K_S 2.86 + VAE 0.25) | ~4.5 GB | ~15 GB | 3–6 min *(est., undistilled)* | Apache-2.0 |
+| **FastMetal-1.3B-QAD** (MLX, Apache): encode a bank of motion prompts once with `--prompt-embeds-cache`, then delete umT5 | 13.4 GB once (put it on an external SSD); **~1.5 GB** afterwards | ~24 GB during setup | **~30–40 s** *(est.; 45 s measured on M4 Max with `--fast`)* | Apache-2.0 |
+| Wan2.1-Fun-1.3B-InP (the only 1.3B image-to-video) | ~4–5 GB + CLIP-H | ~15 GB | slow (50 steps, no clean distill) | Apache-2.0 |
+
+Don't use the 1.3B speed-up distills: CausVid and Self-Forcing are **CC-BY-NC-SA** (non-commercial), and lightx2v's 1.3B has no licence. Manifest entry: `wan2.1-t2v-1.3b-gguf` (optional).
+
 ## Sources
 
 - mflux: https://github.com/filipstrand/mflux · https://pypi.org/project/mflux/ · https://huggingface.co/mflux-community
