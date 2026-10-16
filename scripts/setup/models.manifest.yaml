@@ -119,6 +119,19 @@ models:
     verified: true
     verified_how: "HF file-tree API via doc 18 research: 5.89 GB. Same files as filipstrand/Z-Image-Turbo-mflux-4bit. The q8 build (11 GB) and base repo (32.9 GB) are disk traps"
 
+  - name: sdxs-512-dreamshaper-q8
+    stage: image
+    purpose: "~1 GB 1-step SD for fast filler/atmosphere stills at 512x896 + ESRGAN upscale (doc 18 §8)"
+    runtime: hf
+    source: "concedo/sdxs-512-tinySDdistilled-GGUF"
+    include: ["sdxs-512-tinySDdistilled_Q8_0.gguf"]
+    size_gb: 0.68
+    licence: openrail++
+    commercial_use: true
+    optional: true   # fits today; keep FLUX klein for structurally-accurate frames
+    verified: false
+    verified_how: "Doc 18 §8: 683 MB per HF listing; card targets KoboldCpp >=1.107, sd.cpp loading untested (fallback akleine/sdxs-512 fp16, 883 MB)"
+
   # ---------------------------------------------------------------- Video
   - name: depth-anything-v2-small
     stage: video

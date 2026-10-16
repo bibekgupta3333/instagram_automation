@@ -165,6 +165,51 @@ Rejected for licence: CausVid and Self-Forcing I2V/VACE GGUFs (CC-BY-NC-SA), Hum
 
 Don't use the 1.3B speed-up distills: CausVid and Self-Forcing are **CC-BY-NC-SA** (non-commercial), and lightx2v's 1.3B has no licence. Manifest entry: `wan2.1-t2v-1.3b-gguf` (optional).
 
+## 8. ~1 GB Stable Diffusion models (requested evaluation)
+
+Three parallel agents covered models and sizes, Mac runtimes and speed, and licence and quality. **Every commercially usable option at about 1 GB is a 512 px model**, because 1024 px models' text encoders alone are 1–2 GB. So plan on rendering 512×896 and then upscaling with Real-ESRGAN. File sizes come from HF blob listings. **No SD timing exists on an M4 Pro, so the times below are estimates.**
+
+| Pick | Download | Licence | Quality | M4 Pro per finished 9:16 still *(est.)* | Catch |
+|---|---|---|---|---|---|
+| **SDXS-512-DreamShaper** (1 step): `concedo/sdxs-512-tinySDdistilled-GGUF` Q8_0, or `akleine/sdxs-512` fp16 | **0.68–0.89 GB** | OpenRAIL++-M: commercial OK, with use restrictions | Prompt following beats SD1.5 (CLIP 32.8); softer detail | **~2–4 s** (1 step + upscale) | Duplicates subjects at non-square sizes; SDXS-1024 was never released |
+| **Nitro-E 4-step Core ML** (AMD): `mlboydaisuke/Nitro-E-CoreML` | **0.99 GB** | MIT + Llama 3.2 Community | **Best under 1 GB**: GenEval 0.67 vs 0.43 for SD1.5, HPS 30.2 | a few s (Neural Engine) | 512×512 only; Swift pipeline; third-party conversion |
+| SD1.5 Core ML 6-bit (Apple): `apple/coreml-stable-diffusion-v1-5-palettized` (TextEncoder + Unet + VAEDecoder only) | 0.88 GB | OpenRAIL-M | GenEval 0.43, weak | ~10–15 s for 25 steps | Fixed 512×512 unless you re-convert (needs torch); low maintenance |
+| BK-SDM-Tiny-2M + TAESD | 0.90 GB | OpenRAIL-M (card says research use) | Weakest (FID 17.5) | fast | Not recommended |
+| **Better quality, ~1.8 GB:** DreamShaper 8 / Juggernaut Reborn / CyberRealistic as GGUF Q8 + LCM-LoRA (135 MB) + TAESD (5 MB) in stable-diffusion.cpp | ~1.8–1.9 GB | OpenRAIL-M + civitai permissions (selling images and paid services allowed; Juggernaut/epiC need credit) | Good atmosphere and textures; mechanisms still wrong; no text | **~3–6 s** (5 steps, cfg 1, model kept loaded) | Not 1 GB. The SD1.5 GGUF barely shrinks (Q4 is 1.57 GB) |
+
+**Runtime: stable-diffusion.cpp (Metal, 35 MB prebuilt).** It supports SD1.x/2.x, SDXS, BK-SDM, SD-Turbo, LCM/TCD samplers, `--taesd`, LoRA, `--upscale-model` and `sd-server` (which keeps the model loaded). Gotchas:
+- use `--flash-attn on`, since `--diffusion-fa` is deprecated
+- never use `--diffusion-conv-direct` on Metal, because it trips the GPU watchdog
+- open bug #2149: batched CFG gives white images, so use `--batched-cfg off` or cfg 1
+
+**Draw Things CLI** (`brew install draw-things-cli`, GPL-3) may be 10–30% faster; benchmark it against sd.cpp. Core ML on the Neural Engine is fast but needs fixed-shape conversion. diffusers/MPS needs torch and has NaN/black-image scheduler bugs. The MLX SD ports are frozen.
+
+```bash
+sd-cli -m models/sdxs-512-tinySDdistilled_Q8_0.gguf --steps 1 --cfg-scale 1 \
+  -W 512 -H 896 --flash-attn on --batched-cfg off -p "..." \
+  --upscale-model models/RealESRGAN_x2plus.pth -o out.png
+ffmpeg -i out.png -vf scale=1080:1920:flags=lanczos broll.png
+```
+(Check that sd.cpp loads the concedo SDXS GGUF; its card targets KoboldCpp ≥1.107. Otherwise use `akleine/sdxs-512` fp16.)
+
+**Quality and policy:**
+- SD-class models get mechanisms wrong (part counts, warped machinery) and **can't render text**. Put all labels on as ffmpeg/ASS overlays.
+- Use ~1 GB SD for **atmosphere and filler**. Keep **FLUX.2 klein 4B** for anything that must be structurally right: aircraft systems, house cutaways, multi-part machinery, thumbnails.
+- To avoid YouTube's "inauthentic content" flag: SD stills should be ≤30% of runtime; mix in real charts and public-domain imagery (NASA/FAA/USACE/EIA); always add parallax; give each channel its own style LoRA, palette and seeds; and have a person check technical accuracy.
+- Commercial-OK style LoRAs for SD1.5: Technical Blueprints (civitai 525611, 144 MB, credit), Isometric Chinese Architecture (63376, 72 MB), Vector illustration (60132, 25 MB). Re-check permissions before download.
+
+**Avoid:**
+- Deliberate (CC BY-NC-ND)
+- SDXL-Turbo (non-commercial)
+- SD-Turbo / SD3.5 unless registered (Stability Community: paid licence above $1M revenue)
+- KOALA (paid ETRI licence)
+- the Hyper-SD15 LoRAs (no licence tag)
+
+**Licences:** OpenRAIL-M/++ allow commercial use and say "Licensor claims no rights in the Output". The use-based restrictions in Attachment A (no harmful disinfo, defamation, medical advice and so on) still apply.
+
+### §8 sources
+https://huggingface.co/IDKiro/sdxs-512-dreamshaper · https://huggingface.co/akleine/sdxs-512 · https://huggingface.co/concedo/sdxs-512-tinySDdistilled-GGUF · https://huggingface.co/mlboydaisuke/Nitro-E-CoreML · https://huggingface.co/amd/Nitro-E · https://huggingface.co/apple/coreml-stable-diffusion-v1-5-palettized · https://huggingface.co/nota-ai/bk-sdm-tiny-2m · https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF · https://huggingface.co/madebyollin/taesd · https://huggingface.co/latent-consistency/lcm-lora-sdv1-5 · https://huggingface.co/segmind/Segmind-Vega · https://github.com/leejet/stable-diffusion.cpp (docs/lcm.md, taesd.md, esrgan.md, distilled_sd.md; issue #2149) · https://github.com/apple-aiml-research/ml-stable-diffusion · https://huggingface.co/blog/fast-mac-diffusers · https://formulae.brew.sh/formula/draw-things-cli · https://github.com/CompVis/stable-diffusion/blob/main/LICENSE · https://stability.ai/community-license-agreement · civitai model API pages 4201, 4384, 25694, 46422, 15003 · https://huggingface.co/XpucT/Deliberate
+
 ## Sources
 
 - mflux: https://github.com/filipstrand/mflux · https://pypi.org/project/mflux/ · https://huggingface.co/mflux-community
