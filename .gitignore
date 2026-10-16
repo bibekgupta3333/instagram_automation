@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+models/
+output/
+cache/
+*.mp4
+*.wav
+*.mp3
+node_modules/
+.DS_Store
