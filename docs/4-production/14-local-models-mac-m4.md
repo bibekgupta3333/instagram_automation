@@ -16,7 +16,7 @@
 - **Voice: Kokoro-82M through mlx-audio** (Apache-2.0, far faster than real time). Its preset voices aren't anyone's clone. **Qwen3-TTS VoiceDesign** (Apache-2.0) designs a new voice from a text description. Avoid F5-TTS (CC-BY-NC) and Higgs TTS 3 (non-commercial plus a creator grant that requires credit).
 - **Captions: Parakeet-TDT v2 through parakeet-mlx** (English, CC-BY-4.0) or **mlx-whisper / whisper.cpp** (MIT). Both give word timestamps in seconds per Short.
 - **Stills: Z-Image-Turbo or FLUX.2 [klein] 4B through mflux.** Both are Apache-2.0, and mflux can train a LoRA on either. **Not** FLUX.1-dev, FLUX.2-klein-9B, FLUX.2-dev or Qwen-Image-2.1, which are non-commercial or carry restrictive licences. Expect roughly 15–60 s per 1024 px image *(est.)*.
-- **Video generation and AI lip-sync are not practical locally.** One measured M1 Max 64 GB run took **82 min for a 2 s Wan 2.2 14B clip**, and LTX-2 produced near-still or broken output on MPS. Send motion clips and avatars to a cloud API. Cartoon channels use the **Rhubarb + Remotion rig**, which needs no GPU.
+- **Video generation and AI lip-sync are not practical locally.** One measured M1 Max 64 GB run took **82 min for a 2 s Wan 2.2 14B clip**, and LTX-2 produced near-still or broken output on MPS. Send motion clips to a cloud API (avatars were removed 2026-10-16). Cartoon channels use the **Rhubarb + Remotion rig**, which needs no GPU.
 - **Throughput *(est.)*: about 25–40 Shorts, or about 6–8 long-form videos, per 8-hour overnight batch**, run stage by stage. The full-scale target is about 10 Shorts plus 2.7 long-form a day (≈ 6–7 h), so it fits, with about 2× headroom for regenerations.
 
 ---
@@ -148,7 +148,7 @@ ASR needs about 1–3 GB, so it can share memory with the TTS stage.
 | HunyuanVideo 1.5 | ComfyUI | 14 GB VRAM with offload (CUDA) | Tencent community licence (territory clause) | No |
 | CogVideoX 1.5-5B | diffusers MPS | | CogVideoX licence (registration) | No (dated) |
 | LivePortrait | Official macOS requirements file | README: "maybe **20× slower** than RTX 4090". InsightFace detector is non-commercial (see 09 §4) | MIT code | Only for idle-motion base plates, and only with the MediaPipe swap |
-| MuseTalk 1.5 / LatentSync 1.5–1.6 / InfiniteTalk | CUDA-first. No supported Mac path | LatentSync needs 8–18 GB VRAM; InfiniteTalk needs a 14B Wan base | MIT / Apache-2.0 (InsightFace caveat) | **Cloud GPU or API** ([09](09-ai-avatar-presenters.md)) |
+| MuseTalk 1.5 / LatentSync 1.5–1.6 / InfiniteTalk | CUDA-first. No supported Mac path | LatentSync needs 8–18 GB VRAM; InfiniteTalk needs a 14B Wan base | MIT / Apache-2.0 (InsightFace caveat) | **Cloud GPU or API** ([09, archived](../archive/09-ai-avatar-presenters.md)) |
 | **Rhubarb Lip Sync + Remotion (or Rive) rig** | CPU only | Deterministic. Rhubarb takes seconds per clip. Remotion renders on CPU cores | MIT-style / Remotion company licence | **Main local animation path** for cartoon channels ([10 §3.2](../archive/10-ai-cartoon-characters.md)) |
 
 Ken Burns or parallax moves on stills (FFmpeg `zoompan`, Remotion) cover most faceless b-roll at no GPU cost.
@@ -237,7 +237,7 @@ The real bottleneck is still **human review: ~75–85 h a month** ([12 §5](../2
 
 ### 9.5 Send to Bedrock or a cloud API instead
 
-- **All AI motion clips** (I2V/T2V) and **realistic avatar lip-sync** ([09](09-ai-avatar-presenters.md) / [10 §3.1](../archive/10-ai-cartoon-characters.md)).
+- **All AI motion clips** (I2V/T2V) and **realistic avatar lip-sync** (no longer used; [09, archived](../archive/09-ai-avatar-presenters.md) / [10 §3.1](../archive/10-ai-cartoon-characters.md)).
 - **Final fact-check of YMYL scripts** (Credit & Cash, Was It Legal?, Home & Cover, Body Explained) with a frontier model plus grounding. A 9–20B local model is the drafter, not the last line of defence.
 - **Long-context research** (> 32k tokens), **text-heavy thumbnails** (Qwen-Image-class models are too heavy here), and **LoRA training** on a rented GPU.
 - **Fallback when the Mac is busy, throttled or down.** Keep every stage behind the same interface (OpenAI-compatible chat, `/v1/audio/speech`), so a stage can be redirected with a config change.

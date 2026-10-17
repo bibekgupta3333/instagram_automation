@@ -1,13 +1,14 @@
 """Stage 5: one visual per beat (a still, or a stock clip that render trims and mutes).
 
 Engines (STUDIO_IMAGES_ENGINE or --engine images=NAME; default ``auto``):
-- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default z-image-turbo -> pexels ->
-  bedrock-stability -> mock). Z-Image is skipped unless its 4-bit repo is downloaded; Pexels is
-  used only with PEXELS_API_KEY and when the beat suits stock; mock is a loud last resort.
+- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default z-image-turbo -> pixabay ->
+  bedrock-stability -> mock). Z-Image is skipped unless its 4-bit repo is downloaded; Pixabay
+  is used only with PIXABAY_API_KEY and when the beat suits stock; mock is a loud last resort.
 - ``bedrock-stability``: Stability AI on Bedrock (Core $0.04/image by default; 9:16 shorts,
   16:9 long-form; brand style appended; seed per job + beat). Capped per video and logged to
   the spend ledger.
-- ``pexels``: free stock clips/photos, attribution in images/attribution.txt.
+- ``pixabay``: free stock clips/photos (Pixabay Content License), searches cached 24 h in
+  output/.cache/pixabay/, credits in images/attribution.txt.
 - ``z-image-turbo`` / ``flux2-klein-4b``: local mflux, Apache-2.0, pre-quantized 4-bit repos
   (doc 18 §1). Z-Image-Turbo q4 (5.9 GB) is the default (Configuration A). The raw still
   (576x1024 / 1024x576) goes to images/raw/, then Real-ESRGAN (visuals/upscale.py) makes the
@@ -50,12 +51,12 @@ from studio.stages.base import (
 )
 from studio.stages.visuals import BeatSpec, Visual, is_video
 from studio.stages.visuals import luma as luma_src
-from studio.stages.visuals import pexels as pexels_src
+from studio.stages.visuals import pixabay as pixabay_src
 from studio.stages.visuals import stability as stability_src
 from studio.stages.visuals.common import logger, record_cost
 
 STAGE = "images"
-VERSION = 5  # 5: Z-Image q4 default, 576x1024 raw + Real-ESRGAN to frame size (doc 18)
+VERSION = 6  # 6: Pixabay replaces Pexels as the stock source; 5: Z-Image q4 + Real-ESRGAN
 
 # engine id -> (model name, default mflux CLI). Override the command with
 # STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
@@ -78,7 +79,7 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
 }
 UPSCALED_SUFFIX = " + Real-ESRGAN x4"
 
-SOURCE_ENGINES = ("pexels", "bedrock-stability")
+SOURCE_ENGINES = ("pixabay", "bedrock-stability")
 ENGINES = ("auto", "mock", *SOURCE_ENGINES, "bedrock-luma", *MFLUX_MODELS)
 MEDIA_SUFFIXES = (".png", ".jpg", ".jpeg", ".mp4", ".mov", ".m4v", ".webm")
 
@@ -246,10 +247,12 @@ class ImageBudgetExceeded(StageError):
 
 
 class _Run:
-    """Per-run state: config, spend so far, Pexels ids already used (no repeated clips)."""
+    """Per-run state: config, spend so far, stock ids already used (no repeated clips)."""
 
-    def __init__(self, job: VideoJob, brand: BrandPack, cfg: VisualsConfig, total: int):
+    def __init__(self, job: VideoJob, brand: BrandPack, cfg: VisualsConfig, total: int,
+                 cache_dir: Path | None = None):
         self.job, self.brand, self.cfg, self.total = job, brand, cfg, total
+        self.cache_dir = cache_dir
         self.spent = 0.0
         self.used: set[str] = set()
 
@@ -268,8 +271,9 @@ def _produce(engine: str, spec: BeatSpec, st: _Run) -> Visual:
         upscaled = _to_frame(raw, out, spec.fmt)
         model = MFLUX_MODELS[engine][0] + (UPSCALED_SUFFIX if upscaled else "")
         return Visual(path=out, kind="image", engine=engine, model=model)
-    if engine == "pexels":
-        return pexels_src.fetch(spec, api_key=st.cfg.pexels_api_key, used=st.used)
+    if engine == "pixabay":
+        return pixabay_src.fetch(spec, api_key=st.cfg.pixabay_api_key, used=st.used,
+                                 cache_dir=st.cache_dir)
     if engine == "bedrock-stability":
         model_id, price = stability_src.resolve_model(st.cfg.stability_model)
         if st.spent + price > st.cfg.max_image_usd_per_video + 1e-9:
@@ -291,12 +295,12 @@ def _produce(engine: str, spec: BeatSpec, st: _Run) -> Visual:
 def _auto(spec: BeatSpec, st: _Run, order: tuple[str, ...]) -> Visual:
     reasons: list[str] = []
     for engine in order:
-        if engine == "pexels":
-            if not st.cfg.pexels_api_key:
-                reasons.append("pexels: no PEXELS_API_KEY")
+        if engine == "pixabay":
+            if not st.cfg.pixabay_api_key:
+                reasons.append("pixabay: no PIXABAY_API_KEY")
                 continue
-            if not pexels_src.suits_stock(spec, st.brand, st.cfg.pexels_channels):
-                reasons.append("pexels: beat/brand style doesn't suit stock")
+            if not pixabay_src.suits_stock(spec, st.brand, st.cfg.pixabay_channels):
+                reasons.append("pixabay: beat/brand style doesn't suit stock")
                 continue
         if engine == "mock":
             msg = (f"images: WARNING beat {spec.index:02d} fell back to a MOCK PLACEHOLDER "
@@ -345,7 +349,7 @@ def _write_manifest(img_dir: Path, key: str, entries: list[dict[str, Any]]) -> N
 
 
 def _write_attribution(img_dir: Path, visuals: list[Visual]) -> None:
-    lines = [v.source["credit"] for v in visuals if v.engine == "pexels" and v.source.get("credit")]
+    lines = [v.source["credit"] for v in visuals if v.engine == "pixabay" and v.source.get("credit")]
     path = img_dir / "attribution.txt"
     if lines:
         path.write_text("\n".join(dict.fromkeys(lines)) + "\n")
@@ -383,7 +387,8 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
         log(job, "images: cached, skipped")
         return job
 
-    st = _Run(job, brand, cfg, len(beats))
+    st = _Run(job, brand, cfg, len(beats),
+              cache_dir=Path(ctx.settings.output_dir) / ".cache" / "pixabay")
     visuals: list[Visual] = []
     entries: list[dict[str, Any]] = []
     for i, (beat, prompt) in enumerate(zip(beats, prompts, strict=True)):
@@ -402,7 +407,7 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
                     stale.unlink()
             vis = _beat_visual(engine, spec, st)
         st.spent += vis.usd
-        if vis.source.get("id") is not None and vis.engine == "pexels":
+        if vis.source.get("id") is not None and vis.engine == "pixabay":
             st.used.add(f"{vis.kind if vis.kind == 'video' else 'photo'}:{vis.source['id']}")
         visuals.append(vis)
         entries.append({"beat": i, "beat_key": beat_keys[i], "visual": vis.to_json()})

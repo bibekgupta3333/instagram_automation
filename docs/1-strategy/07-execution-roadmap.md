@@ -24,7 +24,7 @@ gantt
     YouTube Data API project + audit request :crit, p0c, 2026-10-19, 3d
     Fork MoneyPrinterTurbo + brand packs     :p0d, 2026-10-19, 10d
     Buffer Team + API key + CDN bucket       :p0e, 2026-10-21, 3d
-    Brand packs + avatar personas Jules and Theo :p0f, 2026-10-19, 10d
+    Brand packs + format guides (all faceless) :p0f, 2026-10-19, 10d
     Claim 30 handles + 10 domains same day   :crit, p0i, 2026-10-19, 1d
     Mac setup + week-1 benchmark (14 §9.6)  :p0j, 2026-10-20, 4d
     LiteLLM gateway + Bedrock quota check (15) :p0k, 2026-10-22, 3d
@@ -43,7 +43,7 @@ gantt
     Reported YPP threshold change (unverified) :milestone, m2, 2027-02-01, 0d
 ```
 
-The pilot batch is the three 🟢 faceless channels with the strongest proven faceless leaders: Gravity What If, Business Model Files and Megabuild Blueprint. This proves the core faceless pipeline first. The two avatar channels (Software Shortcut, Rank Test Lab) and the screen-recording channels follow once the review process is stable. The finance and legal channels were removed on 2026-10-16 (12 §2, 17).
+The pilot batch is the three 🟢 faceless channels with the strongest proven faceless leaders: Gravity What If, Business Model Files and Megabuild Blueprint. This proves the core faceless pipeline first. The screen-recording channels (Software Shortcut, Lock Screen Logic, Rank Test Lab; all faceless since HeyGen was removed on 2026-10-16) and the rest follow once the review process is stable. The finance and legal channels were removed on 2026-10-16 (12 §2, 17).
 
 ## 3. Phase checklists
 
@@ -54,8 +54,7 @@ The pilot batch is the three 🟢 faceless channels with the strongest proven fa
 - [ ] Buffer: Team plan (approvals are Team-only), API key, about 30 channels (05 §2). Check the real per-channel price for more than 10 channels at checkout.
 - [ ] Media storage: a public R2 bucket or Cloudinary, with a lifecycle rule of 14 days or more. Buffer fetches files at publish time and **rejects pre-signed URLs** (05 §4).
 - [ ] Fork MoneyPrinterTurbo (MIT). Remove its bundled music. Add the review gate, the brand pack loader, fact-checking and the cross-channel similarity check (04 §3, §5).
-- [ ] Write a brand pack and format guide for each channel: voice, palette, hook styles, banned templates (04 §5.5, 02 §7). Add a persona spec for the two avatar channels (09 §7).
-- [ ] Generate the faces for the avatars "Jules" (Software Shortcut) and "Theo" (Rank Test Lab) **ourselves**, never from a real person (09 §3). Toggle Instagram's "AI-generated profile" on both accounts at creation (12 §4).
+- [ ] Write a brand pack and format guide for each channel: voice, palette, hook styles, banned templates (04 §5.5, 02 §7).
 - [ ] Set up owned test properties for Rank Test Lab (test sites, Search Console) and sandboxed VMs for Lock Screen Logic (17 §Production feasibility).
 - [ ] Get a US attorney to clear the 10 names for trademarks (13 §6).
 - [ ] Make one test post per platform with `isAiGenerated` set, and check that the label shows in YouTube Studio and the Instagram app (12 §4).
@@ -70,8 +69,8 @@ The pilot batch is the three 🟢 faceless channels with the strongest proven fa
 - [ ] Gate to start Phase 2: no strikes and no action blocks, review time per Short under 5 minutes, and at least one video above 3× its channel's median.
 
 ### Phase 2: Expand (+7 channels over 4 weeks)
-- [ ] Batch B: Software Shortcut (avatar, A/B test against a no-host version), Lock Screen Logic (defensive only), Wing and Turbine (no crash content).
-- [ ] Batch C: Square Foot Money, Car Cost Truth, Furnace to Faucet (no DIY how-to), Rank Test Lab (avatar; no income claims).
+- [ ] Batch B: Software Shortcut (faceless screen recordings + voice-over), Lock Screen Logic (defensive only), Wing and Turbine (no crash content).
+- [ ] Batch C: Square Foot Money, Car Cost Truth, Furnace to Faucet (no DIY how-to), Rank Test Lab (faceless test-site recordings; no income claims).
 - [ ] Run the experimentation loop: measure at 24h and 72h; when a video beats its channel median by 3× or more, make 10 variations of it (06 §8).
 
 ### Phase 3: Prune (day 45 of each batch)
@@ -102,10 +101,9 @@ From 01 §6. Probabilities are in 01 §5.
 | Buffer, about 30 channels (Team) | ~$195 (about $135 on Essentials, which has no approvals) | 05 §2 |
 | Production usage: about 300 Shorts + 80 long-form (Standard tier) | ~$500 | 04 §7 |
 | Fixed: hosting, Postgres/Redis, ElevenLabs plan, music licence, CDN | $400–700 | 04 §7 |
-| Avatars for 2 channels (HeyGen) | +~$200 | 09 §8 |
 | Fewer Shorts (revenue channels post ≤5/week) | about −40% of Shorts usage | 08 §8 |
-| **Cash total** (cloud-heavy stack in 04) | ~$1,600–2,300 | |
-| **Cash total, local-first stack (recommended)** | **~$550–700** | 12 §5 |
+| **Cash total** (cloud-heavy stack in 04) | ~$1,400–2,100 (HeyGen avatars removed 2026-10-16) | |
+| **Cash total, local-first stack (recommended)** | **~$350–500** | 12 §5 |
 | One-off: US attorney trademark review of the names | quote needed | 13 §6 |
 | Human review *(est.)*: about 4 min × 300 Shorts + about 25 min × 80 long-form | **~55–65 h**, plus about 15–20 h of screen recording per channel for 3 channels (12 §5) | Re-measure in Phase 1 |
 

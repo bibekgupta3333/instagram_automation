@@ -1,6 +1,6 @@
 # 04 — Content Production Pipeline: Tooling, Repos, Architecture and Unit Cost
 
-> **Status:** current · **Updated:** 2026-10-16 · **Related:** [09 AI avatar presenters](09-ai-avatar-presenters.md), [14 Local models](14-local-models-mac-m4.md), [05 Buffer distribution](../5-automation/05-distribution-buffer.md)
+> **Status:** current · **Updated:** 2026-10-16 · **Related:** [09 AI avatar presenters (archived)](../archive/09-ai-avatar-presenters.md), [14 Local models](14-local-models-mac-m4.md), [05 Buffer distribution](../5-automation/05-distribution-buffer.md)
 
 > Status: research and proposal, as of **2026-10-16**. Star counts and last-push dates were read from the GitHub API that day. Vendor prices come from the vendor pricing pages listed under Sources. All per-video costs are **estimates**: re-check before you commit budget.
 >
@@ -80,7 +80,8 @@ Stars and last push come from the GitHub API on 2026-10-16.
 | | Sora 2 / Sora 2 Pro | $0.10/s (720p) · $0.30–0.70/s | Third-party sources mention a possible deprecation; verify first. |
 | | Kling 3.0 | ~$0.06–0.42/s (aggregators; reseller ~$0.075/s) | No public official rate card. Custom plans. |
 | | Runway Gen-4 Turbo / Gen-4.5 | $0.05 / $0.12 per second | Image→video. Simple credit model ($0.01/credit). |
-| Stock | **Pexels API** | Free. 200 req/hr, 20k/mo (raisable) | Attribution link required. Cache results. |
+| Stock | **Pexels API** (replaced by Pixabay 2026-10-16) | Free. 200 req/hr, 20k/mo (raisable) | Attribution link required. Cache results. |
+| Stock | **Pixabay API** (current) | Free with an API key | Key in the git-ignored `.env`. Cache results. *Verify rate limits and licence terms.* |
 | | **Pixabay API** | Free. 100 req/60s per key | Must cache 24h. No permanent hotlinking, so download to our store. No bulk scraping. |
 | Music | YouTube Audio Library | Free. Monetizable **on YouTube** | The page only promises safety on YouTube; it is silent on IG/FB, so don't rely on it cross-platform. Some tracks are CC and need attribution. |
 | | Epidemic Sound Creator / Pro / Business | Pro ~$39.99/mo or ~$204/yr; Business ~$29.99–74.99/mo (third-party trackers) | Creator covers 1 channel per platform, Pro covers 3. **10 channels needs Enterprise or several seats.** Get a quote. |
@@ -130,7 +131,7 @@ flowchart LR
     SCR --> FC[Fact-check + originality<br/>grounded LLM, embeddings]
     FC --> TTS[Voice<br/>ElevenLabs / Kokoro]
     TTS --> ASR[Alignment<br/>WhisperX word timings]
-    FC --> AST[Visual assets<br/>Pexels, Pixabay, image gen, Veo/Kling]
+    FC --> AST[Visual assets<br/>Pixabay, image gen, Veo/Kling]
     ASR --> RND[Render<br/>MPT fork / Remotion / FFmpeg]
     AST --> RND
     MUS[Music<br/>licensed library / ElevenLabs Music] --> RND
@@ -226,7 +227,7 @@ prompts:
   script:   prompts/c07/script.md      # persona, tone, banned phrases, hook archetypes
   thumbnail: prompts/c07/thumb.md
 visuals:
-  sources: [pexels, pixabay, nano_banana, veo_fast]   # in priority order
+  sources: [pixabay, nano_banana, veo_fast]   # in priority order (Pexels dropped 2026-10-16)
   ai_video_budget_sec: { short: 0, long: 40 }
   style_suffix: "deep navy palette, cinematic, film grain"
   template: remotion/OrbitLong@v3      # rotated among v1..v3 for variation
@@ -280,7 +281,7 @@ The orchestrator writes `PublishRequest` to an outbox table. The adapter is idem
 | Captions | Adopt | WhisperX forced alignment to the known script | Word-level karaoke captions. |
 | Scripts | Adopt API | Claude Sonnet 5.5 writer, Haiku 5.5 metadata, Gemini Flash + Search grounding critic | Quality plus a cheap grounded fact-check. Batch API (−50%) for the overnight queue. |
 | Voice | Adopt API | ElevenLabs Pro → Scale (one voice per channel); Kokoro-FastAPI fallback | Distinct brand voices; vendor-outage fallback. |
-| Visuals | Adopt APIs | Pexels/Pixabay first, Nano Banana 2.1 stills, Veo 3.1 Fast for 0–40 s of hero B-roll | Cost-tiered, and the provenance is logged. |
+| Visuals | Adopt APIs | Pixabay first (Pexels replaced by Pixabay 2026-10-16), Nano Banana 2.1 stills, Veo 3.1 Fast for 0–40 s of hero B-roll | Cost-tiered, and the provenance is logged. |
 | Music | Adopt | ElevenLabs Music API or Epidemic Enterprise (quote). YT Audio Library for YT-only | Cross-platform clearance for 10 channels. |
 | Long → Shorts repurposing | Adopt (phase 2) | openshorts or AI-Youtube-Shorts-Generator in local mode | Shorts cut from our own long-form are original by construction. |
 | Avoid | n/a | MoneyPrinterV2 (gpt4free, AGPL), RedditVideoMakerBot (reused content), CapCut automation, Edge-TTS in production | Policy, ToS or reliability risk. |

@@ -20,15 +20,15 @@ This plan covers 10 faceless channels across YouTube, Instagram and Facebook, pr
 - **Automated, with a person in the loop.** Per-channel brand packs, fact-checks, a cross-channel similarity check, human review before publishing, AI disclosure on.
 - **The money is in long-form.** Shorts/Reels build audience; revenue comes from long-form YouTube, affiliates, products and eventually channel sales (02 §3, 06 §10).
 - **Buffer handles short-form only** (GraphQL API, beta May 2026). **Long-form goes through the YouTube Data API** (05).
-- **No AI-persona sensitive topics.** YouTube demonetises a whole channel where an AI persona gives health, legal, finance or political advice, disclaimers notwithstanding (11), so the finance/legal channels were replaced (17). The two avatars only host tutorials.
+- **No AI-persona sensitive topics.** YouTube demonetises a whole channel where an AI persona gives health, legal, finance or political advice, disclaimers notwithstanding (11), so the finance/legal channels were replaced (17). **HeyGen and the AI avatars were removed on 2026-10-16**, so all 10 channels are faceless (12 §2).
 - **Model split (updated 2026-10-16):**
   - **Text** runs on **Bedrock**, using an API key: Haiku 5.5 for drafts, Sonnet 5.5 for polish and fact-checks, Opus 5.5 for disputes. It costs about $23.50/month at full scale. **Claude Code headless** (`claude -p`) is the alternative.
   - **Audio runs locally on the M4 Pro**: Kokoro TTS and Parakeet captions, installed (about 2.7 GB). A 36 s Short takes about 10 s.
-  - **Visuals**: Pexels stock first, then Bedrock Stable Image Core ($0.04/image). Local Z-Image will be added once disk allows.
-  - **AI video and lip-sync** use cloud APIs. They aren't practical locally (14 §7).
+  - **Visuals** (per beat): **local Z-Image-Turbo 4-bit** first, then **Pixabay** stock (free API key; Pexels dropped 2026-10-16), then **Bedrock Stable Image Core** ($0.04/image). Stills are upscaled with **Real-ESRGAN**, and motion is **our own 2.5D parallax** (Depth Anything V2 Small) with zoompan as fallback (18).
+  - **AI video** clips use cloud APIs. They aren't practical locally (14 §7). No avatar lip-sync is used.
 - **Bedrock for judgement, not volume** (15): Sonnet 5.5 polish and fact-check, Opus 5.5 for disputes, about $25–30/month, behind one LiteLLM gateway.
 - **Agents only where they help** (16): Trend Scout and Fact-Checker are Strands agents; rendering and publishing are plain code queued by Prefect. **Nothing publishes without human approval.**
-- **Cost** *(est.)*: about **$550–700/month** cash plus 55–65 h/month of review and screen recording (12 §5).
+- **Cost** *(est.)*: about **$350–500/month** cash plus 55–65 h/month of review and screen recording (12 §5).
 
 ## The 10 channels (final brands, from [12](2-channels/12-final-portfolio.md) and [13](2-channels/13-channel-brands.md))
 
@@ -37,7 +37,7 @@ Each channel covers its own subject domain, aims at **US AdSense value**, and st
 | # | Brand | Handle (YT/IG/FB) | Niche | Presenter | US long-form RPM *(est.)* | Batch |
 |---|---|---|---|---|---|---|
 | 1 | Square Foot Money | @squarefootmoney | Real estate market data, mortgages | Faceless charts | $5–13 | C |
-| 2 | Software Shortcut | @softwareshortcut | AI and SaaS tutorials | AI avatar "Jules" | $5–14 | B |
+| 2 | Software Shortcut | @softwareshortcut | AI and SaaS tutorials | Faceless screen recordings | $5–14 | B |
 | 3 | Business Model Files | @businessmodelfiles | How US companies make money | Faceless | $5–12 | A (pilot) |
 | 4 | Car Cost Truth | @carcosttruth | Cost of owning a car | Faceless | $5–12 | C |
 | 5 | Gravity What If | @gravitywhatif | Space and physics hypotheticals | Faceless | $6–15 | A (pilot) |
@@ -45,7 +45,7 @@ Each channel covers its own subject domain, aims at **US AdSense value**, and st
 | 7 | Lock Screen Logic | @lockscreenlogic | Cybersecurity and privacy (defensive) | Faceless screen recordings | $5–12 | B |
 | 8 | Furnace to Faucet | @furnacetofaucet | How home systems work + repair costs | Faceless 3D cutaways | $4–10 | C |
 | 9 | Wing and Turbine | @wingandturbine | Aviation and how planes work | Faceless 3D diagrams | $5–11 | B |
-| 10 | Rank Test Lab | @ranktestlab | Small-business marketing and SEO experiments | AI avatar "Theo" | $6–13 | C |
+| 10 | Rank Test Lab | @ranktestlab | Small-business marketing and SEO experiments | Faceless screen recordings + charts | $6–13 | C |
 
 YouTube handles and .com domains looked free on 2026-10-16. **Instagram and Facebook are unverified.** Claim everything on the same day.
 
@@ -67,7 +67,6 @@ flowchart LR
     end
     subgraph R[4-production]
         D04[04 Pipeline] --> D14[14 Local models]
-        D04 --> D09[09 Avatars]
     end
     subgraph A[5-automation]
         D15[15 Bedrock routing] --> D16[16 MCP & agents]
@@ -76,7 +75,7 @@ flowchart LR
     S --> C --> P --> R --> A
     D12 -.-> D07
     D11 -.->|AI-persona rule| D17
-    X[(archive: 02, 10)] -.->|superseded by| D12
+    X[(archive: 02, 09, 10)] -.->|superseded by| D12
 ```
 
 ## 1-strategy: goals and plan ([folder](1-strategy/README.md))
@@ -102,7 +101,6 @@ flowchart LR
 - [04 — Content pipeline architecture](4-production/04-content-pipeline-architecture.md): repo comparison (fork MoneyPrinterTurbo), vendor pricing, reference architecture, cost per video.
 - [14 — Local models on M4 Pro 24 GB](4-production/14-local-models-mac-m4.md): what runs locally, licences, install commands, nightly batch, throughput.
 - [18 — Lightweight local image and video models](4-production/18-local-image-video-models.md): open-source image and video models of 6 GB or less, runtimes (mflux, stable-diffusion.cpp), disk traps. Supersedes 14 §6–7.
-- [09 — AI avatar presenters](4-production/09-ai-avatar-presenters.md): HeyGen, Hedra and open-source avatar models, licence traps, persona spec, avatar QA.
 
 ## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))
 
@@ -113,6 +111,7 @@ flowchart LR
 ## archive: superseded ([folder](archive/README.md))
 
 - [02 — Niche selection](archive/02-niche-selection.md): the original 19-niche matrix and portfolio, replaced by 12 and 13.
+- [09 — AI avatar presenters](archive/09-ai-avatar-presenters.md): HeyGen, Hedra and open-source avatar research. Archived 2026-10-16 when HeyGen and the avatars were removed.
 - [10 — AI cartoon characters](archive/10-ai-cartoon-characters.md): character consistency and rigs; no cartoon channels in the final portfolio.
 
 ## Doc status
@@ -127,7 +126,7 @@ flowchart LR
 | 06 Growth playbook | current | 2026-10-16 |
 | 07 Execution roadmap | current | 2026-10-16 |
 | 08 High-CPM US niches | reference | 2026-10-16 |
-| 09 AI avatar presenters | current | 2026-10-16 |
+| 09 AI avatar presenters | archived | 2026-10-16 |
 | 10 AI cartoon characters | archived | 2026-10-16 |
 | 11 Avatar and YMYL policy | current | 2026-10-16 |
 | 12 Final portfolio | current | 2026-10-16 |
@@ -152,7 +151,7 @@ The plan is being built in this repo:
 
 1. Whether the YPP thresholds really change on 1 Feb 2027, and Meta's March 2026 originality update. These are backed only by press and blogs (03 §9). The AI-persona and Instagram profile-label claims are now verified (11 §1).
 2. Whether Buffer's `isAiGenerated` actually sets each platform's AI label. Make a test post per platform in Phase 0 (12 §4).
-3. How YouTube treats disclosed AI hosts and cartoon personas. Watch the Creator Insider video linked in 11 §1.
+3. How YouTube treats disclosed AI hosts and cartoon personas (no longer blocking: all channels are faceless since 2026-10-16). Watch the Creator Insider video linked in 11 §1.
 4. Buffer's per-channel price for more than 10 channels (05 §2).
 5. Instagram and Facebook availability for the 10 handles, and trademark clearance (13 §6).
 6. Your Bedrock account's actual quotas, and a first real Bedrock call (15 §8). No key is configured yet.

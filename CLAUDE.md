@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A local-first AI video studio for 10 faceless or AI-avatar channels on YouTube, Instagram and Facebook, aimed at US viewers and AdSense revenue. Publishing goes through Buffer. The strategy, policy research and design decisions are in `docs/`, and `docs/README.md` is the index. Docs keep a stable number prefix (`04`, `12`, …), and code comments cite them as `doc 15 §5`.
+A local-first AI video studio for 10 faceless channels (no avatar hosts; HeyGen was removed 2026-10-16) on YouTube, Instagram and Facebook, aimed at US viewers and AdSense revenue. Publishing goes through Buffer. The strategy, policy research and design decisions are in `docs/`, and `docs/README.md` is the index. Docs keep a stable number prefix (`04`, `12`, …), and code comments cite them as `doc 15 §5`.
 
 ## Commands
 
@@ -31,7 +31,7 @@ make gateway                              # LiteLLM proxy (infra/litellm/config.
 **Where each stage runs:**
 - **Text** (script, metadata, polish, fact-check): **Bedrock** by default (`STUDIO_LLM=bedrock`, key in `AWS_BEARER_TOKEN_BEDROCK`). `STUDIO_LLM=claude-code` uses `claude -p` headless instead.
 - **Audio**: local. Kokoro TTS via mlx-audio, and Parakeet word-timestamp captions via parakeet-mlx.
-- **Visuals (Configuration A, installed):** `images=auto` works per beat. It tries **local Z-Image-Turbo 4-bit** first (mflux, `mflux-community/z-image-turbo-mflux-q4`, 576×1024, about 80 s/image, about 12.6 GB peak footprint). Then Pexels if `PEXELS_API_KEY` is set, then Bedrock Stable Image Core, then a mock placeholder marked "do not publish". Each raw still goes to `images/raw/` and is upscaled to frame size with **Real-ESRGAN x4plus** (`studio/stages/visuals/upscale.py`, spandrel on MPS, about 5 s).
+- **Visuals (Configuration A, installed):** `images=auto` works per beat. It tries **local Z-Image-Turbo 4-bit** first (mflux, `mflux-community/z-image-turbo-mflux-q4`, 576×1024, about 80 s/image, about 12.6 GB peak footprint). Then Pixabay stock if `PIXABAY_API_KEY` is set (the key lives in the git-ignored `.env`, loaded by `studio/config.py`; Pixabay replaced Pexels 2026-10-16), then Bedrock Stable Image Core, then a mock placeholder marked "do not publish". Each raw still goes to `images/raw/` and is upscaled to frame size with **Real-ESRGAN x4plus** (`studio/stages/visuals/upscale.py`, spandrel on MPS, about 5 s).
 - **Motion:** `STUDIO_MOTION=auto|parallax|zoompan`. `studio/stages/motion.py` is our own licence-clean 2.5D parallax, built on Depth Anything V2 **Small** (Apache), OpenCV remap and inpainting. It has 6 presets, rotated per job, and takes about 3.5 s per 4 s clip. It falls back to zoompan if the depth model is missing. `--mock` runs stay on zoompan unless `STUDIO_MOTION=parallax` is set.
 - **AI video clips**: not local (impractical on 24 GB). `bedrock-luma` is a gated stub (`STUDIO_ALLOW_PAID_VIDEO=1`).
 

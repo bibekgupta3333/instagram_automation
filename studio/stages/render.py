@@ -3,7 +3,7 @@ seeded per job so videos don't look templated (doc 04 §5.4 variation), shots ti
 narration and re-cut every <=3.5 s (doc 06 §3: a change every 2-4 s), then the narration
 (loudnorm I=-14) and burned-in ASS captions. h264_videotoolbox, falling back to libx264.
 
-Stock clips (images.py `pexels` engine returns .mp4) mix with stills: a clip shot is read from
+Stock clips (images.py `pixabay` engine returns .mp4) mix with stills: a clip shot is read from
 an offset that advances across consecutive shots of the same clip (looped if too short),
 scaled and centre-cropped to fill the frame, and its own audio is never mapped (muted).
 

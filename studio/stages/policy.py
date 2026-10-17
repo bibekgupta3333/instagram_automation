@@ -63,8 +63,7 @@ RULES: tuple[Rule, ...] = (
     Rule(
         "ai_presenter_claims_human",
         (r"\b(?:I'?m|I am)\s+(?:a\s+)?(?:real|human)\b", r"\bnot an? (?:AI|robot)\b"),
-        avatar_only=True,
-    ),
+    ),  # every channel: narration is an AI voice, so it must never claim to be human
     Rule(
         "personal_advice",
         (

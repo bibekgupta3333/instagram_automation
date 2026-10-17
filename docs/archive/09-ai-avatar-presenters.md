@@ -1,10 +1,12 @@
 # 09 — AI Avatar Presenters: Tools, Licences, Pipeline Integration and Unit Cost
 
-> **Status:** current · **Updated:** 2026-10-16 · **Related:** [04 Pipeline architecture](04-content-pipeline-architecture.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md), [12 Final portfolio](../2-channels/12-final-portfolio.md)
+> **Archived: HeyGen and avatars removed 2026-10-16.** All 10 channels are now faceless (see [12 §2](../2-channels/12-final-portfolio.md)); Software Shortcut ("Jules") and Rank Test Lab ("Theo") use our own screen recordings with voice-over instead. Kept for history and because other docs cite its sections. Don't plan from it.
+
+> **Status:** archived · **Updated:** 2026-10-16 · **Related:** [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md), [12 Final portfolio](../2-channels/12-final-portfolio.md)
 
 > Status: research and proposal, as of **2026-10-16**. GitHub stars, licences and push dates come from the GitHub API that day. Prices come from vendor pages or vendor docs where we could reach them, and otherwise from third-party trackers (marked *secondary*). **All cost figures are estimates.** Avatar pricing changed often in 2026, so re-check before you commit budget.
 >
-> Scope: adding a **fully synthetic on-screen presenter** (realistic or stylised talking head, virtual host, AI influencer) to the pipeline in [04](04-content-pipeline-architecture.md). Cartoon and animated characters, niche choice and policy detail are covered in other docs. Policy rules are cited from [03](../3-policy/03-platform-policies-and-risks.md) and not repeated here.
+> Scope: adding a **fully synthetic on-screen presenter** (realistic or stylised talking head, virtual host, AI influencer) to the pipeline in [04](../4-production/04-content-pipeline-architecture.md). Cartoon and animated characters, niche choice and policy detail are covered in other docs. Policy rules are cited from [03](../3-policy/03-platform-policies-and-risks.md) and not repeated here.
 
 ---
 

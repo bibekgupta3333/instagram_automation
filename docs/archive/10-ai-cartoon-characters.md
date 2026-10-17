@@ -1,8 +1,8 @@
 # 10 — Cartoon and Animated AI Characters: Consistency, Animation, Repos, Cost and QA
 
-> **Archived:** reference only. The final portfolio in [12 Final portfolio](../2-channels/12-final-portfolio.md) has no cartoon channels (presenters are faceless or the two AI avatars from [09 AI avatar presenters](../4-production/09-ai-avatar-presenters.md)); kept for the rig/consistency research that [14 Local models](../4-production/14-local-models-mac-m4.md) still cites.
+> **Archived:** reference only. The final portfolio in [12 Final portfolio](../2-channels/12-final-portfolio.md) has no cartoon channels (all 10 presenters are faceless since HeyGen and the avatars were removed on 2026-10-16; see the archived [09 AI avatar presenters](09-ai-avatar-presenters.md)); kept for the rig/consistency research that [14 Local models](../4-production/14-local-models-mac-m4.md) still cites.
 
-> **Status:** archived · **Updated:** 2026-10-16 · **Related:** [12 Final portfolio](../2-channels/12-final-portfolio.md), [09 AI avatar presenters](../4-production/09-ai-avatar-presenters.md), [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md)
+> **Status:** archived · **Updated:** 2026-10-16 · **Related:** [12 Final portfolio](../2-channels/12-final-portfolio.md), [09 AI avatar presenters (archived)](09-ai-avatar-presenters.md), [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md)
 
 > Status: research and proposal, as of **2026-10-16**. GitHub stars, licences and last-push dates were read from the GitHub API that day. Prices come from vendor pages where possible; anything from aggregators or blogs is marked *(secondary)*. Every cost figure is an **estimate**.
 >

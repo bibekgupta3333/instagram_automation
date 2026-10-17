@@ -64,7 +64,7 @@ uv run studio make --channel megabuild-blueprint --topic "..." --engine llm=mock
 ```
 
 How the images stage uses it (`studio/stages/images.py`): `images=auto` tries, per beat,
-`z-image-turbo` → Pexels → Bedrock Stability → mock. Z-Image renders a raw still at
+`z-image-turbo` → Pixabay → Bedrock Stability → mock. Z-Image renders a raw still at
 **576×1024** (1024×576 long-form) into `images/raw/`, then Real-ESRGAN x4 makes the
 1080×1920 frame. The exact command it runs:
 

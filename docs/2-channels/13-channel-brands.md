@@ -11,7 +11,7 @@
 | # | Brand | Handle | Niche (single domain) | Presenter | US LF RPM *(est.)* | Availability (YT / .com / IG+FB) |
 |---|---|---|---|---|---|---|
 | 1 | **Square Foot Money** | @squarefootmoney | Real estate and mortgages | Faceless maps, charts and b-roll | $5–13 | likely free / likely free / unverified |
-| 2 | **Software Shortcut** | @softwareshortcut | AI and SaaS tool tutorials | AI avatar "Jules" (PiP over screen recordings) | $5–14 | likely free / likely free / unverified |
+| 2 | **Software Shortcut** | @softwareshortcut | AI and SaaS tool tutorials | Faceless, own screen recordings + voice-over | $5–14 | likely free / likely free / unverified |
 | 3 | **Business Model Files** | @businessmodelfiles | How US companies make money | Faceless b-roll + charts | $5–12 | likely free / likely free / unverified |
 | 4 | **Car Cost Truth** | @carcosttruth | The economics of buying, leasing and owning a car | Faceless b-roll | $5–12 | likely free / likely free / unverified |
 | 5 | **Gravity What If** | @gravitywhatif | Space and physics hypotheticals | Faceless 3D/AI visuals | $6–15 | likely free / likely free / unverified |
@@ -19,7 +19,7 @@
 | 7 | **Lock Screen Logic** | @lockscreenlogic | Cybersecurity and online privacy, defensive and conceptual only | Faceless own screen recordings + attack-flow diagrams | $5–12 | likely free / likely free / unverified |
 | 8 | **Furnace to Faucet** | @furnacetofaucet | How home systems work and what repairs cost by US region (no DIY how-to) | Faceless 3D house cutaways + cost cards | $4–10 | likely free / likely free / unverified |
 | 9 | **Wing and Turbine** | @wingandturbine | Aviation and how planes work (no crash content) | Faceless 3D aircraft systems + diagrams | $5–11 | likely free / likely free / unverified |
-| 10 | **Rank Test Lab** | @ranktestlab | Digital marketing and SEO for small business (B2B), real experiments | AI avatar "Theo" (PiP over own test-site dashboards) | $6–13 | likely free / likely free / unverified |
+| 10 | **Rank Test Lab** | @ranktestlab | Digital marketing and SEO for small business (B2B), real experiments | Faceless, own test-site dashboards + voice-over and charts | $6–13 | likely free / likely free / unverified |
 
 "Likely free" means `youtube.com/@handle` returned 404 and Verisign RDAP returned 404 for `handle.com` on 2026-10-16. That is a point-in-time check: **register all 30 profiles and 10 domains on the same day**. Instagram and Facebook **cannot be checked reliably without logging in** (Instagram's profile API returned 401, and Facebook returns 200 for any username). No live USPTO wordmark matches all of a brand's distinctive words (§6.2).
 
@@ -39,7 +39,9 @@
 | New | **#9 Wing and Turbine** | Transport is a measured $5.69 with the highest ad load (AIR); no AI-persona risk. Replaces Careers (17) |
 | New | **#10 Rank Test Lab** | Highest RPM of the five ($6–13); SEO and ads SaaS buy this audience |
 
-**Presenter mix:** **8 faceless**, **2 AI avatar** (Jules on #2, Theo on #10) and **no cartoon channels**, so the cartoon rig and budget in 10 and 12 §3 are no longer needed (17). Every faceless channel gets its own visual grammar (blueprint isometric, screen-plus-flow-diagram, house cutaway, aircraft systems, maps, case files, b-roll, cinematic 3D) to avoid template sameness (03).
+**Presenter mix:** **10 faceless**, **0 AI avatar** and **no cartoon channels**. The cartoon rig and budget in 10 and 12 §3 are no longer needed (17), and the HeyGen avatars were removed on 2026-10-16 (see the Retired note below). Every faceless channel gets its own visual grammar (blueprint isometric, screen-plus-flow-diagram, house cutaway, aircraft systems, maps, case files, b-roll, cinematic 3D) to avoid template sameness (03).
+
+**Retired (HeyGen removed 2026-10-16):** the AI-avatar hosts "Jules" (Software Shortcut) and "Theo" (Rank Test Lab) are retired, and their persona specs are no longer maintained. Both channels are faceless; the archived [09](../archive/09-ai-avatar-presenters.md) keeps the avatar research for history.
 
 ### 2.1 Domain boundaries (who owns the overlapping topics)
 
@@ -75,20 +77,20 @@
 - **Tagline:** "The fastest way through your software."
 - **Positioning:** hands-on, real-screen tutorials that get small-business people and professionals from problem to working workflow in AI and SaaS tools.
 - **Niche and why it pays:** B2B SaaS and AI tool tutorials, **$5–14**. SaaS free-trial CPAs come with **recurring** affiliate commissions and sponsor demand. YMYL risk is low.
-- **Presenter:** **AI avatar "Jules"**, disclosed, picture-in-picture over real screen recordings, on screen ≤40% of a Short and ≤30% of a long-form (12 §3). Instagram's "AI-generated profile" setting is **on**.
+- **Presenter:** **faceless**: our own real screen recordings with an AI voice-over (Kokoro), cursor highlights, motion graphics and callout cards (12 §3). No avatar host since 2026-10-16. AI disclosure stays on (12 §4).
 - **Palette:** `#1E1E24` graphite · `#5B4BDB` violet · `#B6F36A` lime
 - **Logo:** a cursor arrow that bends into a lightning-bolt shortcut.
-- **IG bio:** "Real-screen AI & SaaS tutorials: Notion, Zapier, Sheets, AI tools. Host Jules is an AI presenter. New workflow every week ↓"
-- **YT description:** "Step-by-step AI and SaaS tutorials recorded on real screens, from setup to working workflow. / Host Jules is an AI-generated presenter; some links are affiliate links."
+- **IG bio:** "Real-screen AI & SaaS tutorials: Notion, Zapier, Sheets, AI tools. AI-voiced. New workflow every week ↓"
+- **YT description:** "Step-by-step AI and SaaS tutorials recorded on real screens, from setup to working workflow. / Narration is AI-generated; some links are affiliate links."
 - **FB category:** Education website (secondary: Software)
 - **Starter titles:** Build a Client Intake Form in Notion in 10 Minutes · Automate Invoice Reminders with Zapier (No Code) · Turn a 40-Page PDF into a One-Page Brief with AI · 5 Google Sheets Formulas That Replace a Paid Tool · Set Up a Shared Inbox for a Two-Person Business
-- **Revenue:** AdSense + **recurring SaaS affiliate programs** + tool sponsorships. Under NY GBL §396-b, sponsor reads by the avatar carry an on-screen "AI-generated presenter" label (11 §4).
+- **Revenue:** AdSense + **recurring SaaS affiliate programs** + tool sponsorships. Under NY GBL §396-b, sponsor reads by the AI narrator carry an on-screen "AI-generated voice" label (11 §4).
 
 ### 3. Business Model Files
 - **Tagline:** "Every company has a money machine. We open the file."
 - **Positioning:** documentary-style breakdowns of how well-known US companies actually make money, using public filings, charts and b-roll.
 - **Niche and why it pays:** business case studies, **$5–12**. B2B, finance and software advertisers follow this audience. The format is proven by Modern MBA, Company Man and How Money Works (08 §7).
-- **Presenter:** faceless b-roll and charts in a "case file" visual style. Optionally A/B test an AI-avatar anchor intro (08 §8).
+- **Presenter:** faceless b-roll and charts in a "case file" visual style. (The optional AI-avatar anchor intro from 08 §8 was dropped with HeyGen on 2026-10-16.)
 - **Palette:** `#E8D3A2` manila · `#111111` black · `#2F6B4F` ledger green
 - **Logo:** a manila folder tab marked "BMF" with a small upward chart line.
 - **IG bio:** "How America's biggest companies really make money. One business model, one file, every week. Sources: public filings. 📂"
@@ -188,14 +190,14 @@
 - **Tagline:** "We test it on our sites so you don't guess on yours."
 - **Positioning:** real SEO, local-search and ads experiments run on our own small test sites, with the before/after dashboards shown in full, for US small-business owners and marketers. Results, not promises.
 - **Niche and why it pays:** digital marketing and SEO for small business (B2B), **$6–13**, the highest RPM of the five new niches (1of10, OutlierKit via 17). SEO and ads SaaS (Semrush, Ahrefs, HubSpot), website builders and POS brands buy this audience.
-- **Presenter:** **AI avatar "Theo"**, disclosed, generated by us (never from a real person, 09 §3). A man in his late thirties with a short salt-and-pepper beard, rust-coloured overshirt and round tortoiseshell glasses, standing at a whiteboard wall; Jules stays the graphite-and-violet desk host, so the two never look alike. Picture-in-picture over our own Search Console and analytics screens, on screen ≤40% of a Short and ≤30% of a long-form (12 §3). Instagram's "AI-generated profile" setting is **on**. A/B test against a no-host cut (17).
+- **Presenter:** **faceless**: our own Search Console and analytics screen recordings, before/after ranking charts and motion graphics, with an AI voice-over (Kokoro) (12 §3). No avatar host since 2026-10-16. AI disclosure stays on (12 §4).
 - **Palette:** `#16302B` deep teal · `#F4F1EA` chalk · `#FF5A36` result red
 - **Logo:** a beaker whose liquid level is a rising bar chart, topped with a "#1".
-- **IG bio:** "Real SEO & marketing experiments on our own test sites. Full dashboards, no income claims. Host Theo is an AI presenter. New test every week ↓"
-- **YT description:** "Small-business SEO, local search and ad experiments run on sites we own, with the real numbers shown. / Host Theo is an AI-generated presenter. Results vary; no earnings claims. Some links are affiliate links."
+- **IG bio:** "Real SEO & marketing experiments on our own test sites. Full dashboards, no income claims. AI-voiced. New test every week ↓"
+- **YT description:** "Small-business SEO, local search and ad experiments run on sites we own, with the real numbers shown. / Narration is AI-generated. Results vary; no earnings claims. Some links are affiliate links."
 - **FB category:** Education website (secondary: Marketing agency is **not** used, to avoid implying a service)
 - **Starter titles:** We Published 30 AI Articles on a Test Site. Here's What Google Did · Does a Google Business Profile Post Move Local Rankings? (60-Day Test) · Internal Links vs Backlinks: Which Moved Our Page First · We Ran a $100 Google Ads Test for a Fake Bakery · Schema Markup: Before and After on Our Own Site
-- **Revenue:** AdSense + **recurring SEO/ads SaaS and website-builder affiliates** + tool sponsorships. Sponsor reads by Theo carry an on-screen "AI-generated presenter" label (NY GBL §396-b, 11 §4).
+- **Revenue:** AdSense + **recurring SEO/ads SaaS and website-builder affiliates** + tool sponsorships. Sponsor reads by the AI narrator carry an on-screen "AI-generated voice" label (NY GBL §396-b, 11 §4).
 - **Red lines (17 §Policy screen):** no income guarantees or "make money online"/passive-income framing (FTC earnings-claim risk); no fake-review, bought-follower, bot or black-hat tactics; no undisclosed SaaS affiliate links; experiments only on sites we own.
 
 ## 4. Brand map
@@ -221,7 +223,7 @@ mindmap
 ## 5. Naming rules used
 
 1. **2–3 words**, easy to say aloud, with a handle of **≤20 characters** and no dots or underscores, so it is identical on IG, YT and FB. Facebook usernames need ≥5 characters.
-2. **No credential words:** no Dr, MD, CFP, CPA, Attorney, Lawyer, Nurse, Expert, Advisor, Agent, Guru, Pilot, Captain, Electrician, Contractor or Hacker. This follows the FTC net-impression rule, California AB 489 and YouTube's AI-persona rule (11 §4, §6). Avatar and narrator names are plain first names.
+2. **No credential words:** no Dr, MD, CFP, CPA, Attorney, Lawyer, Nurse, Expert, Advisor, Agent, Guru, Pilot, Captain, Electrician, Contractor or Hacker. This follows the FTC net-impression rule, California AB 489 and YouTube's AI-persona rule (11 §4, §6). Narrator names, if any, are plain first names.
 3. **Not kid-appealing.** No cute animals, no "kids", "fun" or "ABC" wording, and adult palettes with no primary-colour rainbow (11 §5).
 4. **Platform-neutral.** No "Tube", "Gram", "Shorts" or "Reels".
 5. **US-English feel**, with US nouns where they help (square foot, car payment, furnace, lock screen).
@@ -287,4 +289,4 @@ Codes: YT taken = `youtube.com/@handle` exists (channel name shown); .com taken 
 - Wing-turbine patent: https://patents.google.com/patent/US9631603
 - Statistical rank test: https://en.wikipedia.org/wiki/Rank_test
 
-**Internal:** RPMs and advertiser notes from [08 §3, §7–9](08-high-cpm-us-niches.md) and [17](17-replacement-niches.md); presenter rules from [12 §1–4](12-final-portfolio.md) and [09 §3](../4-production/09-ai-avatar-presenters.md); naming, disclosure and made-for-kids rules from [11 §4–6](../3-policy/11-avatar-and-ymyl-policy.md); red lines from [17 §Policy screen](17-replacement-niches.md).
+**Internal:** RPMs and advertiser notes from [08 §3, §7–9](08-high-cpm-us-niches.md) and [17](17-replacement-niches.md); presenter rules from [12 §1–4](12-final-portfolio.md) and [09 §3](../archive/09-ai-avatar-presenters.md) (archived); naming, disclosure and made-for-kids rules from [11 §4–6](../3-policy/11-avatar-and-ymyl-policy.md); red lines from [17 §Policy screen](17-replacement-niches.md).

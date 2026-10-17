@@ -52,9 +52,11 @@ def test_voices_are_distinct(brands):
     assert len(set(voices)) == len(voices)
 
 
-def test_avatars(brands):
-    avatars = {s: b.avatar_name for s, b in brands.items() if b.presenter == Presenter.AVATAR}
-    assert avatars == {"software-shortcut": "Jules", "rank-test-lab": "Theo"}
+def test_all_channels_faceless(brands):
+    # HeyGen avatars removed 2026-10-16 (doc 12 §2): every channel is faceless, no avatar host.
+    # Presenter.AVATAR stays in the contract for possible future use.
+    assert all(b.presenter == Presenter.FACELESS for b in brands.values())
+    assert all(b.avatar_name is None for b in brands.values())
 
 
 def test_unknown_key_and_slug_mismatch_rejected(tmp_path: Path):

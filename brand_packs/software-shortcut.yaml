@@ -1,10 +1,9 @@
-# Doc 13 §3.2 · Batch B · AI avatar "Jules", disclosed, PiP <=40% of a Short (12 §3)
+# Doc 13 §3.2 · Batch B · faceless: own screen recordings + voice-over (HeyGen avatar "Jules" retired 2026-10-16, 12 §3)
 slug: software-shortcut
 name: Software Shortcut
 handle: "@softwareshortcut"
 niche: Hands-on AI and SaaS tool tutorials for small-business people (Notion, Zapier, Sheets, AI tools)
-presenter: avatar
-avatar_name: Jules
+presenter: faceless
 palette: ["#1E1E24", "#5B4BDB", "#B6F36A"]
 voice: {engine: kokoro, voice: af_heart, speed: 1.1}
 platforms: [youtube_shorts, youtube_long, instagram_reels, facebook_reels]
@@ -32,7 +31,7 @@ red_lines:
   - "no income guarantees or get-rich framing (FTC)"
   - "never kid-appealing; Not made for kids on every video (11 §5)"
   - "disclose affiliate links spoken and on screen before the endorsement (17)"
-  - "Jules is an AI-generated presenter; never claim to be human; on-screen 'AI-generated presenter' label on sponsor reads (NY GBL §396-b, 11 §4)"
+  - "the narrator is an AI-generated voice; never claim to be human; on-screen 'AI-generated voice' label on sponsor reads (NY GBL §396-b, 11 §4)"
   - "teach tools only, never the business model (that is Business Model Files)"
   - "never cover security or privacy tools like VPNs or password managers (that is Lock Screen Logic)"
   - "never run ranking or ad experiments (that is Rank Test Lab)"

@@ -9,7 +9,7 @@
 
 Plastic Math (credit cards), Retire Mechanics (retirement), Tax Day Decoded (tax), Claim Explained (insurance) and Was It Legal? (law) all sit inside YouTube's **"AI Personas Related to Sensitive Topics"** rule, which 11 §0–1 (V1) verified on [YT 1311392](https://support.google.com/youtube/answer/1311392): a channel that uses AI-generated personas to deliver "a human expert providing advice" on **health, legal issues, finances or politics** is "not allowed to monetize", the page lists no exceptions, and neither an AI label nor a disclaimer cures it. The cartoon-narrator workaround in 12 §1 relied on an untested reading (11 §2.2 calls cartoon "Dr. Hoot" a grey zone and assumes it *does* count), the Creator Insider clarification on cartoon personas was never watched (11 §1 open item), and the bar is **channel-level**, so one borderline video can demonetise a whole channel. With 5 of 10 channels in that zone, 12 §2 already flagged the concentration risk; the user has chosen to remove it rather than manage it.
 
-**Kept (not to be overlapped):** Square Foot Money (real estate market data, mortgages), Software Shortcut (AI and SaaS tool tutorials, avatar "Jules"), Business Model Files (how US companies make money), Car Cost Truth (car buying/leasing/owning costs), Gravity What If (space and physics hypotheticals).
+**Kept (not to be overlapped):** Square Foot Money (real estate market data, mortgages), Software Shortcut (AI and SaaS tool tutorials, then avatar "Jules"; faceless since HeyGen was removed 2026-10-16), Business Model Files (how US companies make money), Car Cost Truth (car buying/leasing/owning costs), Gravity What If (space and physics hypotheticals).
 
 ## 2. Screening criteria
 
@@ -91,7 +91,7 @@ quadrantChart
 | 2 | **Cybersecurity & online privacy explained** | $5–12 | Faceless: screen recordings from **our own sandboxed VMs** + animated attack-flow diagrams; no hacker-mask clichés | "Anatomy of a breach": how real attacks, scams and data leaks work, and what each one shows about protecting yourself. |
 | 3 | **Home repair & home systems costs** | $4–10 | Faceless 3D cutaways of house systems (Engineering Mindset style) + cost cards by US region; no hands-on DIY footage | "What's inside your house and what it costs when it breaks": HVAC, plumbing, roofs, electrical, smart-home retrofits. |
 | 4 | **Careers & job-interview skills (US)** | $4–10 | Cartoon role-play cast (adult design; recruiter + candidate) reusing the freed cartoon rig budget; no credentials claimed | "Replay the interview": animated mock interviews that show the answer that fails and the one that gets the offer. |
-| 5 | **Digital marketing & SEO for small business (B2B)** | $6–13 | AI avatar host (2nd avatar, non-sensitive topic) over screen captures of **our own test sites and SERPs**; A/B vs no host (12 §1) | "We tested it on a real site": SEO, local search, email and ad tactics run on owned test properties, with the results shown. |
+| 5 | **Digital marketing & SEO for small business (B2B)** | $6–13 | AI avatar host (2nd avatar, non-sensitive topic) over screen captures of **our own test sites and SERPs**; A/B vs no host (12 §1). *Superseded 2026-10-16: faceless, no host (HeyGen removed)* | "We tested it on a real site": SEO, local search, email and ad tactics run on owned test properties, with the results shown. |
 | Alt A | **Aviation & how planes work** | $5–11 | Faceless 3D aircraft systems + map animations; no real crash footage | "Why planes do that": the engineering and procedures behind everyday flight. Swaps in for #1 or #4 |
 | Alt B | **Logistics & supply chain explained** | $5–12 | Faceless maps, flow animations, AI stills | "How stuff gets to you": ports, trucking, cold chain, last-mile. Swaps in for #1 only (overlaps it) or #5 |
 
@@ -140,7 +140,7 @@ quadrantChart
 
 ### 5.2 Effect on the presenter mix
 
-After the swap: **7 faceless** (Square Foot Money, Business Model Files, Car Cost Truth, Gravity What If, #1, #2, #3), **2 AI avatars** (Jules, #5 host) and **1 cartoon** (#4). The cartoon budget line in 12 §5 (~$250–450/month for 5 cartoon channels) shrinks to about one channel's share *(est.)*. The new risk is **template sameness across 7 faceless channels** (03, inauthentic content): give each its own visual grammar, voice and structure, and keep the cross-channel similarity check.
+After the swap: **7 faceless** (Square Foot Money, Business Model Files, Car Cost Truth, Gravity What If, #1, #2, #3), **2 AI avatars** (Jules, #5 host; both removed with HeyGen 2026-10-16, now faceless) and **1 cartoon** (#4). The cartoon budget line in 12 §5 (~$250–450/month for 5 cartoon channels) shrinks to about one channel's share *(est.)*. The new risk is **template sameness across 7 faceless channels** (03, inauthentic content): give each its own visual grammar, voice and structure, and keep the cross-channel similarity check.
 
 ## Policy screen
 
@@ -176,7 +176,7 @@ Graded against the M4 Pro 24 GB stack (14), with stock and cloud costs from 04 �
 | Niche | Grade | Best format | Visual sources | Needs real demos? | Mac min Short / long-form | Cloud $/mo | Originality lever |
 |---|---|---|---|---|---|---|---|
 | Cybersecurity and privacy | **A** | Motion graphics, diagrams, **your own screen recordings** of settings and tools | Pexels has about 8.7K clips, mostly hoodie-hacker clichés; Pixabay is thin | Partly: settings walkthroughs, which are easy to make yourself | 7–11 / 35–50 | $5–15 | Your own threat-flow diagrams; cited CVE, FTC and CISA data |
-| Digital marketing and SEO | **B+** | Screen recordings of **your own test sites**, Search Console and analytics, plus charts | Pexels about 50K, Pixabay about 10K | Partly: real dashboards | 6–10 / 30–45 | $5–15 (+~$100 if HeyGen) | Real experiments with real numbers. **High slop risk**: the niche is full of AI listicles |
+| Digital marketing and SEO | **B+** | Screen recordings of **your own test sites**, Search Console and analytics, plus charts | Pexels about 50K, Pixabay about 10K | Partly: real dashboards | 6–10 / 30–45 | $5–15 (HeyGen option removed 2026-10-16) | Real experiments with real numbers. **High slop risk**: the niche is full of AI listicles |
 | Aviation | **B** | Diagrams and cutaways (lift, engines) + stock + US-government imagery | Pexels about 4.2K. NASA, FAA, NTSB and DVIDS are public domain (no NASA insignia on AI images). **Airline and Airbus press kits are editorial-only, so don't use them** | No | 9–13 / 50–70 | $15–30 | Original animated diagrams, breakdowns of NTSB reports. AI planes get liveries and engines wrong |
 | Engineering megaprojects | **B** | B-roll + diagrams + 3D-style AI stills | Pexels about 3.9K "construction". USACE, DOT and NASA are public domain; Wikimedia per file. Specific factory processes are rarely in stock | No for structures; yes for "how it's made" process footage | 9–14 / 55–75 | $20–40 | Your own timeline and scale diagrams; cost data from public filings |
 | Home systems and repair costs | **C → B** when reframed | Stock-led cost charts rate **C**. Reframed as **3D cutaways of house systems** (Engineering Mindset style) + regional cost cards, with **no how-to**, it rates B | Pexels "home repair" about 93K, but generic | **Yes for any how-to**, so don't make how-tos. Generated hands and tools look wrong | 8–12 / 45–60 | $10–20 | Original cost-breakdown charts. You need a real data source (e.g. RSMeans, BLS, or your own surveys); repackaging Angi numbers adds little |
@@ -185,7 +185,7 @@ Graded against the M4 Pro 24 GB stack (14), with stock and cloud costs from 04 �
 The other candidates graded: programming, Excel and geography A; EV B+; interior design B; pets B−; smart home, consumer tech and outdoor C; photography and luxury D. **C and D niches need real products in real hands**, which a faceless AI channel can't fake honestly.
 
 **Notes:**
-- **Stock footage is filler, not the main visual.** Pexels runs 10–60× Pixabay on every query, but only a few hundred clips per topic actually fit, and competing channels use the same ones. Pexels forbids implying that a pictured brand endorses you.
+- **Stock footage is filler, not the main visual.** (The pipeline uses Pixabay since 2026-10-16; Pexels was dropped.) Pexels runs 10–60× Pixabay on every query, but only a few hundred clips per topic actually fit, and competing channels use the same ones. Pexels forbids implying that a pictured brand endorses you.
 - **Assume press kits are unusable** (airlines, Airbus, Nasdaq and others are editorial-only). Safe sources: US-government works (NASA, FAA, NTSB, DVIDS, USACE, EIA), Natural Earth (public domain), OSM (ODbL, credit on screen) and Wikimedia (check each file's licence).
 - **Screen-recording channels cost people time, not Mac time.** Cybersecurity and marketing need about 5–10 Mac minutes per Short but about 30 minutes of human recording per Short and 2–3 hours per long-form.
 - **None of the five needs local AI video**, which 14 §7 rules out anyway. Hero shots go to cloud Veo.
@@ -200,7 +200,7 @@ Sources: [Pexels videos](https://www.pexels.com/search/videos/) · [Pixabay vide
 | 2 | Cybersecurity and privacy | ✅ **Pick**, defensive and conceptual only | $5–12; A feasibility; VPN and password-manager sponsors |
 | 3 | Home systems and repair costs | ✅ **Pick, reframed** as how-it-works + what it costs, no how-to | Home-improvement CPC $7.85 is the joint 2nd-highest industry; B once reframed |
 | 4 | ~~Careers~~ → **Aviation** | 🔁 **Swapped** | Careers carries the **most AI-persona risk** of any candidate (finance, legal and health sub-topics), which is exactly what the 5 removals were meant to avoid. Aviation has no persona risk; just stay away from crash content |
-| 5 | Digital marketing and SEO (B2B) | ✅ **Pick** with guardrails: no income claims, real experiments only | Highest RPM of the five ($6–13); test the AI avatar against a no-host version |
+| 5 | Digital marketing and SEO (B2B) | ✅ **Pick** with guardrails: no income claims, real experiments only | Highest RPM of the five ($6–13); test the AI avatar against a no-host version (avatar removed 2026-10-16: faceless) |
 
 **Domain boundaries:**
 
@@ -211,7 +211,7 @@ Sources: [Pexels videos](https://www.pexels.com/search/videos/) · [Pixabay vide
 | Digital marketing vs Software Shortcut | Marketing covers tactics and results; Software Shortcut covers how to use AI and SaaS tools |
 | Cybersecurity vs Software Shortcut | Cybersecurity owns all security tools |
 
-**Presenter mix after the swap:** 8 faceless and 2 AI avatar (Software Shortcut, digital marketing). **There are no cartoon channels now**, so the cartoon rig and the cutaway budget in 10 and 12 §3 are no longer needed.
+**Presenter mix after the swap:** 8 faceless and 2 AI avatar (Software Shortcut, digital marketing). **Update 2026-10-16:** HeyGen removed, so it is now 10 faceless, 0 avatar (12 §2). **There are no cartoon channels now**, so the cartoon rig and the cutaway budget in 10 and 12 §3 are no longer needed.
 
 ## 6. Open questions to verify
 

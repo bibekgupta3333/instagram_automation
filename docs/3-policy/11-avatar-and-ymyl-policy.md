@@ -1,6 +1,6 @@
 # 11 — AI Avatars, Cartoon Presenters and YMYL Niches
 
-> **Status:** current · **Updated:** 2026-10-16 · **Related:** [03 Platform policies](03-platform-policies-and-risks.md), [09 AI avatar presenters](../4-production/09-ai-avatar-presenters.md), [12 Final portfolio](../2-channels/12-final-portfolio.md)
+> **Status:** current · **Updated:** 2026-10-16 · **Related:** [03 Platform policies](03-platform-policies-and-risks.md), [09 AI avatar presenters (archived)](../archive/09-ai-avatar-presenters.md), [12 Final portfolio](../2-channels/12-final-portfolio.md)
 
 > Researched 2026-10-16. This doc deepens [03-platform-policies-and-risks.md](03-platform-policies-and-risks.md) and does not repeat it. Read 03 first.
 > Scope: high-AdSense US niches (finance, insurance, tax, legal, health, real estate) presented by **realistic AI avatars** or **cartoon characters**, on YouTube, Instagram and Facebook (via Buffer).
