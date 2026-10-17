@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Also read [AGENTS.md](AGENTS.md)**: the hard rules, agent roster (who owns which files) and parallel-work protocol for multi-agent work.
+
 ## What this is
 
 A local-first AI video studio for 10 faceless channels (no avatar hosts; HeyGen was removed 2026-10-16) on YouTube, Instagram and Facebook, aimed at US viewers and AdSense revenue. Publishing goes through Buffer. The strategy, policy research and design decisions are in `docs/`, and `docs/README.md` is the index. Docs keep a stable number prefix (`04`, `12`, …), and code comments cite them as `doc 15 §5`.

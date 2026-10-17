@@ -285,7 +285,7 @@ Keep this only for offline LLM experiments.
 | `ollama server not running` | Only matters for optional local LLM pulls: `make ollama` |
 | `ollama pull` slow or stalls | Re-run; pulls resume. Check `df -h` |
 | Model runs at a few tokens/s, `ollama ps` shows CPU/GPU split | The model doesn't fit the wired limit. Use the 9B, close apps, see §5 |
-| `MPS backend out of memory` (mflux, ACE-Step) | `ollama stop <model>` first; use `-q 8` or `-q 4`; raise the wired limit |
+| `MPS backend out of memory` (mflux, ACE-Step) | `ollama stop <model>` first; render at 576x1024 (not larger), close other GPU apps, raise the wired limit. **Never** use mflux `-q` (it downloads the 16–33 GB base model) |
 | ffmpeg lacks libass / `No such filter: 'ass'` | `brew reinstall ffmpeg`; make sure `/opt/homebrew/bin` comes first on `PATH` |
 | `h264_videotoolbox` errors | Some sizes need even dimensions; use `-pix_fmt yuv420p`. Fall back to `-c:v libx264` |
 | `venv cannot import studio` | `uv sync` from the repo root |
