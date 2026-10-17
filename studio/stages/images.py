@@ -1,23 +1,21 @@
 """Stage 5: one visual per beat (a still, or a stock clip that render trims and mutes).
 
 Engines (STUDIO_IMAGES_ENGINE or --engine images=NAME; default ``auto``):
-- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default z-image-turbo -> pixabay ->
-  bedrock-stability -> mock). Z-Image is skipped unless its 4-bit repo is downloaded; Pixabay
-  is used only with PIXABAY_API_KEY and when the beat suits stock; mock is a loud last resort.
-- ``bedrock-stability``: Stability AI on Bedrock (Core $0.04/image by default; 9:16 shorts,
-  16:9 long-form; brand style appended; seed per job + beat). Capped per video and logged to
-  the spend ledger.
-- ``pixabay``: free stock clips/photos (Pixabay Content License), searches cached 24 h in
-  output/.cache/pixabay/, credits in images/attribution.txt.
+- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default z-image-turbo -> pixabay -> mock).
+  Z-Image is skipped unless its 4-bit repo is downloaded; Pixabay is used only with
+  PIXABAY_API_KEY and when the beat suits stock; mock is a loud last resort.
 - ``z-image-turbo`` / ``flux2-klein-4b``: local mflux, Apache-2.0, pre-quantized 4-bit repos
   (doc 18 §1). Z-Image-Turbo q4 (5.9 GB) is the default (Configuration A). The raw still
   (576x1024 / 1024x576) goes to images/raw/, then Real-ESRGAN (visuals/upscale.py) makes the
   frame-size beat image; without it the raw still is used and render scales it.
-- ``bedrock-luma``: Luma Ray2 hero clip for beat 0 (gated stub; see visuals/luma.py), the
-  rest as ``auto``.
+- ``pixabay``: free stock clips/photos (Pixabay Content License), searches cached 24 h in
+  output/.cache/pixabay/, credits in images/attribution.txt.
 - ``mock``: a 1080x1920 (or 1920x1080) ffmpeg placeholder (brand colour + wrapped prompt).
 
-Per-beat results live in images/visuals.json, so a resumed run never re-pays for a beat it
+Motion comes from local parallax in render. Bedrock is for TEXT models only: the
+bedrock-stability / bedrock-luma engines were removed 2026-10-16 and naming them is an error.
+
+Per-beat results live in images/visuals.json, so a resumed run never re-fetches a beat it
 already has.
 """
 
@@ -34,7 +32,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from studio.config import VisualsConfig
+from studio.config import RemovedEngineError, VisualsConfig, check_image_engine
 from studio.contracts import BrandPack, VideoJob
 from studio.stages.base import (
     EngineUnavailable,
@@ -50,13 +48,12 @@ from studio.stages.base import (
     write_cache,
 )
 from studio.stages.visuals import BeatSpec, Visual, is_video
-from studio.stages.visuals import luma as luma_src
 from studio.stages.visuals import pixabay as pixabay_src
-from studio.stages.visuals import stability as stability_src
-from studio.stages.visuals.common import logger, record_cost
+from studio.stages.visuals.common import logger
 
 STAGE = "images"
-VERSION = 6  # 6: Pixabay replaces Pexels as the stock source; 5: Z-Image q4 + Real-ESRGAN
+VERSION = 7  # 7: Bedrock Stability/Luma removed (Bedrock is text-only); 6: Pixabay replaces
+# Pexels as the stock source; 5: Z-Image q4 + Real-ESRGAN
 
 # engine id -> (model name, default mflux CLI). Override the command with
 # STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
@@ -79,8 +76,7 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
 }
 UPSCALED_SUFFIX = " + Real-ESRGAN x4"
 
-SOURCE_ENGINES = ("pixabay", "bedrock-stability")
-ENGINES = ("auto", "mock", *SOURCE_ENGINES, "bedrock-luma", *MFLUX_MODELS)
+ENGINES = ("auto", "mock", "pixabay", *MFLUX_MODELS)
 MEDIA_SUFFIXES = (".png", ".jpg", ".jpeg", ".mp4", ".mov", ".m4v", ".webm")
 
 FONT_CANDIDATES = [
@@ -242,18 +238,13 @@ def unload() -> None:
         mod.unload()
 
 
-class ImageBudgetExceeded(StageError):
-    """Paid stills for this video would go over STUDIO_IMAGES_MAX_USD_PER_VIDEO."""
-
-
 class _Run:
-    """Per-run state: config, spend so far, stock ids already used (no repeated clips)."""
+    """Per-run state: config, stock ids already used (no repeated clips)."""
 
     def __init__(self, job: VideoJob, brand: BrandPack, cfg: VisualsConfig, total: int,
                  cache_dir: Path | None = None):
         self.job, self.brand, self.cfg, self.total = job, brand, cfg, total
         self.cache_dir = cache_dir
-        self.spent = 0.0
         self.used: set[str] = set()
 
 
@@ -274,21 +265,6 @@ def _produce(engine: str, spec: BeatSpec, st: _Run) -> Visual:
     if engine == "pixabay":
         return pixabay_src.fetch(spec, api_key=st.cfg.pixabay_api_key, used=st.used,
                                  cache_dir=st.cache_dir)
-    if engine == "bedrock-stability":
-        model_id, price = stability_src.resolve_model(st.cfg.stability_model)
-        if st.spent + price > st.cfg.max_image_usd_per_video + 1e-9:
-            raise ImageBudgetExceeded(
-                f"images: ${st.spent + price:.2f} would exceed STUDIO_IMAGES_MAX_USD_PER_VIDEO="
-                f"${st.cfg.max_image_usd_per_video:.2f}"
-            )
-        vis = stability_src.generate(spec, model=st.cfg.stability_model,
-                                     region=st.cfg.bedrock_image_region,
-                                     negative_prompt=st.cfg.negative_prompt)
-        record_cost(channel=st.job.channel, job_id=st.job.job_id, step="images",
-                    model=model_id, usd=vis.usd)
-        return vis
-    if engine == "bedrock-luma":
-        return luma_src.generate(spec, st.cfg)
     raise StageError(f"images: unknown engine {engine!r} ({', '.join(ENGINES)})")
 
 
@@ -319,13 +295,6 @@ def _auto(spec: BeatSpec, st: _Run, order: tuple[str, ...]) -> Visual:
 
 def _beat_visual(engine: str, spec: BeatSpec, st: _Run) -> Visual:
     if engine == "auto":
-        return _auto(spec, st, st.cfg.auto_order)
-    if engine == "bedrock-luma":
-        if spec.index == 0:  # hero shot only; the rest of the video is `auto`
-            try:
-                return _produce("bedrock-luma", spec, st)
-            except (StageError, NotImplementedError) as exc:
-                log(st.job, f"images: bedrock-luma hero skipped: {str(exc).splitlines()[0]}")
         return _auto(spec, st, st.cfg.auto_order)
     return _produce(engine, spec, st)
 
@@ -361,15 +330,18 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     if job.script is None:
         raise StageError("images: no script")
     engine = ctx.engine("images")
+    try:
+        check_image_engine(engine, "--engine images")
+        cfg = VisualsConfig.from_env()
+    except RemovedEngineError as exc:
+        raise StageError(str(exc)) from exc
     if engine not in ENGINES:
         raise StageError(f"images: unknown engine {engine!r} ({', '.join(ENGINES)})")
-    cfg = VisualsConfig.from_env()
     img_dir = Path(job.workdir) / "images"
     img_dir.mkdir(parents=True, exist_ok=True)
     beats = job.script.beats
     prompts = [image_prompt(b.visual_prompt, brand) for b in beats]
-    config_part = {"order": list(cfg.auto_order), "stability": cfg.stability_model,
-                   "neg": cfg.negative_prompt} if engine != "mock" else {}
+    config_part = {"order": list(cfg.auto_order)} if engine != "mock" else {}
     key = hash_inputs(STAGE, VERSION, engine, config_part, job.format, prompts, brand.palette,
                       brand.name)
     beat_keys = [hash_inputs(STAGE, VERSION, engine, config_part, job.format, p,
@@ -400,13 +372,12 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
         if old and not ctx.force:
             cand = Visual.from_json(old["visual"])
             if cand.path.exists() and (cand.engine != "mock" or engine == "mock"):
-                vis = cand  # already paid for / downloaded: reuse
+                vis = cand  # already generated / downloaded: reuse
         if vis is None:
             for stale in img_dir.glob(f"beat_{i:02d}.*"):
                 if stale.suffix.lower() in MEDIA_SUFFIXES or stale.name.endswith(".part"):
                     stale.unlink()
             vis = _beat_visual(engine, spec, st)
-        st.spent += vis.usd
         if vis.source.get("id") is not None and vis.engine == "pixabay":
             st.used.add(f"{vis.kind if vis.kind == 'video' else 'photo'}:{vis.source['id']}")
         visuals.append(vis)
@@ -426,9 +397,9 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
         counts[f"{v.engine}/{v.kind}"] = counts.get(f"{v.engine}/{v.kind}", 0) + 1
     models = sorted({v.model for v in visuals})
     write_cache(job, STAGE, key, outs, model=",".join(models), prompts=prompts,
-                usd=round(st.spent, 4), engines=counts)
+                engines=counts)
     summary = ", ".join(f"{k}={n}" for k, n in sorted(counts.items()))
-    log(job, f"images: {engine} {len(outs)} visuals ({summary}) ${st.spent:.2f}")
+    log(job, f"images: {engine} {len(outs)} visuals ({summary})")
     clips = sum(is_video(p) for p in outs)
     if clips:
         log(job, f"images: {clips} stock clips; credits in images/attribution.txt")

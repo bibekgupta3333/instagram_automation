@@ -45,6 +45,28 @@ Extras: `local-audio` (mlx-audio, parakeet-mlx, misaki G2P + spaCy `en_core_web_
 bedrock` uninstalls mflux and the audio stack. Use `make deps` (`make deps-audio` is now an
 alias for it). `uv run` does not prune, so it is safe.
 
+### Bedrock settings in `.env` (text only)
+
+Bedrock serves **text models only** (no image or video). Set these in the git-ignored `.env`:
+
+| Variable | Used for | Empty means |
+|---|---|---|
+| `AWS_PROFILE` *or* `AWS_BEARER_TOKEN_BEDROCK` | Auth: a **personal** AWS profile, or a Bedrock API key | — (one is required) |
+| `AWS_REGION` | Bedrock Runtime region | set it (`.env.example` uses `us-east-1`) |
+| `BEDROCK_MODEL_ID_FAST` | Drafts, metadata, ideation | Haiku 5.5 |
+| `BEDROCK_MODEL_ID_QUALITY` | Polish and fact-check | Sonnet 5.5 |
+| `BEDROCK_MODEL_ID_ESCALATION` | Disputed claims | Opus 5.5 |
+| `STUDIO_BEDROCK_MODEL_<ROLE>` (optional) | Pin one role, e.g. `STUDIO_BEDROCK_MODEL_DRAFT` | the tier above |
+
+Precedence: per-role `STUDIO_BEDROCK_MODEL_<ROLE>` > tier `BEDROCK_MODEL_ID_*` > built-in default.
+An empty value means the default. Accepted ID formats (check the exact IDs in your Bedrock console):
+
+```bash
+BEDROCK_MODEL_ID_FAST=anthropic.claude-haiku-5-5            # base model id (in-Region)
+BEDROCK_MODEL_ID_QUALITY=us.anthropic.claude-sonnet-5-5     # cross-Region profile (us. or global. prefix)
+BEDROCK_MODEL_ID_ESCALATION=arn:aws:bedrock:us-east-1:123456789012:inference-profile/global.anthropic.claude-opus-5-5   # inference-profile ARN
+```
+
 ## 1a. Configuration A (what is installed)
 
 | Layer | What | Size on disk | Licence |
@@ -64,7 +86,8 @@ uv run studio make --channel megabuild-blueprint --topic "..." --engine llm=mock
 ```
 
 How the images stage uses it (`studio/stages/images.py`): `images=auto` tries, per beat,
-`z-image-turbo` → Pixabay → Bedrock Stability → mock. Z-Image renders a raw still at
+`z-image-turbo` → Pixabay → mock (a placeholder marked "do not publish"). There is no Bedrock
+image or video engine: Bedrock is used for text only. Z-Image renders a raw still at
 **576×1024** (1024×576 long-form) into `images/raw/`, then Real-ESRGAN x4 makes the
 1080×1920 frame. The exact command it runs:
 

@@ -2,6 +2,8 @@
 
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [14 Local models](../4-production/14-local-models-mac-m4.md), [16 MCP and agents](16-mcp-agent-orchestration.md), [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md)
 
+> **Text-only since 2026-10-16. Image/video rows below are historical.** The studio uses Bedrock for text models only. Stills come from local Z-Image-Turbo 4-bit, then Pixabay, then a "do not publish" mock; motion is local parallax (doc 18). The Stability, Luma Ray2 and Nova Canvas/Reel rows, the paid-thumbnail lines and the Ray2 line in §6 are kept as research history, not as recommendations. Model IDs now come from `.env` (§7.2a).
+
 > Status: research and proposal, as of **2026-10-16**. Prices come from the **AWS Price List API** (us-east-1 and us-west-2 offer files, pulled that day) and the Bedrock model cards. The pricing web page renders its tables in JavaScript, so it can't be scraped. Anything per-video or per-month is an **estimate** (marked *est.*). Re-check prices and quotas before you commit budget.
 >
 > Scope: the 10-channel pipeline in [04](../4-production/04-content-pipeline-architecture.md) (300 Shorts and 80 long-form a month at full scale). Bulk generation runs locally on the Mac M4 Pro with 24 GB. The local model choice is covered in its own doc. This doc decides **what goes to Amazon Bedrock**, on a small budget with low quotas, and how one gateway routes between the two.
@@ -15,7 +17,7 @@
 - **Surprise 1: Nova Canvas and Nova Reel are past end-of-life.** Their model cards give an EOL date of **2026-09-30**, so don't build on them. On Bedrock today, video means **Luma Ray2** at **$0.75–1.50 per second**, us-west-2 only, **one concurrent job**. That is several times the Veo Fast rate in doc 04, so Bedrock is a poor place for hero clips.
 - **Surprise 2: the 5.5-generation Claude models have no Batch, Flex or structured-output support on Bedrock yet** (model cards, 2026-10-16). Use tool use with `toolChoice: auto` and validate the result yourself. The 50% Batch discount only applies to older models (Sonnet 4.6, Haiku 4.5), and even at half price Haiku 4.5 costs more than Haiku 5.5 at full price. **Batch isn't useful here.**
 - **The binding constraint is the budget, not the quota.** About 30 Bedrock calls a day *(est.)* fits even small TPM quotas, but the guard still reserves `max_tokens` at admission and counts Opus 5.5 output against quota at **10×** ("burndown"; Sonnet 5.5's rate isn't published).
-- **$25 a month covers the core value** (about $20 *est.*: long-form polish, YMYL fact-check, Opus escalation, Guardrails). **$100** adds Sonnet on all Shorts and Stable Image thumbnails. **$300** adds Opus everywhere and some Ray2 clips (§6).
+- **$25 a month covers the core value** (about $20 *est.*: long-form polish, YMYL fact-check, Opus escalation, Guardrails). **$100** adds Sonnet on all Shorts (and, historically, Stable Image thumbnails). **$300** adds Opus everywhere (and, historically, some Ray2 clips) (§6). *Since 2026-10-16 the image/video parts of these tiers are dropped: Bedrock is text-only.*
 - **Build it as a LiteLLM proxy** in front of Ollama/mlx-lm and Bedrock, with an AWS CLI profile and no keys in config. A Postgres spend ledger and a budget guard decide the route. **Quality steps queue when Bedrock throttles; they never silently drop to local.** Bulk steps that find local busy overflow to Haiku 5.5 (§7).
 
 ---
@@ -75,7 +77,7 @@ Also in the catalogue, but out of scope here: GPT-5.4–6.1 family, Grok 4.x, Ki
 `aws service-quotas list-service-quotas --service-code bedrock --profile bedrock-pipeline --region us-east-1 --query "Quotas[?contains(QuotaName,'Sonnet 5.5')].[QuotaName,Value]"`.
 To raise TPM, file one request against **"Cross-region model inference tokens per minute for <model>"**. Support then offers to raise the on-demand TPM and tokens-per-day quotas with it. AWS says it **prioritises accounts already using their quota**, and it won't raise quotas on Legacy models. So ask after the pilot month shows real usage.
 
-**Cross-Region inference.** Use `global.` profiles: they cost list price and have the widest capacity. Use `us.` only if data residency matters (10% dearer). Ray2 and Stability run in-Region only, in **us-west-2**, so create a second boto3 client for those.
+**Cross-Region inference.** Use `global.` profiles: they cost list price and have the widest capacity. Use `us.` only if data residency matters (10% dearer). *(Historical: Ray2 and Stability run in-Region only, in us-west-2. Not used since 2026-10-16, so no second client is needed.)*
 
 ---
 
@@ -115,8 +117,8 @@ Assumptions *(est.)*: Short ≈ 150 words and long-form ≈ 1,350 words (doc 04 
 | Translation (optional ES captions) | **Local** draft → Haiku 5.5 QA | Haiku 5.5 | US-first portfolio; low volume | 2K / 1K | < $0.50 |
 | Content-safety lint | **Bedrock Guardrails** on every final script | ApplyGuardrail | Independent, policy-shaped check | ~2.5 text units each | **~$0.35** |
 | Image generation (stills, B-roll) | **Local** (FLUX/SDXL on M4) or stock | — | Volume (doc 04: 6–40 stills per video). Local is free | — | $0 |
-| Thumbnails | Local at $25; **Stable Image Core** ($0.04) at $100; **Ultra** ($0.14) at $300 | Stability (us-west-2) | Thumbnails are worth paying for. 4 variants per long-form | 4 images | $0 / $12.80 / $44.80 |
-| Video generation (hero clips) | **Not Bedrock by default.** Use doc 04 vendors (Veo Fast) | Luma Ray2 only in the $300 tier | Ray2 costs $3.75–7.50 per 5-second clip, runs one job at a time, and Nova Reel is gone | 5 s per clip | $0 (or ~$112 at $300) |
+| Thumbnails *(historical; now local only, Bedrock is text-only)* | Local at $25; **Stable Image Core** ($0.04) at $100; **Ultra** ($0.14) at $300 | Stability (us-west-2) | Thumbnails are worth paying for. 4 variants per long-form | 4 images | $0 / $12.80 / $44.80 |
+| Video generation (hero clips) *(historical rationale; Bedrock video removed 2026-10-16)* | **Not Bedrock.** Use doc 04 vendors (Veo Fast) | Luma Ray2 only in the $300 tier | Ray2 costs $3.75–7.50 per 5-second clip, runs one job at a time, and Nova Reel is gone | 5 s per clip | $0 (or ~$112 at $300) |
 | TTS narration | **Local** Kokoro / ElevenLabs (doc 04) | — | Bedrock has no narration TTS. Nova Sonic is conversational; Polly is separate | — | $0 |
 
 **Overflow rule.** If the local queue wait goes over 20 minutes, bulk text steps (ideation through metadata) may overflow to **Haiku 5.5** while budget headroom is above 30%. Running *all* bulk text through Haiku 5.5 would cost only **about $2.60 a month** *(est.: 300 × $0.004 + 80 × $0.018)*. That overflow is a safety valve, not a cost risk.
@@ -185,6 +187,18 @@ region = us-east-1
 ```
 
 Set `AWS_PROFILE=bedrock-pipeline` in the orchestrator's environment. Scope IAM to the model and inference-profile ARNs in this doc. Add an **AWS Budgets** alert at 80% and 100% of the tier as the outer guard.
+
+### 7.2a Model IDs from .env
+
+The studio reads the Bedrock text model IDs from the git-ignored `.env` (see [SETUP.md](../../SETUP.md)):
+
+| Variable | Roles | Default |
+|---|---|---|
+| `BEDROCK_MODEL_ID_FAST` | Drafts, metadata, ideation | Haiku 5.5 |
+| `BEDROCK_MODEL_ID_QUALITY` | Polish and fact-check | Sonnet 5.5 |
+| `BEDROCK_MODEL_ID_ESCALATION` | Disputed claims | Opus 5.5 |
+
+Precedence: per-role `STUDIO_BEDROCK_MODEL_<ROLE>` > tier `BEDROCK_MODEL_ID_*` > built-in default. An empty value means the default. A value can be a base ID (`anthropic.claude-…`), a cross-Region profile (`us.` / `global.` prefix) or an inference-profile ARN. Auth is `AWS_PROFILE` or `AWS_BEARER_TOKEN_BEDROCK`, plus `AWS_REGION`.
 
 ### 7.3 boto3 Converse with tool use (fact-check)
 

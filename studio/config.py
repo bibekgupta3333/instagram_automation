@@ -17,10 +17,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_BRAND_DIR = REPO_ROOT / "brand_packs"
 
 # Visuals (Configuration A, doc 18 §1). `auto` tries, per beat: local Z-Image-Turbo 4-bit (free,
-# skipped unless downloaded) -> Pixabay stock (free) -> Bedrock Stability ($/image) -> mock.
+# skipped unless downloaded) -> Pixabay stock (free) -> mock. Motion is local parallax (render).
 # flux2-klein-4b stays selectable with --engine images=flux2-klein-4b once downloaded.
+# Bedrock is for TEXT models only: the bedrock-stability / bedrock-luma engines were removed.
 DEFAULT_IMAGES_ENGINE = "auto"
-DEFAULT_AUTO_ORDER = ("z-image-turbo", "pixabay", "bedrock-stability", "mock")
+DEFAULT_AUTO_ORDER = ("z-image-turbo", "pixabay", "mock")
+REMOVED_IMAGE_ENGINES = frozenset({"bedrock-stability", "bedrock-luma"})
+
+
+class RemovedEngineError(ValueError):
+    """An images engine name that no longer exists (see REMOVED_IMAGE_ENGINES)."""
+
+
+def check_image_engine(name: str, where: str) -> None:
+    """Raise RemovedEngineError if `name` is a removed images engine (never silently skip)."""
+    if name in REMOVED_IMAGE_ENGINES:
+        raise RemovedEngineError(
+            f"{where}: images engine {name!r} was removed 2026-10-16: Bedrock is text-only; "
+            "use z-image-turbo or pixabay"
+        )
 
 # ---------------------------------------------------------------- .env loading
 # Dependency-free: KEY=VALUE lines, `export KEY=VALUE` allowed, `#` comments and blank lines
@@ -44,7 +59,9 @@ def parse_env_text(text: str) -> dict[str, str]:
         key, value = key.strip(), value.strip()
         if not key.replace("_", "").isalnum() or key[0].isdigit():
             continue
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        if value.startswith("#"):  # `KEY=   # comment` is an empty value, not "# comment"
+            value = ""
+        elif len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
         elif " #" in value:  # inline comment on an unquoted value
             value = value.split(" #", 1)[0].rstrip()
@@ -88,72 +105,36 @@ def load_dotenv_once() -> list[str]:
     return load_env_file(path)
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name, "").strip()
-    try:
-        return float(raw) if raw else default
-    except ValueError:
-        return default
-
-
 @dataclass(frozen=True)
 class VisualsConfig:
     """Env-driven knobs for the images stage (studio/stages/images.py, studio/stages/visuals/).
 
     STUDIO_IMAGES_AUTO_ORDER      comma list tried per beat by `auto`
-                                  (default z-image-turbo,pixabay,bedrock-stability,mock; local mflux
-                                  is skipped unless its pre-quantized model is already downloaded)
-    STUDIO_STABILITY_MODEL        core | sd3.5-large | ultra | a raw Bedrock model id (default core)
-    STUDIO_BEDROCK_IMAGE_REGION   Stability on Bedrock is us-west-2 (model cards, 2026-10-16)
-    STUDIO_IMAGES_MAX_USD_PER_VIDEO  hard cap on paid stills per video (default $1.00)
-    STUDIO_IMAGES_NEGATIVE_PROMPT override the default negative prompt
+                                  (default z-image-turbo,pixabay,mock; local mflux is skipped
+                                  unless its pre-quantized model is already downloaded).
+                                  bedrock-stability / bedrock-luma raise RemovedEngineError.
     PIXABAY_API_KEY               enables the pixabay engine (free stock, visuals/pixabay.py)
     STUDIO_PIXABAY_CHANNELS       slugs (or `all`) whose brand style is allowed to use stock even
                                   though it looks rendered/diagrammatic
-    STUDIO_ALLOW_PAID_VIDEO=1     required for bedrock-luma (Luma Ray2, $0.75-1.50/s, doc 15 §2)
-    STUDIO_VIDEO_MAX_USD_PER_VIDEO  cap for paid video per video (default $4.00)
-    STUDIO_LUMA_S3_URI            s3://bucket/prefix/ for Ray2 async output (us-west-2 bucket)
     """
 
     auto_order: tuple[str, ...] = DEFAULT_AUTO_ORDER
-    stability_model: str = "core"
-    bedrock_image_region: str = "us-west-2"
-    max_image_usd_per_video: float = 1.00
-    negative_prompt: str = (
-        "text, letters, words, watermark, logo, signature, caption, blurry, low quality, "
-        "deformed hands, extra fingers, distorted face"
-    )
     pixabay_api_key: str = ""
     pixabay_channels: tuple[str, ...] = ()
-    allow_paid_video: bool = False
-    max_video_usd_per_video: float = 4.00
-    luma_s3_uri: str = ""
-    luma_region: str = "us-west-2"
 
     @classmethod
     def from_env(cls) -> VisualsConfig:
         load_dotenv_once()
         d = cls()
-        order = os.environ.get("STUDIO_IMAGES_AUTO_ORDER", "")
+        order = tuple(x.strip() for x in os.environ.get("STUDIO_IMAGES_AUTO_ORDER", "").split(",")
+                      if x.strip())
+        for name in order:
+            check_image_engine(name, "STUDIO_IMAGES_AUTO_ORDER")
         chans = os.environ.get("STUDIO_PIXABAY_CHANNELS", "")
         return cls(
-            auto_order=tuple(x.strip() for x in order.split(",") if x.strip()) or d.auto_order,
-            stability_model=os.environ.get("STUDIO_STABILITY_MODEL", "").strip()
-            or d.stability_model,
-            bedrock_image_region=os.environ.get("STUDIO_BEDROCK_IMAGE_REGION", "").strip()
-            or d.bedrock_image_region,
-            max_image_usd_per_video=_env_float(
-                "STUDIO_IMAGES_MAX_USD_PER_VIDEO", d.max_image_usd_per_video
-            ),
-            negative_prompt=os.environ.get("STUDIO_IMAGES_NEGATIVE_PROMPT", d.negative_prompt),
+            auto_order=order or d.auto_order,
             pixabay_api_key=os.environ.get("PIXABAY_API_KEY", "").strip(),
             pixabay_channels=tuple(x.strip() for x in chans.split(",") if x.strip()),
-            allow_paid_video=os.environ.get("STUDIO_ALLOW_PAID_VIDEO", "") == "1",
-            max_video_usd_per_video=_env_float(
-                "STUDIO_VIDEO_MAX_USD_PER_VIDEO", d.max_video_usd_per_video
-            ),
-            luma_s3_uri=os.environ.get("STUDIO_LUMA_S3_URI", "").strip(),
-            luma_region=os.environ.get("STUDIO_LUMA_REGION", "").strip() or d.luma_region,
         )
 
 

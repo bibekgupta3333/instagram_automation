@@ -15,7 +15,14 @@ def _clean_env(monkeypatch):
     import os
 
     for k in list(os.environ):
-        if k.startswith(("STUDIO_BEDROCK_MODEL_", "STUDIO_CLAUDE_CODE_MODEL_")):
+        if k.startswith(
+            (
+                "STUDIO_BEDROCK_MODEL_",
+                "STUDIO_CLAUDE_CODE_MODEL_",
+                "BEDROCK_MODEL_ID_",
+                "BEDROCK_PRICE_",
+            )
+        ):
             monkeypatch.delenv(k)
     for k in (
         "STUDIO_LOCAL_MODEL",

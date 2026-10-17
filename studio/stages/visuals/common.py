@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -34,7 +33,7 @@ class BeatSpec:
 
     @property
     def seed(self) -> int:
-        """Deterministic per job + beat, in 1..4294967294 (0 means random for Stability)."""
+        """Deterministic per job + beat, in 1..4294967294."""
         return int(sha256_bytes(f"{self.job_id}:{self.index}".encode())[:8], 16) % 4294967294 + 1
 
     @property
@@ -54,7 +53,7 @@ class Visual:
     kind: str
     engine: str
     model: str
-    usd: float = 0.0
+    usd: float = 0.0  # always 0 (no paid sources); kept so older visuals.json still loads
     source: dict[str, Any] = field(default_factory=dict)  # attribution for stock
 
     def to_json(self) -> dict[str, Any]:
@@ -65,45 +64,3 @@ class Visual:
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> Visual:
         return cls(**{**d, "path": Path(d["path"])})
-
-
-def record_cost(*, channel: str, job_id: str, step: str, model: str, usd: float,
-                outcome: str = "ok") -> bool:
-    """Record a paid media call in the spend ledger if ``studio.llm.budget`` provides one.
-
-    Prefers a module-level ``record_spend``/``record_media_spend`` function; otherwise writes a
-    row through ``Ledger`` (route=bedrock). Returns False (and only logs) when unavailable, so
-    a missing ledger never fails a render. Set STUDIO_SKIP_LEDGER=1 to disable.
-    """
-    if os.environ.get("STUDIO_SKIP_LEDGER") == "1":
-        return False
-    try:
-        from studio.llm import budget  # lazy: owned by the LLM layer
-    except ImportError:
-        logger.info("no studio.llm.budget; not recording $%.3f for %s", usd, model)
-        return False
-    for name in ("record_media_spend", "record_spend"):
-        fn = getattr(budget, name, None)
-        if callable(fn):
-            try:
-                fn(channel=channel, job_id=job_id, step=step, route="bedrock", model=model,
-                   usd=usd, outcome=outcome)
-                return True
-            except TypeError:
-                break
-    ledger_cls = getattr(budget, "Ledger", None)
-    if ledger_cls is None:
-        return False
-    try:
-        ledger = ledger_cls()
-        try:
-            ledger.record(channel=channel, job_id=job_id, step=step, route="bedrock",
-                          model=model, usage=None, usd=usd, outcome=outcome)
-        finally:
-            close = getattr(ledger, "close", None)
-            if callable(close):
-                close()
-        return True
-    except Exception as exc:  # noqa: BLE001 - the ledger must never break the stage
-        logger.warning("ledger write failed for %s ($%.3f): %s", model, usd, exc)
-        return False

@@ -9,24 +9,36 @@
 #   aws_profile_name: os.environ/AWS_PROFILE
 # Model-group names (bedrock-haiku/sonnet/opus) must match studio/llm/routing.py.
 # IDs verified against the Bedrock model cards (Programmatic Access) on 2026-10-16.
+#
+# Your own model IDs (BEDROCK_MODEL_ID_FAST / _QUALITY / _ESCALATION in .env): LiteLLM's
+# `os.environ/VAR` replaces the WHOLE value, with no default and no interpolation (checked in
+# the LiteLLM 1.101.0 source, secret_managers/main.py:get_secret), and an empty var resolves
+# to "" (a broken model id). So the Claude defaults stay literal below. Once a variable is
+# filled in, uncomment the matching `model_id:` line: LiteLLM then sends that id (base id,
+# us./global. profile or ARN) as the Converse modelId. For a NON-Claude model also change
+# `model:` to bedrock/converse/<that id> so LiteLLM maps params for the right family.
+# See infra/README.md.
 # Set tpm to about 80% of the APPLIED quota.
 
 model_list:
   - model_name: bedrock-haiku                    # ideation, outline, draft, metadata, ...
     litellm_params:
       model: bedrock/converse/global.anthropic.claude-haiku-5-5
+      # model_id: os.environ/BEDROCK_MODEL_ID_FAST   # uncomment once set in .env
       api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
       aws_region_name: os.environ/AWS_REGION
       tpm: 200000
   - model_name: bedrock-sonnet                   # polish, fact_check, title_rank
     litellm_params:
       model: bedrock/converse/global.anthropic.claude-sonnet-5-5
+      # model_id: os.environ/BEDROCK_MODEL_ID_QUALITY   # uncomment once set in .env
       api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
       aws_region_name: os.environ/AWS_REGION
       tpm: 200000
   - model_name: bedrock-opus                     # dispute escalation only
     litellm_params:
       model: bedrock/converse/global.anthropic.claude-opus-5-5
+      # model_id: os.environ/BEDROCK_MODEL_ID_ESCALATION   # uncomment once set in .env
       api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
       aws_region_name: os.environ/AWS_REGION
       tpm: 100000

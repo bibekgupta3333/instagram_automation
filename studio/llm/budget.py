@@ -8,6 +8,12 @@ worked out in infra/LLM_COSTS.md). The default cap is therefore **$30/month**
 
 - Prices come from docs 15 §2 (global profiles, USD per 1M tokens) and are config: override
   them with a YAML file at ``STUDIO_PRICES_FILE`` (same shape as ``DEFAULT_PRICES``).
+- User-supplied model ids (``BEDROCK_MODEL_ID_FAST`` / ``_QUALITY`` / ``_ESCALATION``) are
+  priced by the key routing.py infers from the id text. For exact prices on a non-Claude
+  model set ``BEDROCK_PRICE_IN_PER_MTOK_<TIER>`` / ``BEDROCK_PRICE_OUT_PER_MTOK_<TIER>``
+  (USD per 1M tokens, TIER = FAST | QUALITY | ESCALATION): the tier's model is then billed under
+  the key ``price-<tier>``. A missing half takes the tier's Claude default; cache read/write
+  are priced at 0.1x / 1.25x the input price.
 - Haiku 5.5 prompts over 100K input tokens are billed at 5x (model card "Long Context" row).
 - The ledger is SQLite at ``output/ledger.sqlite`` (``STUDIO_LEDGER_PATH``); docs 15 uses
   Postgres, the table shape is the same.
@@ -30,6 +36,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from studio.llm.routing import env_id
 
 # (input, output, cache_read, cache_write_5min) USD per 1M tokens. docs 15 §2, 2026-10-16.
 DEFAULT_PRICES: dict[str, tuple[float, float, float, float]] = {
@@ -61,22 +69,49 @@ class BudgetDeferred(RuntimeError):
         self.role = role
 
 
-def load_prices() -> dict[str, tuple[float, float, float, float]]:
-    path = os.environ.get("STUDIO_PRICES_FILE")
-    if not path:
-        return dict(DEFAULT_PRICES)
-    import yaml
+# Tier variable -> the Claude key whose prices fill a half-set override.
+TIER_DEFAULT_KEY = {"FAST": "haiku-5-5", "QUALITY": "sonnet-5-5", "ESCALATION": "opus-5-5"}
 
-    raw = yaml.safe_load(Path(path).read_text()) or {}
+
+def _env_float(name: str) -> float | None:
+    v = env_id(name)  # empty / comment-only = unset
+    return float(v) if v else None
+
+
+def tier_price_overrides() -> dict[str, tuple[float, float, float, float]]:
+    """``price-<tier>`` entries from BEDROCK_PRICE_{IN,OUT}_PER_MTOK_<TIER> (USD per 1M)."""
+    out: dict[str, tuple[float, float, float, float]] = {}
+    for tier, base in TIER_DEFAULT_KEY.items():
+        i = _env_float(f"BEDROCK_PRICE_IN_PER_MTOK_{tier}")
+        o = _env_float(f"BEDROCK_PRICE_OUT_PER_MTOK_{tier}")
+        if i is None and o is None:
+            continue
+        bi, bo, _, _ = DEFAULT_PRICES[base]
+        i = bi if i is None else i
+        o = bo if o is None else o
+        out[f"price-{tier.lower()}"] = (i, o, i * 0.1, i * 1.25)
+    return out
+
+
+def load_prices() -> dict[str, tuple[float, float, float, float]]:
     prices = dict(DEFAULT_PRICES)
-    for k, v in raw.items():
-        prices[k] = tuple(float(x) for x in v)  # type: ignore[assignment]
+    path = os.environ.get("STUDIO_PRICES_FILE")
+    if path:
+        import yaml
+
+        raw = yaml.safe_load(Path(path).read_text()) or {}
+        for k, v in raw.items():
+            prices[k] = tuple(float(x) for x in v)  # type: ignore[assignment]
+    prices.update(tier_price_overrides())
     return prices
 
 
 def cost_usd(model_key: str, usage: dict[str, Any], prices: dict | None = None) -> float:
     """Cost from an OpenAI-style or Converse-style usage dict."""
-    i, o, cr, cw = (prices or DEFAULT_PRICES).get(model_key, (0.0, 0.0, 0.0, 0.0))
+    table = prices or DEFAULT_PRICES
+    if model_key not in table and model_key.startswith("price-"):
+        table = {**table, **tier_price_overrides()}  # env set after the guard was built
+    i, o, cr, cw = table.get(model_key, (0.0, 0.0, 0.0, 0.0))
     inp = usage.get("inputTokens", usage.get("prompt_tokens", 0)) or 0
     out = usage.get("outputTokens", usage.get("completion_tokens", 0)) or 0
     c_read = usage.get("cacheReadInputTokens", usage.get("cache_read_input_tokens", 0)) or 0
@@ -217,9 +252,9 @@ class BudgetConfig:
         e = os.environ
         crit = {c.strip() for c in e.get("STUDIO_ACCURACY_CRITICAL_CHANNELS", "").split(",")}
         return cls(
-            monthly_cap_usd=float(e.get("STUDIO_BEDROCK_MONTHLY_USD", 30.0)),
-            per_channel_usd=float(e.get("STUDIO_BEDROCK_CHANNEL_USD", 2.5)),
-            shared_pool_usd=float(e.get("STUDIO_BEDROCK_SHARED_POOL_USD", 5.0)),
+            monthly_cap_usd=float(e.get("STUDIO_BEDROCK_MONTHLY_USD") or 30.0),
+            per_channel_usd=float(e.get("STUDIO_BEDROCK_CHANNEL_USD") or 2.5),
+            shared_pool_usd=float(e.get("STUDIO_BEDROCK_SHARED_POOL_USD") or 5.0),
             accuracy_critical_channels=frozenset(c for c in crit if c),
         )
 

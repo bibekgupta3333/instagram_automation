@@ -22,11 +22,11 @@ This plan covers 10 faceless channels across YouTube, Instagram and Facebook, pr
 - **Buffer handles short-form only** (GraphQL API, beta May 2026). **Long-form goes through the YouTube Data API** (05).
 - **No AI-persona sensitive topics.** YouTube demonetises a whole channel where an AI persona gives health, legal, finance or political advice, disclaimers notwithstanding (11), so the finance/legal channels were replaced (17). **HeyGen and the AI avatars were removed on 2026-10-16**, so all 10 channels are faceless (12 §2).
 - **Model split (updated 2026-10-16):**
-  - **Text** runs on **Bedrock**, using an API key: Haiku 5.5 for drafts, Sonnet 5.5 for polish and fact-checks, Opus 5.5 for disputes. It costs about $23.50/month at full scale. **Claude Code headless** (`claude -p`) is the alternative.
+  - **Text** runs on **Bedrock** (text models only): Haiku 5.5 for drafts, Sonnet 5.5 for polish and fact-checks, Opus 5.5 for disputes. The model IDs come from `.env` (`BEDROCK_MODEL_ID_FAST` / `_QUALITY` / `_ESCALATION`, 15 §Model IDs from .env). It costs about $23.50/month at full scale. **Claude Code headless** (`claude -p`) is the alternative.
   - **Audio runs locally on the M4 Pro**: Kokoro TTS and Parakeet captions, installed (about 2.7 GB). A 36 s Short takes about 10 s.
-  - **Visuals** (per beat): **local Z-Image-Turbo 4-bit** first, then **Pixabay** stock (free API key; Pexels dropped 2026-10-16), then **Bedrock Stable Image Core** ($0.04/image). Stills are upscaled with **Real-ESRGAN**, and motion is **our own 2.5D parallax** (Depth Anything V2 Small) with zoompan as fallback (18).
+  - **Visuals** (per beat): **local Z-Image-Turbo 4-bit** first, then **Pixabay** stock (free API key; Pexels dropped 2026-10-16), then a mock placeholder marked "do not publish". **No Bedrock image or video** (removed 2026-10-16). Stills are upscaled with **Real-ESRGAN**, and motion is **our own 2.5D parallax** (Depth Anything V2 Small) with zoompan as fallback (18).
   - **AI video** clips use cloud APIs. They aren't practical locally (14 §7). No avatar lip-sync is used.
-- **Bedrock for judgement, not volume** (15): Sonnet 5.5 polish and fact-check, Opus 5.5 for disputes, about $25–30/month, behind one LiteLLM gateway.
+- **Bedrock for judgement, not volume; text models only** (15): Sonnet 5.5 polish and fact-check, Opus 5.5 for disputes, about $25–30/month, behind one LiteLLM gateway.
 - **Agents only where they help** (16): Trend Scout and Fact-Checker are Strands agents; rendering and publishing are plain code queued by Prefect. **Nothing publishes without human approval.**
 - **Cost** *(est.)*: about **$350–500/month** cash plus 55–65 h/month of review and screen recording (12 §5).
 
@@ -105,7 +105,7 @@ flowchart LR
 ## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))
 
 - [05 — Distribution via Buffer](5-automation/05-distribution-buffer.md): Buffer API and pricing, the 30-profile schedule, fallbacks (Publer, upload-post).
-- [15 — Bedrock hybrid routing](5-automation/15-bedrock-hybrid-routing.md): local vs Bedrock per step, quotas, budget tiers, LiteLLM gateway, spend guard.
+- [15 — Bedrock hybrid routing](5-automation/15-bedrock-hybrid-routing.md): local vs Bedrock per step (text-only since 2026-10-16), model IDs from `.env`, quotas, budget tiers, LiteLLM gateway, spend guard.
 - [16 — MCP and agent orchestration](5-automation/16-mcp-agent-orchestration.md): MCP servers, agent vs plain-code roles, Strands/Prefect, `.mcp.json`, security.
 
 ## archive: superseded ([folder](archive/README.md))

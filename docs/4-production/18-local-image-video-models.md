@@ -20,13 +20,13 @@ This doc replaces doc 14's image and video picks for a disk-constrained Mac: an 
 
 **Round 2 (smaller, faster, better):** **nothing beats klein 4B or Wan-5B on size, speed and quality at the same time.** The gains come from technique: render small and upscale, use a 2-step LoRA, generate half the frames and interpolate with RIFE, and use licence-clean replacements. See §5–6.
 
-**Minimum local visual stack:** klein 4-bit + ESRGAN + depth is **about 4.8 GB** of models, plus the mflux install (~0.7 GB). That needs about 16 GB free. Adding FastWan brings it to **about 12 GB**, which needs about 22 GB free. Until then, `images=auto` falls back to Pixabay (replaced Pexels 2026-10-16) and then Bedrock Stable Image Core.
+**Minimum local visual stack:** klein 4-bit + ESRGAN + depth is **about 4.8 GB** of models, plus the mflux install (~0.7 GB). That needs about 16 GB free. Adding FastWan brings it to **about 12 GB**, which needs about 22 GB free. Until then, `images=auto` falls back to Pixabay (replaced Pexels 2026-10-16) and then a mock placeholder marked "do not publish". There is no Bedrock image fallback since 2026-10-16 (Bedrock is text-only).
 
 ```mermaid
 flowchart LR
     S[Scene prompt] --> I{Local still<br/>klein 4-bit downloaded?}
     I -->|yes| K[mflux klein 4B<br/>768x1344, 4 steps]
-    I -->|no| P[Pixabay / Bedrock Stability]
+    I -->|no| P[Pixabay stock, else mock<br/>do not publish]
     K --> M{Beat type}
     P --> M
     M -->|most beats| D[Depth Anything V2 Small<br/>+ DepthFlow parallax]
@@ -93,7 +93,7 @@ flowchart LR
 | Piece | Status |
 |---|---|
 | mflux klein / Z-Image engines (pre-quantized, download guard) | ✅ code + tests. Not run: model not downloaded |
-| `auto` order: **local klein → Pixabay → Bedrock Stability → mock** (Pixabay replaced Pexels 2026-10-16) | ✅ local is skipped until its model is cached |
+| `auto` order: **local mflux → Pixabay → mock** (Pixabay replaced Pexels 2026-10-16; Bedrock Stability removed 2026-10-16, Bedrock is text-only) | ✅ local is skipped until its model is cached |
 | Manifest: `flux2-klein-4b-q4` (default image), `z-image-turbo-q4` (optional), `depth-anything-v2-small`, `wan2.2-ti2v-5b-turbo-gguf` (optional, new `video` stage) | ✅ `make models-dry STAGE=video` |
 | **Configuration A installed (2026-10-16)**: Z-Image-Turbo q4 (5.5 GB on disk), Real-ESRGAN x4plus (67 MB), Depth Anything V2 Small (99 MB), own parallax renderer | ✅ **measured on M4 Pro**: Z-Image 576×1024 takes **~80 s/image** (first 84 s, warm 78.6 s; 12.6 GB footprint), 720×1280 takes 96–130 s. ESRGAN takes 4–6 s/image. Parallax takes ~3.5 s per 4 s clip. A real 6-scene Short takes ~6.5 min, almost all of it image generation |
 | FastWan via sd.cpp, RIFE, SAM+LaMa layered parallax, parallax on MPS | ⏳ not built (FastWan doesn't fit the 12 GB budget alongside Z-Image) |

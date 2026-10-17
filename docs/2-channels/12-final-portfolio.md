@@ -58,7 +58,7 @@ The names, handles, bios, palettes and starter titles are in [13 — Channel bra
 |---|---|---|---|---|
 | **Cartoon** (0 channels since 2026-10-16; kept for reference, 10) | Rigged 2D mascot (Rive or SVG layers in Remotion + Rhubarb lip-sync) for all talking parts; Kling 3.0 / Veo 3.1 Fast image-to-video for cutaways from on-model keyframes | Hedra Character-3 for stylised talking shots | Wan 2.2 needs a rented NVIDIA GPU, because it isn't practical on the M4 Pro (14 §7). Train character LoRAs with mflux on Z-Image / FLUX.2 klein (14 §6) | $1.2–2.5 / $10–16 (hybrid, 10 §8) |
 | ~~**AI avatar**~~ (0 channels; **removed 2026-10-16** with HeyGen; kept for reference, archived 09) | — | — | — | — |
-| **Faceless** (10 channels) | Pipeline from 04: local Z-Image-Turbo 4-bit stills → Pixabay stock → Bedrock Stable Image Core, Real-ESRGAN upscale, own parallax motion; own screen recordings for Software Shortcut, Lock Screen Logic and Rank Test Lab; Veo for hero shots | — | Fully local on the Mac: Qwen3.5-9B / Gemma 4 12B, Kokoro, parakeet-mlx, Z-Image (14, 18) | $0.40–0.80 / $3–5 (04 §7) |
+| **Faceless** (10 channels) | Pipeline from 04: local Z-Image-Turbo 4-bit stills → Pixabay stock → mock placeholder (never published; no Bedrock images since 2026-10-16), Real-ESRGAN upscale, own parallax motion; own screen recordings for Software Shortcut, Lock Screen Logic and Rank Test Lab; Veo for hero shots | — | Fully local on the Mac: Qwen3.5-9B / Gemma 4 12B, Kokoro, parakeet-mlx, Z-Image (14, 18) | $0.40–0.80 / $3–5 (04 §7) |
 
 **Licence traps** (09 §4, 10 §11):
 - **Non-commercial:** Sonic, and InsightFace's face models, which LivePortrait, Hallo and LatentSync pull in.
@@ -84,7 +84,7 @@ Buffer's API has an `isAiGenerated` field for YouTube and Instagram (05 §3). Do
 
 ## 5. Budget and plan with the local-first stack
 
-Most generation runs **on the M4 Pro (14)**, Bedrock handles fact-checking and polishing (15), and agents and MCP handle orchestration (16). Cloud is used only for AI hero clips, fallback stills and publishing.
+Most generation runs **on the M4 Pro (14)**, Bedrock handles fact-checking and polishing (15), and agents and MCP handle orchestration (16). Bedrock is text-only (no Bedrock image or video since 2026-10-16). Cloud is used only for AI hero clips and publishing.
 
 | Item | $/month *(est.)* | Source |
 |---|---|---|
@@ -92,8 +92,8 @@ Most generation runs **on the M4 Pro (14)**, Bedrock handles fact-checking and p
 | Bedrock: script polish + fact-checks on accuracy-critical channels | ~$20–25 | 15 §5–6 |
 | Cloud hero clips (Veo 3.1 Fast) across the 10 faceless channels | ~$100–200 | 17 §Production feasibility |
 | Public CDN storage, domains, misc | ~$30–60 | 05 §4 |
-| Local LLM, TTS, captions, images, music, Remotion renders; Pixabay stock (free API key) | $0 (electricity) | 14, 18 |
-| **Cash total** | **~$350–500** (was ~$550–700 before HeyGen was removed 2026-10-16) | |
+| Local TTS, captions, images (Z-Image-Turbo), parallax motion, music, Remotion renders; Pixabay stock (free API key) | $0 (electricity) | 14, 18 |
+| **Cash total** | **~$350–500** (was ~$550–700 before HeyGen was removed 2026-10-16; no Bedrock image line was ever counted, so dropping Bedrock images 2026-10-16 leaves it unchanged) | |
 | One-off: attorney review of the 10 names (trademarks) | quote needed | 13 §6 |
 
 **People time is the real constraint** *(est.)*:

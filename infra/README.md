@@ -32,6 +32,40 @@ export LITELLM_API_KEY=<a per-channel virtual key, or the master key in dev>
    roles only**. Quality roles raise an error rather than run locally. `STUDIO_LLM_LOCAL_QUALITY=1`
    is a dev-only override.
 
+## Bedrock model IDs (text models only)
+
+Bedrock serves **text** roles only here (no image or video models). Fill the IDs in the
+git-ignored `.env`; an empty value means the built-in default:
+
+| Variable | Roles (Haiku-tier today) | Default |
+|---|---|---|
+| `BEDROCK_MODEL_ID_FAST` | ideation, outline, draft, metadata, titles, polish_short, fact_check_light, ... | `global.anthropic.claude-haiku-5-5` |
+| `BEDROCK_MODEL_ID_QUALITY` | polish, fact_check, title_rank, qa_judge_ymyl | `global.anthropic.claude-sonnet-5-5` |
+| `BEDROCK_MODEL_ID_ESCALATION` | disputed fact-checks / polish escalation | `global.anthropic.claude-opus-5-5` |
+
+Precedence in the direct client (`STUDIO_LLM=bedrock`): per-role `STUDIO_BEDROCK_MODEL_<ROLE>` >
+tier `BEDROCK_MODEL_ID_*` > the older `BEDROCK_{HAIKU,SONNET,OPUS}_MODEL_ID` > default. Any id
+form works: base id (`anthropic.claude-...`, `amazon.nova-lite-v1:0`), cross-Region profile
+(`us.` / `eu.` / `apac.` / `global.`) or a full inference-profile ARN.
+
+Budget pricing for your ids (`studio/llm/budget.py`): Claude ids price as their tier; known
+non-Claude families (Nova, Llama, Mistral, ...) price at a conservative Claude-tier ceiling;
+unknown ids price as the variable's tier with a one-time warning. For exact prices set
+`BEDROCK_PRICE_IN_PER_MTOK_<TIER>` / `BEDROCK_PRICE_OUT_PER_MTOK_<TIER>` (USD per 1M tokens,
+`<TIER>` = `FAST` / `QUALITY` / `ESCALATION`).
+
+Non-Claude models: Anthropic-only fields (effort) are not sent, and models without Converse
+tool use get JSON by prompt plus local schema validation (`STUDIO_BEDROCK_TOOL_USE=off|on`
+forces it).
+
+**Gateway (`STUDIO_LLM=gateway`):** LiteLLM's `os.environ/VAR` replaces a whole value and has
+no default or interpolation (LiteLLM 1.101.0 `get_secret`); an empty var becomes `""`. So
+`litellm/config.yaml` keeps the Claude defaults literally. After you fill a tier variable,
+uncomment its `model_id: os.environ/BEDROCK_MODEL_ID_<TIER>` line (LiteLLM sends it as the
+Converse `modelId`). For a non-Claude model, also set `model: bedrock/converse/<id>` so LiteLLM
+uses that family's parameter mapping. Per-role overrides don't apply in gateway mode (it
+routes by model group).
+
 ## Rules
 
 - **No credentials in config.** Bedrock auth goes through the standard AWS chain

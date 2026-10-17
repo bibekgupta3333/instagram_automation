@@ -67,3 +67,11 @@ def test_repo_env_not_loaded_under_pytest_and_can_be_disabled(monkeypatch):
     monkeypatch.setenv("STUDIO_ENV_FILE", "none")
     assert config.env_file_path() is None
     assert config.load_dotenv_once() == []
+
+
+def test_comment_only_value_is_empty():
+    from studio.config import parse_env_text
+
+    parsed = parse_env_text("BEDROCK_MODEL_ID_FAST=        # drafts (Haiku-class)\nA=x # note\n")
+    assert parsed["BEDROCK_MODEL_ID_FAST"] == ""
+    assert parsed["A"] == "x"

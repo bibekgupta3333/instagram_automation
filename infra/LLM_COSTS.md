@@ -44,3 +44,7 @@ Watch out for these:
 ## Claude Code alternative (`STUDIO_LLM=claude-code`)
 
 This backend has no Bedrock bill. Calls run on the user's Claude subscription limits, the same allowance used for coding. Claude Code reports a notional `total_cost_usd`: the one-call smoke test (Haiku, `{"ok":true}`) showed **$0.00025**. Running 380 videos a month through it would use a noticeable share of a Pro or Max plan's 5-hour and weekly limits. When a limit is hit, the call is queued with `BudgetDeferred`.
+
+## Your own model IDs (`BEDROCK_MODEL_ID_FAST` / `_QUALITY` / `_ESCALATION`)
+
+The figures above assume the Claude 5.5 defaults. The budget guard prices a user-supplied id by its text: Claude ids price as Haiku, Sonnet or Opus 5.5. Known non-Claude families price at a conservative Claude-tier ceiling (*est.*). Nova Micro, Nova Lite and Ministral use Haiku prices. Nova Pro and Premier, Llama, Mistral and Mixtral, DeepSeek, Qwen, gpt-oss, Jamba, Gemma, Nemotron and Command R use Sonnet prices. Command R+ uses Opus prices. Any other id prices as its variable's tier (FAST → Haiku, QUALITY → Sonnet, ESCALATION → Opus), with a one-time warning. For exact numbers, set `BEDROCK_PRICE_IN_PER_MTOK_<TIER>` and `BEDROCK_PRICE_OUT_PER_MTOK_<TIER>` in USD per 1M tokens. Cache read and write are then priced at 0.1× and 1.25× the input price.
