@@ -1,0 +1,30 @@
+[mcp_servers.aws-docs]
+command = "uvx"
+args = ["awslabs.aws-documentation-mcp-server@latest"]
+
+[mcp_servers.aws-docs.env]
+FASTMCP_LOG_LEVEL = "ERROR"
+
+[mcp_servers.brave-search]
+command = "npx"
+args = [
+    "-y",
+    "@brave/brave-search-mcp-server",
+]
+env_vars = ["BRAVE_API_KEY"]
+
+[mcp_servers.buffer]
+url = "https://mcp.buffer.com/mcp"
+bearer_token_env_var = "BUFFER_READONLY_KEY"
+
+[mcp_servers.fetch]
+command = "uvx"
+args = ["mcp-server-fetch"]
+
+[mcp_servers.files]
+command = "npx"
+args = [
+    "-y",
+    "@modelcontextprotocol/server-filesystem",
+    "./output",
+]

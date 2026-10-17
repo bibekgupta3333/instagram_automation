@@ -1,5 +1,7 @@
 # 1 — Strategy
 
+New research: [19 — Kids channel opportunity](19-kids-channel-opportunity.md): evidence, advertising eligibility, hypothetical revenue sensitivity and a small validation experiment.
+
 Goals, growth tactics and the dated plan. Reading order:
 
 1. [07 — Execution roadmap](07-execution-roadmap.md): the dated plan, budget and open owner decisions (start here).

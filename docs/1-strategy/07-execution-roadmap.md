@@ -1,5 +1,7 @@
 # 07 — Execution Roadmap
 
+> **2026-10-17 kids experiment:** follow [19](19-kids-channel-opportunity.md) for the separate local prototype and six-episode validation proposal. It does not inherit the adult rollout schedule or promised view counts. Public release depends on correct made-for-kids support; see [21](../4-production/21-kids-pilot-production.md).
+
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [12 Final portfolio](../2-channels/12-final-portfolio.md), [13 Channel brands](../2-channels/13-channel-brands.md), [14 Local models](../4-production/14-local-models-mac-m4.md), [15 Bedrock routing](../5-automation/15-bedrock-hybrid-routing.md), [16 MCP and agents](../5-automation/16-mcp-agent-orchestration.md)
 
 This doc combines docs 01–06 into a dated plan. **The channel list and batches follow [12 — Final portfolio](../2-channels/12-final-portfolio.md)**, which replaces 02 §6. The brand names come from [13](../2-channels/13-channel-brands.md). The production stack is local-first on the M4 Pro (14), with Bedrock (15) and agents/MCP (16). Where a number comes from another doc, the section is cited. Figures marked *(est.)* are estimates.

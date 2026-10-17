@@ -1,5 +1,7 @@
 # 13 — Channel Brands: Final Names, Handles and Brand Packs
 
+> **Additional candidate, 2026-10-17:** [20 — Pocket Meadow Question Club](20-pocket-meadow-question-club.md) contains the proposed preschool brand, handle candidate, characters and six starter episodes. Name availability is unverified; it is not an active brand pack.
+
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [12 Final portfolio](12-final-portfolio.md), [17 Replacement niches](17-replacement-niches.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md)
 
 > Status: decision draft · Checked: 2026-10-16 · Builds on [12](12-final-portfolio.md) (niches, presenters), [08](08-high-cpm-us-niches.md) (US RPM), [11 §4–6](../3-policy/11-avatar-and-ymyl-policy.md) (naming red lines) and [17](17-replacement-niches.md) (replacement niches). RPMs are 08's and 17's *(est.)* US long-form planning figures, not forecasts.

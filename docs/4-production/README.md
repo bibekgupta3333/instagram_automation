@@ -1,5 +1,9 @@
 # 4 — Production
 
+Before storyboarding: [6 — Script library](../6-script-library/README.md) provides 220 original treatments, with [22 — Directing and rights](../6-script-library/22-directing-and-rights-playbook.md) explaining the conversion to verified production scripts.
+
+Proposed pilot: [21 — Kids production requirements](21-kids-pilot-production.md): supported tools, animation gaps, accurate audience settings and original asset/music rights.
+
 How videos get made. Reading order:
 
 1. [04 — Content pipeline architecture](04-content-pipeline-architecture.md): reference architecture, repos, vendors, cost per video, QA gate.

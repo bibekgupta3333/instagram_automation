@@ -1,8 +1,12 @@
 # 12 — Final Portfolio: US High-CPM Channels and Presenter Formats
 
+> **Episode planning, 2026-10-17:** [Script library](../6-script-library/README.md) adds 20 original treatments for each of these ten channels plus the proposed kids pilot: 220 plans with hooks, timed beats, exact opening/closing lines, payoffs, short cuts and thumbnail A/B directions. Evidence and rights still require production checks.
+
+> **2026-10-17 portfolio extension:** [Pocket Meadow Question Club](20-pocket-meadow-question-club.md) is a proposed original preschool pilot alongside these ten adult channels. Its advertising economics and audience classification differ. It is not enabled in `brand_packs/`; the current gate cannot publish kids content. See [19](../1-strategy/19-kids-channel-opportunity.md) and [21](../4-production/21-kids-pilot-production.md). Never apply this document’s blanket "Not made for kids" direction to child-directed content.
+
 > **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
 
-> **Status:** current · **Updated:** 2026-10-16 · **Related:** [13 Channel brands](13-channel-brands.md), [07 Execution roadmap](../1-strategy/07-execution-roadmap.md), [08 High-CPM US niches](08-high-cpm-us-niches.md), [09 AI avatar presenters (archived)](../archive/09-ai-avatar-presenters.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md), [17 Replacement niches](17-replacement-niches.md)
+> **Status:** current · **Updated:** 2026-10-17 · **Related:** [13 Channel brands](13-channel-brands.md), [07 Execution roadmap](../1-strategy/07-execution-roadmap.md), [08 High-CPM US niches](08-high-cpm-us-niches.md), [09 AI avatar presenters (archived)](../archive/09-ai-avatar-presenters.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md), [17 Replacement niches](17-replacement-niches.md)
 
 **This doc replaces the portfolio in 02 §6.** It combines the niche research for US ad value (08), the avatar research (09, now archived), the cartoon research (10) and the AI-persona policy check (11). Figures marked *(est.)* are estimates.
 
@@ -53,6 +57,30 @@ The names, handles, bios, palettes and starter titles are in [13 — Channel bra
 **Presenter mix:** 10 faceless, 0 avatar (HeyGen removed 2026-10-16).
 
 **Risk profile:** no channel is a core YMYL topic any more, so a single AI-persona enforcement action can no longer hit most of the portfolio. The remaining 🟡 risks are content guardrails within a channel (the red lines in 13 §3 and 17 §Policy screen), not channel-level bars. The pilot is made up of the three 🟢 faceless channels with the strongest proven faceless leaders (Professor Of How 16M, Real Engineering 5.1M, How Money Works).
+
+### 2.1 Video length and virality potential
+
+**Starting experiments, updated 2026-10-17.** Lengths are editorial recommendations, not platform limits or proven optima. Virality ratings are qualitative hypotheses about reaching viewers beyond existing subscribers, not probabilities, promised views or revenue ratings. No channel analytics validate these ratings yet.
+
+| Brand | Shorts / Reels starting length | YouTube standard episode | Virality potential *(hypothesis)* | Hook to test |
+|---|---|---|---|---|
+| Square Foot Money | 35–60 s | 6–10 min | Moderate: geographically specific | Surprising local housing-cost comparison with dated sources |
+| Software Shortcut | 25–50 s | 5–9 min | Moderate–high: shareable practical result | Show a finished result, then a reproducible workflow |
+| Business Model Files | 35–60 s | 8–12 min | Moderate–high: familiar-brand curiosity | An unexpected revenue mechanism supported by evidence |
+| Car Cost Truth | 30–60 s | 6–10 min | Moderate–high: relatable decisions | Two ownership-cost scenarios using identical assumptions |
+| Gravity What If | 25–50 s | 5–8 min | High: broad visual curiosity | A striking hypothetical and its scientifically grounded consequence |
+| Megabuild Blueprint | 30–60 s | 7–12 min | High: visual scale and reveals | A hidden engineering constraint and its solution |
+| Lock Screen Logic | 30–60 s | 5–9 min | Moderate–high: practical relevance | A defensive privacy demonstration without fearbait |
+| Furnace to Faucet | 35–60 s | 6–10 min | Moderate: homeowner relevance | Explain a hidden household system with a clear cutaway |
+| Wing and Turbine | 25–50 s | 6–10 min | Moderate–high: mechanical curiosity | Explain one aircraft feature without crash sensationalism |
+| Rank Test Lab | 35–60 s | 7–12 min | Moderate: specialist audience | Original experiment with results, limits and failures |
+| **Pocket Meadow Question Club — proposed K01** | **45–60 s local prototype**; later 30–45 s discovery clips | **3–4 min** original story; test 6–8 min only after shorter stories work | **Unproven:** recurring characters may attract returning viewers | One everyday puzzle, prediction and observable result |
+
+Pocket Meadow remains a local, unpublished proposal. Public child-directed episodes require accurate made-for-kids support; parent-facing Instagram/Facebook posts need their own audience assessment. Repeat viewing is not proof of learning. Do not stretch a story merely to increase ad opportunities. See [19](../1-strategy/19-kids-channel-opportunity.md), [20](20-pocket-meadow-question-club.md) and [21](../4-production/21-kids-pilot-production.md).
+
+**Validation:** YouTube says there is no universal ideal video length. Compare three shorter and three longer original adult episodes of similarly scoped topics after equal observation windows; inspect retention curves, percentage viewed, shares per 1,000 views and views per production hour. Packaging and topic differences confound this small experiment. For the kids pilot, also use adult caregiver feedback and returning viewers. These are testing recommendations, not published success thresholds. [YouTube guidance](https://support.google.com/youtube/answer/16559651?hl=en).
+
+The short-form ranges above are chosen starting points. YouTube also supports square or vertical Shorts up to three minutes; use 16:9 for standard episodes. Verify Instagram/Facebook and Buffer export requirements separately. [Official Shorts classification](https://support.google.com/youtube/answer/15424877?hl=en).
 
 ## 3. Production stack per presenter type
 
@@ -108,4 +136,4 @@ Most generation runs **on the M4 Pro (14)**, Bedrock handles fact-checking and p
 
 ## Sources
 
-This decision doc has no external sources of its own. It combines [08](08-high-cpm-us-niches.md), [09](../archive/09-ai-avatar-presenters.md) (archived), [10](../archive/10-ai-cartoon-characters.md), [11](../3-policy/11-avatar-and-ymyl-policy.md) and [14](../4-production/14-local-models-mac-m4.md); see their Sources sections for the underlying citations.
+Section 2.1 cites official YouTube length and format guidance; its per-brand recommendations remain hypotheses. The earlier portfolio research combines [08](08-high-cpm-us-niches.md), [09](../archive/09-ai-avatar-presenters.md) (archived), [10](../archive/10-ai-cartoon-characters.md), [11](../3-policy/11-avatar-and-ymyl-policy.md) and [14](../4-production/14-local-models-mac-m4.md); see their Sources sections for the underlying citations.

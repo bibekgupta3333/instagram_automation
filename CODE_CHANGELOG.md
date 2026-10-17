@@ -12,6 +12,21 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-17 · Original portfolio script library (docs only)
+- Added: `docs/6-script-library/`: 20 detailed treatments per adult channel plus 20 for the proposed kids pilot; each has exact opening/closing lines, five timed beats, an attention magnet, an independent short cut, two thumbnail concepts and episode-specific evidence/rights checks. Ten specialist agents contributed the adult files in two waves.
+- Added: doc 22 directing/retention/thumbnail/rights guide and library index; linked from master index, portfolio, brands and production. These are treatments, not full timed narrations, completed experiments or cleared assets.
+- Checks: 220 distinct episode IDs/titles, 1,980 required fields, 1,100 contiguous timed beats, 440 thumbnail concepts and 220 CSV catalog rows validated; 260 local documentation links resolve. Independent review caught and corrected a kids thumbnail/story mismatch. Documentation checks only; no runtime tests or media jobs needed.
+- Agents: source registers are research pointers; verify exact claims and asset rights before production. No copyright or virality guarantees, no copied creator scripts/visuals, no runtime/config/model changes. Kids content remains local/unpublished under the current gate. No approval or posting performed.
+
+## 2026-10-17 · Portfolio video lengths and virality (docs only)
+- Added: doc 12 §2.1 table for all ten brands plus the proposed kids pilot: short-form and standard episode lengths, qualitative reach hypotheses and hooks.
+- Agents: ratings are unvalidated editorial judgments, not guaranteed views or earnings. Validate lengths using retention; kids publishing remains blocked by the existing gate. No runtime or configuration changes.
+
+## 2026-10-17 · Kids-channel opportunity research (docs only)
+- Added: docs 19–21: sourced demand benchmarks, original Pocket Meadow Question Club brand and episodes, hypothetical ad-revenue sensitivity, experiment, production gaps and rights. Five parallel research agents contributed.
+- Updated: master/folder indexes, portfolio, brands and roadmap; verified the announced February 2027 YPP changes against official guidance.
+- Agents: preschool content must be accurately made for kids. Current publishing gate excludes it; this is a local-only proposal, not an enabled brand pack. No code, models, credentials, approvals or publishing changed; no guaranteed revenue or daily view claims.
+
 ## 2026-10-17 · Lower-memory local Z-Image execution
 - Changed: `studio/stages/images.py` now uses mflux `--low-ram --vae-tile-size 256
   --mlx-cache-limit-gb 0.25` for Z-Image only; images VERSION **11** invalidates prior

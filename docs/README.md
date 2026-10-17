@@ -1,10 +1,14 @@
 # Multi-Channel AI Content Automation: Plan
 
-> **Status:** current · **Updated:** 2026-10-16 · Master index for the planning docs.
+> **Status:** current · **Updated:** 2026-10-17 · Master index for the planning docs.
 
-This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–18) as a stable ID, so citations like "04 §5" still work after the move into folders.
+> **New kids-channel research:** [19 — Opportunity and revenue experiment](1-strategy/19-kids-channel-opportunity.md), [20 — Pocket Meadow Question Club](2-channels/20-pocket-meadow-question-club.md), [21 — Production and publishing requirements](4-production/21-kids-pilot-production.md). This is a proposed original preschool pilot alongside the ten adult brands, with no guaranteed revenue. The current gate cannot publish it. Child-directed content must be classified accurately; the adult portfolio’s blanket audience setting does not apply.
+
+This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–22) as a stable ID, so citations like "04 §5" still work after the move into folders.
 
 ## Start here
+
+> **Script library:** [220 episode treatments across all portfolio channels](6-script-library/README.md), with hooks, timed story beats, payoffs, short cuts, thumbnail A/B concepts and evidence/rights checks. Start with [22 — Directing and rights](6-script-library/22-directing-and-rights-playbook.md). These are production plans, not completed research or videos.
 
 1. Read [12 — Final portfolio](2-channels/12-final-portfolio.md): the 10 channels, presenters, stack, disclosure and budget.
 2. Then [13 — Channel brands](2-channels/13-channel-brands.md): names, handles and brand packs.
@@ -108,6 +112,11 @@ flowchart LR
 - [15 — Bedrock hybrid routing](5-automation/15-bedrock-hybrid-routing.md): local vs Bedrock per step (text-only since 2026-10-16), model IDs from `.env`, quotas, budget tiers, LiteLLM gateway, spend guard.
 - [16 — MCP and agent orchestration](5-automation/16-mcp-agent-orchestration.md): MCP servers, agent vs plain-code roles, Strands/Prefect, `.mcp.json`, security.
 
+## 6-script-library: episode plans ([folder](6-script-library/README.md))
+
+- [22 — Directing and rights](6-script-library/22-directing-and-rights-playbook.md): original retention devices, thumbnail testing, source verification and asset permissions.
+- [Channel treatments](6-script-library/README.md): 20 plans per adult brand and 20 for the proposed kids pilot; each includes two thumbnail directions.
+
 ## archive: superseded ([folder](archive/README.md))
 
 - [02 — Niche selection](archive/02-niche-selection.md): the original 19-niche matrix and portfolio, replaced by 12 and 13.
@@ -135,6 +144,11 @@ flowchart LR
 | 15 Bedrock hybrid routing | current | 2026-10-16 |
 | 16 MCP and agent orchestration | current | 2026-10-16 |
 | 17 Replacement niches | reference | 2026-10-16 |
+| 18 Local image and video models | reference | 2026-10-16 |
+| 19 Kids opportunity and revenue experiment | proposed pilot | 2026-10-17 |
+| 20 Pocket Meadow Question Club | proposed pilot | 2026-10-17 |
+| 21 Kids pilot production and publishing | proposed pilot | 2026-10-17 |
+| 22 Directing and rights playbook | editorial plan | 2026-10-17 |
 
 **current** = plan from it · **reference** = research a current doc rests on · **archived** = superseded, kept for history.
 
@@ -149,7 +163,7 @@ The plan is being built in this repo:
 
 ## Open questions to verify
 
-1. Whether the YPP thresholds really change on 1 Feb 2027, and Meta's March 2026 originality update. These are backed only by press and blogs (03 §9). The AI-persona and Instagram profile-label claims are now verified (11 §1).
+1. The February 1, 2027 YPP threshold change is now confirmed on [YouTube’s official changes page](https://support.google.com/youtube/answer/12843009); see [19](1-strategy/19-kids-channel-opportunity.md) for current versus announced thresholds. Meta’s March 2026 originality update and other historical policy claims still require their own source checks.
 2. Whether Buffer's `isAiGenerated` actually sets each platform's AI label. Make a test post per platform in Phase 0 (12 §4).
 3. How YouTube treats disclosed AI hosts and cartoon personas (no longer blocking: all channels are faceless since 2026-10-16). Watch the Creator Insider video linked in 11 §1.
 4. Buffer's per-channel price for more than 10 channels (05 §2).
