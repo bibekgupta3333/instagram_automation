@@ -61,6 +61,9 @@ class Beat(BaseModel):
 
     text: str
     visual_prompt: str
+    shot: str = ""  # shot type, e.g. "wide establishing", "close-up detail", "cutaway", "aerial"
+    overlay: str = ""  # short on-screen text (<= 6 words) drawn by ffmpeg, never in the image
+    stock_query: str = ""  # optional 2-4 keyword search for stock footage (Pixabay)
 
 
 class Script(BaseModel):
