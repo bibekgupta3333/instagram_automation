@@ -13,8 +13,9 @@
 #   size_gb         approximate download size, GB (decimal)
 #   licence         weights licence (SPDX-ish)
 #   commercial_use  true only for licences that allow monetised channels
-# Default pull set (no --include-optional) = tts + asr + image. Text runs on Bedrock /
-# Claude Code, so every llm model is optional.
+# Default pull set (no --include-optional) = every `optional: false` model (Configuration A:
+# Kokoro, parakeet, Z-Image-Turbo q4, Real-ESRGAN, Depth Anything V2 Small). Text runs on
+# Bedrock / Claude Code, so every llm model is optional.
 #
 #   optional        true = not pulled by default (needs --include-optional), not in the
 #                   required disk total
@@ -97,27 +98,27 @@ models:
   # ---------------------------------------------------------------- Image
   - name: flux2-klein-4b-q4
     stage: image
-    purpose: "Default local still / keyframe model via mflux, 4-bit pre-quantized (doc 18 §1)"
+    purpose: "Alternative local still model via mflux, 4-bit pre-quantized; faster, weaker text (doc 18 §1)"
     runtime: hf
     source: "mflux-community/flux2-klein-4b-mflux-q4"
     size_gb: 4.6
     licence: apache-2.0
     commercial_use: true
-    optional: false
+    optional: true   # Configuration A uses Z-Image-Turbo q4; pull klein only for A/B tests
     verified: true
     verified_how: "HF file-tree API via doc 18 research: 4.57 GB (transformer 2.15, Qwen3 TE 2.27, VAE 0.17). M1 Max 31.7 s/image measured (lilting.ch). mflux --model <repo> form NOT yet tested"
 
   - name: z-image-turbo-q4
     stage: image
-    purpose: "Higher-quality stills via mflux, 4-bit pre-quantized (doc 18 §1)"
+    purpose: "Default local still model (Configuration A) via mflux, 4-bit pre-quantized (doc 18 §1)"
     runtime: hf
     source: "mflux-community/z-image-turbo-mflux-q4"
     size_gb: 5.9
     licence: apache-2.0
     commercial_use: true
-    optional: true   # pull instead of / after klein when disk allows
+    optional: false
     verified: true
-    verified_how: "HF file-tree API via doc 18 research: 5.89 GB. Same files as filipstrand/Z-Image-Turbo-mflux-4bit. The q8 build (11 GB) and base repo (32.9 GB) are disk traps"
+    verified_how: "HF file-tree API via doc 18 research: 5.89 GB. Same files as filipstrand/Z-Image-Turbo-mflux-4bit. The q8 build (11 GB) and base repo (32.9 GB) are disk traps. mflux 0.23 loads it with `mflux-generate-z-image-turbo --model <repo>` (2026-10-16)"
 
   - name: sdxs-512-dreamshaper-q8
     stage: image
@@ -135,15 +136,16 @@ models:
   # ---------------------------------------------------------------- Video
   - name: depth-anything-v2-small
     stage: video
-    purpose: "Monocular depth for 2.5D parallax b-roll (DepthFlow), the default motion layer (doc 18 §2)"
+    purpose: "Monocular depth for 2.5D parallax b-roll, the default motion layer, run with torch/transformers on MPS by studio/stages/motion.py (doc 18 §2, §6)"
     runtime: hf
-    source: "apple/coreml-depth-anything-v2-small"
+    source: "depth-anything/Depth-Anything-V2-Small-hf"
+    include: ["config.json", "preprocessor_config.json", "model.safetensors", "README.md"]
     size_gb: 0.1
     licence: apache-2.0
     commercial_use: true
     optional: false
-    verified: false
-    verified_how: "Doc 18: ~50-99 MB, Apache-2.0 (Small only; Base/Large are non-commercial). Use it with OUR OWN parallax shader (moderngl/OpenCV, MIT), not AGPL DepthFlow (doc 18 §6)"
+    verified: true
+    verified_how: "2026-10-16 HF API: card licence apache-2.0, model.safetensors 99.2 MB (Small only; Base/Large are CC-BY-NC). Used with OUR OWN OpenCV remap parallax (studio/stages/motion.py), not AGPL DepthFlow (doc 18 §6)"
 
   - name: fastwan2.2-ti2v-5b-gguf
     stage: video
@@ -186,12 +188,13 @@ models:
     purpose: "Tiny 4x upscaler: render stills at 544x960 then upscale, about 2x faster (doc 18 §5)"
     runtime: hf
     source: "Comfy-Org/Real-ESRGAN_repackaged"
+    include: ["RealESRGAN_x4plus.safetensors", "README.md"]
     size_gb: 0.07
     licence: bsd-3-clause
     commercial_use: true
     optional: false
-    verified: false
-    verified_how: "Doc 18 round 2: 67 MB. Core ML/MLX ports exist (mlboydaisuke/Real-ESRGAN-x4-CoreML, themindstudio/RealESRGAN-x4plus-mlx); ~1-1.3 s per 512->2048 on M4 (derivative.ca)"
+    verified: true
+    verified_how: "2026-10-16 HF API: card licence bsd-3-clause, RealESRGAN_x4plus.safetensors 66.9 MB; loaded with spandrel on MPS by studio/stages/visuals/upscale.py. Doc 18 round 2: Core ML/MLX ports exist (mlboydaisuke/Real-ESRGAN-x4-CoreML, themindstudio/RealESRGAN-x4plus-mlx); ~1-1.3 s per 512->2048 on M4 (derivative.ca)"
 
   - name: flux2-klein-sana-sprint-lora
     stage: image

@@ -15,11 +15,11 @@ from studio.contracts import BrandPack
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_BRAND_DIR = REPO_ROOT / "brand_packs"
 
-# Visuals. `auto` tries Pexels stock (free) -> Bedrock Stability ($/image) -> mock, per beat.
-# The local mflux engines (z-image-turbo, flux2-klein-4b) stay selectable, and become the better
-# default once Z-Image-Turbo (~11 GB) fits on disk (doc 14 §6).
+# Visuals (Configuration A, doc 18 §1). `auto` tries, per beat: local Z-Image-Turbo 4-bit (free,
+# skipped unless downloaded) -> Pexels stock (free) -> Bedrock Stability ($/image) -> mock.
+# flux2-klein-4b stays selectable with --engine images=flux2-klein-4b once downloaded.
 DEFAULT_IMAGES_ENGINE = "auto"
-DEFAULT_AUTO_ORDER = ("flux2-klein-4b", "pexels", "bedrock-stability", "mock")
+DEFAULT_AUTO_ORDER = ("z-image-turbo", "pexels", "bedrock-stability", "mock")
 
 
 def _env_float(name: str, default: float) -> float:
@@ -35,7 +35,7 @@ class VisualsConfig:
     """Env-driven knobs for the images stage (studio/stages/images.py, studio/stages/visuals/).
 
     STUDIO_IMAGES_AUTO_ORDER      comma list tried per beat by `auto`
-                                  (default flux2-klein-4b,pexels,bedrock-stability,mock; local mflux
+                                  (default z-image-turbo,pexels,bedrock-stability,mock; local mflux
                                   is skipped unless its pre-quantized model is already downloaded)
     STUDIO_STABILITY_MODEL        core | sd3.5-large | ultra | a raw Bedrock model id (default core)
     STUDIO_BEDROCK_IMAGE_REGION   Stability on Bedrock is us-west-2 (model cards, 2026-10-16)

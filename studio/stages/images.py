@@ -1,15 +1,17 @@
 """Stage 5: one visual per beat (a still, or a stock clip that render trims and mutes).
 
 Engines (STUDIO_IMAGES_ENGINE or --engine images=NAME; default ``auto``):
-- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default pexels -> bedrock-stability ->
-  mock). Pexels is used only with PEXELS_API_KEY and when the beat suits stock; mock is a loud
-  last resort.
+- ``auto``: per beat, tries STUDIO_IMAGES_AUTO_ORDER (default z-image-turbo -> pexels ->
+  bedrock-stability -> mock). Z-Image is skipped unless its 4-bit repo is downloaded; Pexels is
+  used only with PEXELS_API_KEY and when the beat suits stock; mock is a loud last resort.
 - ``bedrock-stability``: Stability AI on Bedrock (Core $0.04/image by default; 9:16 shorts,
   16:9 long-form; brand style appended; seed per job + beat). Capped per video and logged to
   the spend ledger.
 - ``pexels``: free stock clips/photos, attribution in images/attribution.txt.
-- ``z-image-turbo`` / ``flux2-klein-4b``: local mflux, Apache-2.0 (doc 14 §6). Z-Image-Turbo
-  needs ~11 GB of disk, so it is no longer the default.
+- ``z-image-turbo`` / ``flux2-klein-4b``: local mflux, Apache-2.0, pre-quantized 4-bit repos
+  (doc 18 §1). Z-Image-Turbo q4 (5.9 GB) is the default (Configuration A). The raw still
+  (576x1024 / 1024x576) goes to images/raw/, then Real-ESRGAN (visuals/upscale.py) makes the
+  frame-size beat image; without it the raw still is used and render scales it.
 - ``bedrock-luma``: Luma Ray2 hero clip for beat 0 (gated stub; see visuals/luma.py), the
   rest as ``auto``.
 - ``mock``: a 1080x1920 (or 1920x1080) ffmpeg placeholder (brand colour + wrapped prompt).
@@ -25,6 +27,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import textwrap
 import warnings
 from pathlib import Path
@@ -52,13 +55,15 @@ from studio.stages.visuals import stability as stability_src
 from studio.stages.visuals.common import logger, record_cost
 
 STAGE = "images"
-VERSION = 4  # 4: pre-quantized 4-bit repos, no on-the-fly -q (docs 18)
+VERSION = 5  # 5: Z-Image q4 default, 576x1024 raw + Real-ESRGAN to frame size (doc 18)
 
-# engine id -> (doc 14 model name, default mflux CLI). Check `mflux --help` after installing;
-# override the command with STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
+# engine id -> (model name, default mflux CLI). Override the command with
+# STUDIO_MFLUX_CMD_<ENGINE> (e.g. STUDIO_MFLUX_CMD_Z_IMAGE_TURBO).
 # Always point mflux at PRE-QUANTIZED repos. `-q N` on a base model id makes mflux download
 # the full-precision weights first (Z-Image 32.9 GB, klein 4B ~16 GB) - see doc 18 §3.
-# Whether a repo id also needs `--base-model` is unverified: check `--help` after install.
+# Verified with mflux 0.23 (2026-10-16): `mflux-generate-z-image-turbo --model <repo>` loads the
+# q4 repo and infers z-image-turbo from the name (no --base-model needed); 9 steps is the CLI
+# default; --guidance is ignored (guidance-distilled); width/height must be multiples of 16.
 MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
     "flux2-klein-4b": (  # smallest good model: 4.6 GB, Apache-2.0
         "FLUX.2 [klein] 4B (mflux 4-bit)",
@@ -71,6 +76,7 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
          "--steps", "9"],
     ),
 }
+UPSCALED_SUFFIX = " + Real-ESRGAN x4"
 
 SOURCE_ENGINES = ("pexels", "bedrock-stability")
 ENGINES = ("auto", "mock", *SOURCE_ENGINES, "bedrock-luma", *MFLUX_MODELS)
@@ -88,8 +94,9 @@ def frame_size(fmt: str) -> tuple[int, int]:
 
 
 def gen_size(fmt: str) -> tuple[int, int]:
-    """mflux needs multiples of 16; render upscales to the frame size."""
-    return (720, 1280) if fmt == "short" else (1280, 720)
+    """mflux needs multiples of 16. 576x1024 is ~65 s of denoising on an M4 Pro vs ~95-105 s
+    for 720x1280 (output/benchmarks/zimage); Real-ESRGAN x4 then covers 1080x1920."""
+    return (576, 1024) if fmt == "short" else (1024, 576)
 
 
 def image_prompt(visual_prompt: str, brand: BrandPack) -> str:
@@ -155,9 +162,9 @@ def _mflux_cmd(engine: str) -> list[str]:
         import mflux  # noqa: F401  (lazy presence check; generation runs via the mflux CLI)
     except ImportError as exc:
         raise EngineUnavailable(
-            f"Images engine {engine!r} needs mflux, which is not installed. Install the local-ml "
-            "extra (`uv sync --extra local-ml` or `uv tool install mflux`) or use --mock / "
-            "--engine images=mock."
+            f"Images engine {engine!r} needs mflux, which is not installed. Run `make deps` "
+            "(uv sync --extra local-audio --extra local-image --extra bedrock --group dev) or "
+            "use --mock / --engine images=mock."
         ) from exc
     override = os.environ.get("STUDIO_MFLUX_CMD_" + engine.upper().replace("-", "_"))
     cmd = shlex.split(override) if override else list(MFLUX_MODELS[engine][1])
@@ -168,9 +175,18 @@ def _mflux_cmd(engine: str) -> list[str]:
             f"{engine}: model {repo} is not downloaded. Run `make models STAGE=image` "
             "(disk-checked) or set STUDIO_ALLOW_MODEL_DOWNLOAD=1"
         )
-    if not shutil.which(cmd[0]):
+    exe = _resolve_cli(cmd[0])
+    if exe is None:
         raise EngineUnavailable(f"{cmd[0]} not on PATH; set STUDIO_MFLUX_CMD_* to the mflux CLI")
-    return cmd
+    return [exe, *cmd[1:]]
+
+
+def _resolve_cli(name: str) -> str | None:
+    """The mflux CLI from this interpreter's venv (`.venv/bin`), else from PATH."""
+    if os.sep in name:
+        return name if Path(name).exists() else None
+    local = Path(sys.executable).parent / name
+    return str(local) if local.exists() else shutil.which(name)
 
 
 def _mflux_repo(cmd: list[str]) -> str | None:
@@ -192,13 +208,37 @@ def _mflux_image(out: Path, prompt: str, seed: int, engine: str, fmt: str) -> No
     w, h = gen_size(fmt)
     cmd = [*_mflux_cmd(engine), "--prompt", prompt, "--width", str(w), "--height", str(h),
            "--seed", str(seed), "--output", str(out)]
-    proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    env = dict(os.environ)
+    if env.get("STUDIO_ALLOW_MODEL_DOWNLOAD") != "1":
+        env["HF_HUB_OFFLINE"] = "1"  # belt and braces: mflux may not fetch anything (doc 18 §3)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(cmd, check=False, capture_output=True, text=True, env=env)
     if proc.returncode != 0 or not out.exists():
         raise StageError(f"mflux failed for {out.name}: {proc.stderr.strip()[-800:]}")
 
 
+def _to_frame(raw: Path, out: Path, fmt: str) -> bool:
+    """Upscale the raw still to the frame size with Real-ESRGAN when available (True), else
+    copy it unchanged and let render scale it (False)."""
+    try:
+        from studio.stages.visuals.upscale import upscale_to
+    except ImportError:
+        upscale_to = None
+    if upscale_to is not None:
+        try:
+            upscale_to(raw, out, *frame_size(fmt))
+            return True
+        except (StageError, ImportError, ValueError, RuntimeError, OSError) as exc:
+            logger.warning("images: upscale skipped for %s: %s", raw.name, exc)
+    shutil.copyfile(raw, out)
+    return False
+
+
 def unload() -> None:
-    """mflux runs as a subprocess, so its memory is freed when each call exits."""
+    """mflux runs as a subprocess (freed when each call exits); free the upscaler if loaded."""
+    mod = sys.modules.get("studio.stages.visuals.upscale")
+    if mod is not None and hasattr(mod, "unload"):
+        mod.unload()
 
 
 class ImageBudgetExceeded(StageError):
@@ -222,9 +262,12 @@ def _produce(engine: str, spec: BeatSpec, st: _Run) -> Visual:
         return Visual(path=out, kind="image", engine="mock", model="placeholder")
     if engine in MFLUX_MODELS:
         out = spec.out_stem.with_suffix(".png")
+        raw = out.parent / "raw" / out.name
         seed = int(sha256_bytes(f"{spec.job_id}:{spec.index}".encode())[:8], 16)
-        _mflux_image(out, spec.prompt, seed, engine, spec.fmt)
-        return Visual(path=out, kind="image", engine=engine, model=MFLUX_MODELS[engine][0])
+        _mflux_image(raw, spec.prompt, seed, engine, spec.fmt)
+        upscaled = _to_frame(raw, out, spec.fmt)
+        model = MFLUX_MODELS[engine][0] + (UPSCALED_SUFFIX if upscaled else "")
+        return Visual(path=out, kind="image", engine=engine, model=model)
     if engine == "pexels":
         return pexels_src.fetch(spec, api_key=st.cfg.pexels_api_key, used=st.used)
     if engine == "bedrock-stability":

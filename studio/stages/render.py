@@ -7,6 +7,13 @@ Stock clips (images.py `pexels` engine returns .mp4) mix with stills: a clip sho
 an offset that advances across consecutive shots of the same clip (looped if too short),
 scaled and centre-cropped to fill the frame, and its own audio is never mapped (muted).
 
+Motion for stills (STUDIO_MOTION): `parallax` turns every still shot into a 2.5D depth-parallax
+clip of exactly the shot's length (studio/stages/motion.py, Depth Anything V2 Small; presets
+rotate per shot, seeded by the job id), which then goes through the clip path above.
+`zoompan` is the ffmpeg Ken Burns fallback. Unset/`auto` = parallax when the depth model is
+downloaded, except in a full `--mock` run (mock TTS), which stays on fast zoompan. A missing
+model or a parallax failure falls back to zoompan with a log line, never a failed render.
+
 Writes video.mp4 and content_hash.txt (sha256 of the video bytes + description). Approval
 binds to that hash, so any re-render that changes it voids the approval.
 """
@@ -16,13 +23,16 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import random
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from studio.contracts import BrandPack, JobStatus, VideoJob
+from studio.stages import motion
 from studio.stages.base import (
     StageContext,
     StageError,
@@ -31,12 +41,14 @@ from studio.stages.base import (
     log,
     media_duration,
     run_ffmpeg,
+    sha256_file,
     write_cache,
 )
 from studio.stages.visuals.common import is_video
 
 STAGE = "render"
-VERSION = 2  # 2: two-pass loudnorm (single pass undershot -14 LUFS on short speech)
+VERSION = 3  # 2: two-pass loudnorm (single pass undershot -14 LUFS on short speech)
+# 3: STUDIO_MOTION=parallax (2.5D depth parallax clips for stills), zoompan fallback
 FPS = 30
 MAX_SHOT_S = 3.5
 OVERSCAN = 1.25  # pre-scale before zoompan to limit jitter and leave room to pan
@@ -125,7 +137,7 @@ def _filtergraph(
     sw, sh = int(w * OVERSCAN) // 2 * 2, int(h * OVERSCAN) // 2 * 2
     parts = []
     for k, shot in enumerate(shots):
-        if shot.get("kind") == "clip":
+        if shot.get("kind") in CLIP_KINDS:
             # motion is ignored: the clip moves on its own. fps first so trim is frame-exact.
             parts.append(
                 f"[{k}:v]fps={FPS},scale={w}:{h}:force_original_aspect_ratio=increase,"
@@ -172,6 +184,53 @@ def mark_clips(shots: list[dict], images: list[Path], durations: dict[int, float
     return shots
 
 
+CLIP_KINDS = ("clip", "parallax")  # shots fed from a video input (stock clip or parallax)
+MOTION_MODES = ("parallax", "zoompan")
+
+
+def motion_mode(ctx: StageContext) -> tuple[str, str]:
+    """(mode, reason) for still shots, from STUDIO_MOTION = parallax | zoompan | auto (unset)."""
+    req = os.environ.get("STUDIO_MOTION", "").strip().lower() or "auto"
+    if req not in (*MOTION_MODES, "auto"):
+        raise StageError(f"render: STUDIO_MOTION={req!r}; use parallax, zoompan or auto")
+    if req == "zoompan":
+        return "zoompan", "STUDIO_MOTION=zoompan"
+    if not motion.available():
+        return "zoompan", f"depth model {motion.REPO} not downloaded (make models STAGE=video)"
+    if req == "auto" and ctx.engine("tts") == "mock":
+        return "zoompan", "full --mock run (set STUDIO_MOTION=parallax to force)"
+    return "parallax", "depth model available" if req == "auto" else "STUDIO_MOTION=parallax"
+
+
+def add_parallax(job: VideoJob, shots: list[dict], images: list[Path], w_dir: Path) -> None:
+    """Render a parallax clip of exactly shot['frames'] for every still shot and tag it
+    kind=parallax (src, offset 0, motion = preset). Raises on failure (caller falls back)."""
+    presets = motion.preset_sequence(job.job_id, len(shots))
+    out_dir = w_dir / "motion"
+    depth_dir = w_dir / ".cache" / "depth"
+    for k, shot in enumerate(shots):
+        if shot.get("kind") in CLIP_KINDS:
+            continue
+        img = images[shot["image"]]
+        preset = presets[k]
+        name = f"{sha256_file(img)[:12]}_{preset}_{shot['frames']}f_v{motion.MOTION_VERSION}.mp4"
+        clip = out_dir / name
+        if not clip.exists():
+            motion.parallax_clip(img, clip, shot["frames"] / FPS, job.format, preset,
+                                 cache_dir=depth_dir)
+        shot.update(kind="parallax", src=str(clip), offset=0.0, motion=preset)
+
+
+def drop_parallax(shots: list[dict], seed: str) -> None:
+    """Undo add_parallax (fallback to zoompan) and restore the zoompan motion sequence."""
+    for shot, m in zip(shots, motion_sequence(seed, len(shots)), strict=True):
+        if shot.get("kind") == "parallax":
+            for k in ("kind", "src", "offset"):
+                shot.pop(k, None)
+        if shot.get("kind") is None:
+            shot["motion"] = m
+
+
 def compute_content_hash(job: VideoJob) -> str:
     h = hashlib.sha256()
     with Path(job.video_path).open("rb") as fh:
@@ -209,7 +268,9 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     if not images or not all(p.exists() for p in images):
         raise StageError("render: missing images")
     out = workdir / "video.mp4"
-    key = hash_inputs(STAGE, VERSION, job.format, job.job_id, audio, ass, images, timings_path)
+    mode, why = motion_mode(ctx)
+    key = hash_inputs(STAGE, VERSION, job.format, job.job_id, audio, ass, images, timings_path,
+                      mode, motion.MOTION_VERSION if mode == "parallax" else 0)
     if is_cached(job, STAGE, key, [out], ctx):
         job.video_path = out
         log(job, "render: cached, skipped")
@@ -222,10 +283,19 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     clip_durations = {i: media_duration(p) for i, p in enumerate(images) if is_video(p)}
     if clip_durations:
         mark_clips(shots, images, clip_durations)
+    if mode == "parallax":
+        try:
+            add_parallax(job, shots, images, workdir)
+        except (StageError, RuntimeError, OSError, ValueError) as exc:
+            mode, why = "zoompan", f"parallax failed: {str(exc).splitlines()[0][:160]}"
+            drop_parallax(shots, job.job_id)
+        finally:
+            motion.unload()
+    log(job, f"render: motion={mode} ({why})")
     inputs: list[str] = []
     for shot in shots:
-        src = str(images[shot["image"]].resolve())
-        if shot.get("kind") == "clip":
+        src = str(Path(shot.get("src") or images[shot["image"]]).resolve())
+        if shot.get("kind") in CLIP_KINDS:
             # -an: the stock clip's own audio is never decoded or mapped (muted)
             inputs += ["-an", "-stream_loop", "-1", "-ss", f"{shot['offset']:.3f}",
                        "-t", f"{shot['frames'] / FPS + 0.5:.3f}", "-i", src]
@@ -255,6 +325,7 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     if last_error is not None:
         raise last_error
     tmp.replace(out)
+    shutil.rmtree(workdir / "motion", ignore_errors=True)  # intermediates; depth stays cached
     job.video_path = out
-    write_cache(job, STAGE, key, [out])
+    write_cache(job, STAGE, key, [out], motion=mode)
     return apply_content_hash(job, compute_content_hash(job))

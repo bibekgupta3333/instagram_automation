@@ -95,7 +95,8 @@ flowchart LR
 | mflux klein / Z-Image engines (pre-quantized, download guard) | ✅ code + tests. Not run: model not downloaded |
 | `auto` order: **local klein → Pexels → Bedrock Stability → mock** | ✅ local is skipped until its model is cached |
 | Manifest: `flux2-klein-4b-q4` (default image), `z-image-turbo-q4` (optional), `depth-anything-v2-small`, `wan2.2-ti2v-5b-turbo-gguf` (optional, new `video` stage) | ✅ `make models-dry STAGE=video` |
-| Small render + ESRGAN upscale, own parallax shader, FastWan via sd.cpp, RIFE | ⏳ **not built**. Next step once ~16–22 GB is free |
+| **Configuration A installed (2026-10-16)**: Z-Image-Turbo q4 (5.5 GB on disk), Real-ESRGAN x4plus (67 MB), Depth Anything V2 Small (99 MB), own parallax renderer | ✅ **measured on M4 Pro**: Z-Image 576×1024 takes **~80 s/image** (first 84 s, warm 78.6 s; 12.6 GB footprint), 720×1280 takes 96–130 s. ESRGAN takes 4–6 s/image. Parallax takes ~3.5 s per 4 s clip. A real 6-scene Short takes ~6.5 min, almost all of it image generation |
+| FastWan via sd.cpp, RIFE, SAM+LaMa layered parallax, parallax on MPS | ⏳ not built (FastWan doesn't fit the 12 GB budget alongside Z-Image) |
 
 ## 5. Open questions
 

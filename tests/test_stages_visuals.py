@@ -27,11 +27,14 @@ HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is n
 
 
 @pytest.fixture(autouse=True)
-def clean_env(monkeypatch):
+def clean_env(monkeypatch, tmp_path_factory):
     for k in list(os.environ):
         if k.startswith(("STUDIO_IMAGES", "STUDIO_PEXELS", "STUDIO_STABILITY", "STUDIO_LUMA",
-                         "STUDIO_ALLOW_PAID", "STUDIO_VIDEO_MAX", "STUDIO_BEDROCK_IMAGE")):
+                         "STUDIO_ALLOW_PAID", "STUDIO_VIDEO_MAX", "STUDIO_BEDROCK_IMAGE",
+                         "STUDIO_MFLUX_CMD", "STUDIO_ALLOW_MODEL", "STUDIO_REALESRGAN")):
             monkeypatch.delenv(k, raising=False)
+    # empty HF cache: `auto` tries local Z-Image first, and must never run real mflux in tests
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path_factory.mktemp("hf-hub")))
     for k in ("PEXELS_API_KEY", "AWS_BEARER_TOKEN_BEDROCK", "AWS_PROFILE"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("STUDIO_SKIP_LEDGER", "1")
@@ -318,6 +321,8 @@ def test_explicit_engine_does_not_fall_back(tmp_path):
 
 def test_default_engine_is_auto(monkeypatch):
     assert Settings.from_env().engines["images"] == "auto"
+    assert VisualsConfig.from_env().auto_order == ("z-image-turbo", "pexels",
+                                                   "bedrock-stability", "mock")
     monkeypatch.setenv("STUDIO_IMAGES_ENGINE", "z-image-turbo")
     assert Settings.from_env().engines["images"] == "z-image-turbo"
     monkeypatch.setenv("STUDIO_IMAGES_AUTO_ORDER", "bedrock-stability, mock")

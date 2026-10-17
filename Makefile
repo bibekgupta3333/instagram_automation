@@ -2,11 +2,13 @@
 SHELL := /bin/bash
 SETUP := scripts/setup
 
-# make models               default set = tts + asr + image (text runs on Bedrock / Claude Code,
-#                           so every llm model is optional)
+# make models               default set = every model with `optional: false` in
+#                           scripts/setup/models.manifest.yaml (Configuration A: Kokoro, parakeet,
+#                           Z-Image-Turbo q4, Real-ESRGAN, Depth Anything V2 Small; ~9 GB).
+#                           Text runs on Bedrock / Claude Code, so every llm model is optional.
 # make models STAGE=tts     one stage (llm | tts | asr | image | video | music | all)
 STAGE ?= all
-# make models OPTIONAL=1  also pulls models marked optional (local LLMs, flux2-klein, ACE-Step)
+# make models OPTIONAL=1  also pulls models marked optional (local LLMs, flux2-klein, video, ACE-Step)
 OPTIONAL ?=
 OPT_FLAG := $(if $(OPTIONAL),--include-optional,)
 # make smoke-mock ARGS="--channel demo"  extra args passed to `studio make --mock`
@@ -15,7 +17,11 @@ ARGS ?=
 LITELLM_CONFIG ?= infra/litellm/config.yaml
 LITELLM_PORT ?= 4000
 
-.PHONY: help preflight tools tools-dry deps-audio models-dry models models-audio smoke smoke-mock \
+# WARNING: `uv sync` uninstalls every extra you don't name. Always sync through `make deps`;
+# a bare `uv sync` drops mflux/torch (local-image) and the audio stack. `uv run` is safe.
+UV_EXTRAS := --extra local-audio --extra local-image --extra bedrock --group dev
+
+.PHONY: help preflight tools tools-dry deps deps-audio models-dry models models-audio smoke smoke-mock \
 	test lint gateway ollama
 
 help: ## list targets
@@ -30,13 +36,16 @@ tools: ## install missing LIGHT tools via brew (idempotent)
 tools-dry: ## show what `make tools` would install
 	@bash $(SETUP)/10-install-tools.sh --dry-run
 
-deps-audio: ## install the local audio runtime (mlx-audio, parakeet-mlx; keeps boto3 for Bedrock)
-	uv sync --extra local-audio --extra bedrock --group dev
+deps: ## install Configuration A runtimes: audio + image (mflux, torch, opencv, spandrel) + bedrock + dev
+	@echo "uv sync $(UV_EXTRAS)   (uv sync drops unnamed extras: always sync via make deps)"
+	uv sync $(UV_EXTRAS)
+
+deps-audio: deps ## alias for `make deps` (a narrower sync would uninstall local-image)
 
 models-dry: ## plan model downloads + disk check, download nothing
 	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) --dry-run $(OPT_FLAG)
 
-models: ## download model weights: tts + asr + image by default (refuses if disk is short)
+models: ## download the manifest's default (non-optional) models (refuses if disk is short)
 	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) $(OPT_FLAG)
 
 models-audio: ## download only the audio models: Kokoro TTS + parakeet ASR (~2.9 GB)

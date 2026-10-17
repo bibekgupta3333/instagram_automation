@@ -27,7 +27,7 @@ local-audio = [
   "phonemizer-fork>=3.3",
   "espeakng-loader>=0.2.4",
 ]
-local-image = ["mflux"]
+local-image = ["mflux>=0.23", "opencv-python-headless>=4.10", "spandrel>=0.4"]  # images (Z-Image 4-bit), parallax, ESRGAN (doc 18)
 local-ml = ["studio[local-audio,local-image]"]  # compatibility: union of the two
 bedrock = ["boto3>=1.39"]  # 1.39+ reads AWS_BEARER_TOKEN_BEDROCK (Bedrock API keys)
 gateway = ["litellm[proxy]"]

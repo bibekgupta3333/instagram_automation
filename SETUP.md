@@ -10,9 +10,11 @@ All the scripts live in `scripts/setup/`, and every step has a `make` target.
 > (Kokoro TTS + parakeet captions) and **images** (mflux) run on the Mac.
 
 ```
-make preflight  →  make tools  →  make deps-audio  →  make models-audio  →  make smoke
-                                  (then, when disk allows: uv sync --extra local-image; make models STAGE=image)
+make preflight  →  make tools  →  make deps  →  make models  →  make smoke
 ```
+
+This machine runs **Configuration A** (§1a): local audio, local Z-Image-Turbo 4-bit stills,
+Real-ESRGAN upscaling and depth parallax.
 
 ---
 
@@ -26,19 +28,60 @@ make preflight  →  make tools  →  make deps-audio  →  make models-audio  �
 | Node ≥ 18 | `node --version` | Remotion renderer |
 | FFmpeg with VideoToolbox and libass | `make preflight` | Homebrew's `ffmpeg` has both |
 | Ollama ≥ 0.40 (optional) | `ollama --version` | Only for offline LLM experiments; text runs on Bedrock / Claude Code |
-| **~14 GB free disk** for audio | `df -h ~` | Audio runtime ~0.8 GB + audio models 2.9 GB + 10 GB buffer. Add 11 GB for the default image model (~25 GB total for tts + asr + image) |
+| **~23 GB free disk** for Configuration A | `df -h ~` | Python deps ~1.6 GB + models 9.0 GB (tts + asr + image + video) + 10 GB buffer. mflux also needs swap headroom: macOS swap files share the disk |
 
 Then set up the project:
 
 ```bash
 uv sync                    # base deps + dev group (small)
 cp .env.example .env       # STUDIO_LLM=bedrock|claude-code; AWS_PROFILE = a *personal* account only
-make deps-audio            # = uv sync --extra local-audio --extra bedrock --group dev (~0.8 GB)
+make deps                  # = uv sync --extra local-audio --extra local-image --extra bedrock --group dev
 ```
 
-Extras: `local-audio` (mlx-audio, parakeet-mlx, misaki G2P + spaCy `en_core_web_sm`, no torch),
-`local-image` (mflux), `local-ml` (both, kept for compatibility), `bedrock` (boto3).
-`uv sync` installs exactly the extras you name, so keep `--extra bedrock` when adding audio.
+Extras: `local-audio` (mlx-audio, parakeet-mlx, misaki G2P + spaCy `en_core_web_sm`),
+`local-image` (mflux, opencv-python-headless, spandrel; pulls torch for Real-ESRGAN on MPS),
+`local-ml` (both, kept for compatibility), `bedrock` (boto3).
+**`uv sync` removes every extra you don't name**, so a bare `uv sync` or `uv sync --extra
+bedrock` uninstalls mflux and the audio stack. Use `make deps` (`make deps-audio` is now an
+alias for it). `uv run` does not prune, so it is safe.
+
+## 1a. Configuration A (what is installed)
+
+| Layer | What | Size on disk | Licence |
+|---|---|---|---|
+| Stills | `mflux-community/z-image-turbo-mflux-q4` (transformer 3.46 + Qwen3 TE 2.27 + VAE 0.17 GB) | 5.9 GB (5.5 GiB `du`) | Apache-2.0 |
+| Upscale | Real-ESRGAN x4plus (`Comfy-Org/Real-ESRGAN_repackaged`, one file) | 0.07 GB | BSD-3 |
+| Parallax | Depth Anything V2 Small | 0.1 GB | Apache-2.0 |
+| Audio | Kokoro 82M + parakeet-tdt-0.6b-v2 | 2.6 GB | Apache-2.0 / CC-BY-4.0 |
+| Python | `local-audio` + `local-image` extras (mflux 0.23, torch with MPS, opencv, spandrel) | ~1.6 GB | |
+
+```bash
+make deps                                  # Python runtimes (see the uv warning above)
+make models-dry                            # plan + disk check
+make models                                # the manifest's default set (all non-optional models)
+make models STAGE=image                    # Z-Image q4 + Real-ESRGAN only
+uv run studio make --channel megabuild-blueprint --topic "..." --engine llm=mock   # real audio + images
+```
+
+How the images stage uses it (`studio/stages/images.py`): `images=auto` tries, per beat,
+`z-image-turbo` → Pexels → Bedrock Stability → mock. Z-Image renders a raw still at
+**576×1024** (1024×576 long-form) into `images/raw/`, then Real-ESRGAN x4 makes the
+1080×1920 frame. The exact command it runs:
+
+```bash
+.venv/bin/mflux-generate-z-image-turbo --model mflux-community/z-image-turbo-mflux-q4 \
+  --steps 9 --width 576 --height 1024 --seed 42 --prompt "..." --output out.png
+```
+
+- The repo id alone is enough: mflux infers `z-image-turbo` from the name (no `--base-model`).
+  `--guidance` and `--negative-prompt` are ignored (guidance-distilled). Sizes must be
+  multiples of 16.
+- **Never** add `-q 4` or use the built-in `z-image-turbo` name: both pull the 32.9 GB base
+  repo. The stage runs mflux with `HF_HUB_OFFLINE=1` and refuses if the repo is not in the HF
+  cache, unless `STUDIO_ALLOW_MODEL_DOWNLOAD=1`.
+- Measured on this M4 Pro 24 GB (`/usr/bin/time -l`, output/benchmarks/zimage/): 576×1024 is
+  ~79–84 s per still (9 steps × ~7.1 s + ~15 s load), 720×1280 is ~96–130 s. Peak memory
+  footprint 12.6 GB (576×1024) to 15.5 GB (720×1280); close other big apps, and expect swap.
 
 ## 2. Free up disk first
 
@@ -76,17 +119,18 @@ text runs on Bedrock / Claude Code.
 |---|---|---|
 | tts | `mlx-community/Kokoro-82M-bf16` (safetensors only; 0.35 on disk) | **0.4** |
 | asr | `mlx-community/parakeet-tdt-0.6b-v2` (CC-BY-4.0: credit NVIDIA; 2.3 on disk) | **2.5** |
-| image | `mflux-community/z-image-turbo-mflux-q8` (11.0); optional `flux2-klein-4b-mflux-q8` (8.6) | **11.0** (+8.6 optional) |
+| image | `mflux-community/z-image-turbo-mflux-q4` (5.9) + Real-ESRGAN x4plus (0.07); optional `flux2-klein-4b-mflux-q4` (4.6) | **6.0** (+4.6 optional) |
+| video | Depth Anything V2 Small (0.1); optional FastWan / Wan / LingBot GGUFs | **0.1** |
 | llm | all optional, text runs on Bedrock / Claude Code: `qwen3.5:9b` (7.6), `gemma4:12b` (7.7), `gpt-oss:20b` (14.0) | **0** (+29.3 optional) |
 | music | optional `ACE-Step/Ace-Step1.5` (MIT) | **0** (+10.1 optional) |
-| **Total (default: tts + asr + image)** | | **13.9** (61.9 with `--include-optional`) |
+| **Total (default: every non-optional model)** | | **9.0** |
 | Python `local-audio` extra (mlx 235 MB, llvmlite 125, scipy 71, transformers 55, spaCy + model 37, …) | | **~0.73** (measured) |
-| Python `local-image` extra (mflux + deps) | | ~1–2 (est.) |
+| Python `local-image` extra (mflux, torch, opencv, spandrel) | | ~0.8 (measured) |
 | Remotion + its headless Chromium (npm) | | ~0.5–1 (est.) |
 
 Every pull needs the model size **plus 10 GB** free; preflight counts only models not yet
-downloaded. The image models use 8-bit pre-quantised mflux builds. The upstream bf16 repos are
-24–33 GB each.
+downloaded. The image models use 4-bit pre-quantised mflux builds. The upstream bf16 repos are
+16–33 GB each.
 
 ## 4. Steps
 
@@ -117,8 +161,8 @@ Homebrew formula. Add it with `bash scripts/setup/10-install-tools.sh --with-rhu
 ```bash
 make models-dry                       # plan + disk check, downloads nothing
 make models-audio                     # Kokoro (0.4 GB) then parakeet (2.5 GB)
-make models STAGE=image               # Z-Image-Turbo q8 (11 GB) — needs 21 GB free
-make models                           # the whole default set: tts + asr + image
+make models STAGE=image               # Z-Image-Turbo q4 (5.9 GB) + Real-ESRGAN — needs ~16 GB free
+make models                           # the manifest's default set (every non-optional model)
 make models STAGE=music OPTIONAL=1    # ACE-Step, when space allows
 make models STAGE=llm OPTIONAL=1      # only for offline LLM experiments (needs make ollama)
 ```
@@ -127,8 +171,7 @@ make models STAGE=llm OPTIONAL=1      # only for offline LLM experiments (needs 
   `uvx --from huggingface_hub hf`) into the HF cache. Use
   `bash scripts/setup/20-pull-models.sh --dest models` to put them in `./models/<repo>` instead (git-ignored).
 - Models that are already present are skipped.
-- Runtimes: `make deps-audio` for audio; `uv sync --extra local-audio --extra local-image
-  --extra bedrock --group dev` once there is room for mflux. For music, clone ACE-Step into
+- Runtimes: `make deps` (audio + image + bedrock + dev). For music, clone ACE-Step into
   `vendor/ACE-Step-1.5` (or set `ACE_STEP_DIR`) and run `uv sync` there.
 
 ### 4.4 `make smoke`
@@ -223,7 +266,7 @@ Keep this only for offline LLM experiments.
 | ffmpeg lacks libass / `No such filter: 'ass'` | `brew reinstall ffmpeg`; make sure `/opt/homebrew/bin` comes first on `PATH` |
 | `h264_videotoolbox` errors | Some sizes need even dimensions; use `-pix_fmt yuv420p`. Fall back to `-c:v libx264` |
 | `venv cannot import studio` | `uv sync` from the repo root |
-| `Kokoro requires the optional 'misaki' package` / spaCy `en_core_web_sm` missing | `make deps-audio` (the extra pins the spaCy model wheel; `spacy download` needs pip, which uv venvs lack) |
+| `Kokoro requires the optional 'misaki' package` / spaCy `en_core_web_sm` missing | `make deps` (the extra pins the spaCy model wheel; `spacy download` needs pip, which uv venvs lack) |
 | `uv sync` removed boto3 or mflux | `uv sync` keeps only the extras you name: pass every one you need (`--extra local-audio --extra bedrock …`) |
 | `tts: unknown Kokoro US voice(s)` | Use a voice from `KOKORO_US_VOICES` in `studio/stages/tts.py` (or `STUDIO_KOKORO_ANY_VOICE=1`) |
 | `smoke-mock` SKIPs | The `studio` CLI (`studio/cli.py`) isn't built yet. This is expected for now |

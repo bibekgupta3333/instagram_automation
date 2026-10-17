@@ -9,7 +9,7 @@ A local-first AI video studio for 10 faceless or AI-avatar channels on YouTube, 
 ## Commands
 
 ```bash
-uv sync --extra local-audio --extra bedrock --group dev   # what this machine uses (uv sync drops unnamed extras)
+make deps        # = uv sync --extra local-audio --extra local-image --extra bedrock --group dev (uv sync DROPS unnamed extras)
 make preflight                            # hardware/disk/ffmpeg/Ollama check (read-only)
 make test                                 # uv run pytest -q   (all offline, ~20 s)
 make lint                                 # uv run ruff check .
@@ -21,8 +21,8 @@ uv run studio batch --channel X --topics-file topics.txt [--mock]
 uv run studio approve JOB_ID --by NAME    # human approval (binds to content hash)
 uv run studio status [JOB_ID]
 make models-dry                           # plan model downloads + disk check
-make models-audio                         # Kokoro TTS + Parakeet ASR (~2.7 GB, installed)
-make models                               # tts + asr + image (Z-Image 11 GB needs ~21 GB free)
+make models-dry                           # plan + disk check
+make models                               # all non-optional manifest models (Configuration A, installed)
 make gateway                              # LiteLLM proxy (infra/litellm/config.yaml)
 ```
 
@@ -31,7 +31,8 @@ make gateway                              # LiteLLM proxy (infra/litellm/config.
 **Where each stage runs:**
 - **Text** (script, metadata, polish, fact-check): **Bedrock** by default (`STUDIO_LLM=bedrock`, key in `AWS_BEARER_TOKEN_BEDROCK`). `STUDIO_LLM=claude-code` uses `claude -p` headless instead.
 - **Audio**: local. Kokoro TTS via mlx-audio, and Parakeet word-timestamp captions via parakeet-mlx.
-- **Visuals**: `images=auto`, per beat: Pexels stock if `PEXELS_API_KEY` is set and the beat suits stock, then Bedrock Stable Image Core ($0.04/image, us-west-2), then a mock placeholder flagged "do not publish". Local mflux engines (`z-image-turbo`, `flux2-klein-4b`) work once downloaded.
+- **Visuals (Configuration A, installed):** `images=auto` works per beat. It tries **local Z-Image-Turbo 4-bit** first (mflux, `mflux-community/z-image-turbo-mflux-q4`, 576×1024, about 80 s/image, about 12.6 GB peak footprint). Then Pexels if `PEXELS_API_KEY` is set, then Bedrock Stable Image Core, then a mock placeholder marked "do not publish". Each raw still goes to `images/raw/` and is upscaled to frame size with **Real-ESRGAN x4plus** (`studio/stages/visuals/upscale.py`, spandrel on MPS, about 5 s).
+- **Motion:** `STUDIO_MOTION=auto|parallax|zoompan`. `studio/stages/motion.py` is our own licence-clean 2.5D parallax, built on Depth Anything V2 **Small** (Apache), OpenCV remap and inpainting. It has 6 presets, rotated per job, and takes about 3.5 s per 4 s clip. It falls back to zoompan if the depth model is missing. `--mock` runs stay on zoompan unless `STUDIO_MOTION=parallax` is set.
 - **AI video clips**: not local (impractical on 24 GB). `bedrock-luma` is a gated stub (`STUDIO_ALLOW_PAID_VIDEO=1`).
 
 ## Architecture
@@ -50,5 +51,6 @@ make gateway                              # LiteLLM proxy (infra/litellm/config.
 - Never post for real or disable `DRY_RUN`. Agents may use the Buffer MCP in `.mcp.json` read-only only; see `infra/MCP.md`.
 - Don't use the AWS profiles on this machine. They belong to the user's employer. Bedrock uses `AWS_PROFILE` from `.env`, which is empty by default.
 - Disk is tight (about 10 GB free). Keep at least 10 GB free, and run `make models-dry` before any download. Model weights, `output/` and `.env` are git-ignored.
+- mflux runs with `HF_HUB_OFFLINE=1`. The mflux engines refuse to run if their pre-quantized model isn't cached, and never pass `-q` (that pulls 16–33 GB). Only download through `scripts/setup/20-pull-models.sh`. The 12 GB budget for local visual models is mostly used up (about 6.6 GB of models + 0.8 GB of deps).
 - MLX caches grow fast. The TTS and caption engines clear the MLX cache per segment and unload between stages. Keep that behaviour if you touch them.
 - Several external API field names (Buffer GraphQL, Bedrock model IDs, mflux/mlx-audio CLI flags) are marked `unverified` in code and docs. Check them against the live API or the installed library before relying on them.

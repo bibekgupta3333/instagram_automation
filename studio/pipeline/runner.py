@@ -15,7 +15,7 @@ from pathlib import Path
 
 from studio.config import Settings, get_settings, load_brand
 from studio.contracts import BrandPack, ChatClient, JobStatus, VideoJob
-from studio.stages import captions, fact_check, images, render, script, tts
+from studio.stages import captions, fact_check, images, motion, render, script, tts
 from studio.stages.base import (
     DEFAULT_ENGINES,
     MOCK_ENGINES,
@@ -37,6 +37,7 @@ STAGES: list[tuple[str, StageFn]] = [
 ]
 UNLOAD: dict[str, Callable[[], None]] = {
     "tts": tts.unload, "captions": captions.unload, "images": images.unload,
+    "render": motion.unload,  # depth model used by parallax
 }
 
 
