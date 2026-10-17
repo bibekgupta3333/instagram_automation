@@ -92,11 +92,13 @@ How the images stage uses it (`studio/stages/images.py`): For stock-suitable bea
 image or video engine: Bedrock is used for text only. Z-Image renders a raw still at
 **640×1152 by default** (1152×640 long-form); use `STUDIO_ZIMAGE_SIZE=576x1024`
 for the lower-memory override (1024×576 long-form). Stills go into `images/raw/`, then Real-ESRGAN x4 makes the
-1080×1920 frame. The default mflux invocation below is shown for reference; run real media through `make guarded`:
+1080×1920 frame. A guarded lower-resolution invocation is:
 
 ```bash
-.venv/bin/mflux-generate-z-image-turbo --model mflux-community/z-image-turbo-mflux-q4 \
-  --steps 9 --width 640 --height 1152 --seed 42 --prompt "..." --output out.png
+.venv/bin/python scripts/run_guarded.py -- .venv/bin/mflux-generate-z-image-turbo \
+  --model mflux-community/z-image-turbo-mflux-q4 --steps 9 \
+  --low-ram --vae-tile-size 256 --mlx-cache-limit-gb 0.25 \
+  --width 576 --height 1024 --seed 42 --prompt "... no text, no logos" --output out.png
 ```
 
 - The repo id alone is enough: mflux infers `z-image-turbo` from the name (no `--base-model`).
@@ -109,6 +111,11 @@ for the lower-memory override (1024×576 long-form). Stills go into `images/raw/
   ~79–84 s per still (9 steps × ~7.1 s + ~15 s load), 720×1280 is ~96–130 s. Peak memory
   footprint 12.6 GB (576×1024) to 15.5 GB (720×1280). These historical measurements do not
   guarantee a green-pressure run; respect guard stops and use stock-only footage when needed.
+- Updated low-RAM validation (2026-10-17): a 576×1024 still took **57.94 s**, with **60/60**
+  memory samples green. Two sequential default-size 640×1152 images plus Real-ESRGAN
+  upscaling to 1080×1920 took **163.15 s**, with **165/165** samples green. These are observed
+  runs with current background load, not guaranteed RAM limits. The 0.25 GB setting limits
+  unused MLX cache buffers, not total model or system memory. No system GPU limits changed.
 
 ## 2. Free up disk first
 

@@ -62,7 +62,8 @@ from studio.stages.visuals.common import beat_seed, logger
 from studio.stages.visuals.prompts import build_prompt, shot_class
 
 STAGE = "images"
-VERSION = 10  # 10: anchored Pixabay searches and tag relevance; reject technical stock shots
+VERSION = 11  # 11: low-RAM component eviction, tiled VAE and bounded MLX cache
+# 10: anchored Pixabay searches and tag relevance; reject technical stock shots
 # 9: bind caches to job seed, shot metadata and stock eligibility
 # 8: prompt builder (shot framing, no-text clause), per-video base seed, per-brand
 # visual order (stock-first), Z-Image steps/size from VisualsConfig;
@@ -85,7 +86,8 @@ MFLUX_MODELS: dict[str, tuple[str, list[str]]] = {
     "z-image-turbo": (  # best quality <= 6 GB: 5.9 GB, Apache-2.0
         "Z-Image-Turbo (mflux 4-bit)",
         ["mflux-generate-z-image-turbo", "--model", "mflux-community/z-image-turbo-mflux-q4",
-         "--steps", "9"],  # replaced by VisualsConfig.zimage_steps at run time
+         "--steps", "9", "--low-ram", "--vae-tile-size", "256",
+         "--mlx-cache-limit-gb", "0.25"],  # steps replaced by VisualsConfig at run time
     ),
 }
 UPSCALED_SUFFIX = " + Real-ESRGAN x4"

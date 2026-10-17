@@ -45,6 +45,10 @@ Use `make guarded` for real runs: it permits one guarded job at a time, limits C
 disables model downloads, and stops its process group when sampled macOS memory pressure
 leaves green or disk is below 10 GB. It samples once per second, so brief spikes remain possible.
 Use `STUDIO_ZIMAGE_SIZE=576x1024` for lower-memory image generation.
+Z-Image uses mflux `--low-ram --vae-tile-size 256 --mlx-cache-limit-gb 0.25` by default:
+single-seed component eviction and tiled VAE decoding reduce overlap and decoder peaks.
+The cache limit bounds unused MLX buffers, not total RAM. Keep the external pressure guard;
+background applications can change whether a given image size stays green.
 
 - **`studio/contracts.py`** holds the shared Pydantic types (`BrandPack`, `Script`, `VideoJob`, `PublishRequest`, the `ChatClient` protocol). The pipeline and integration layers are written independently against it, so change it deliberately and update both sides.
 - **The pipeline** is in `studio/stages/` and `studio/pipeline/runner.py`. The stages run in order, script → fact_check → tts → captions → images → render, and each is `run(job, brand, ctx) -> job`. Each stage is idempotent: it keeps a cache key per stage in `output/<job_id>/.cache/`, and job state persists to `output/<job_id>/job.json` after every stage. Job ids are deterministic, so a re-run resumes and skips stages it has already done. `run_batch` runs **stage by stage across jobs** rather than video by video, so only one heavy model is loaded at a time on the 24 GB Mac (doc 14 §9). Rendering is ffmpeg only (h264_videotoolbox, zoompan motion rotated per beat, burned-in ASS captions, loudnorm −14 LUFS).

@@ -12,6 +12,28 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-17 · Lower-memory local Z-Image execution
+- Changed: `studio/stages/images.py` now uses mflux `--low-ram --vae-tile-size 256
+  --mlx-cache-limit-gb 0.25` for Z-Image only; images VERSION **11** invalidates prior
+  caches. Flux commands, cached q4 enforcement, offline generation and pressure guards
+  remain unchanged. No weights, dependencies or operating-system limits were changed.
+- Why: installed mflux 0.23 supports component eviction before decoding, smaller VAE
+  tiles and an unused-buffer cache limit; the project command did not enable these controls.
+  The old yellow-pressure incident's detailed logs were deleted, so its precise peak phase
+  cannot be established retrospectively.
+- Initial evidence: isolated 384x672 generation took 27.91 seconds with 30/30 readings green;
+  576x1024 with low-RAM mode took 57.94 seconds with 60/60 readings green. Tests exercise
+  the real command builder with mocked processes, including cached q4/offline/single-seed
+  requirements and unchanged Flux arguments.
+- Pipeline validation: two real 640x1152 images, each followed by Real-ESRGAN upscaling to
+  1080x1920, completed in 163.15 seconds with **165/165** pressure readings green and at
+  least 15.91 GB free disk. All four generated images across three guarded runs were local;
+  no Bedrock, Pixabay, approval or publishing calls were used.
+- Checks: **616 passed, 3 skipped** in the full offline suite; Ruff and diff checks passed.
+- Agents: cache limits bound unused MLX buffers, not total RAM. Multiple seeds can retain
+  components, so keep one seed per subprocess. Continue using `make guarded`; other apps
+  can change available headroom. Do not claim these observations guarantee future pressure.
+
 ## 2026-10-17 · Quality pass completed; guarded macOS execution
 - Changed: finished the interrupted script/visual/audio/edit work. Scripts use draft and
   polish passes with shot directions, overlays and stock queries. Every channel gets model

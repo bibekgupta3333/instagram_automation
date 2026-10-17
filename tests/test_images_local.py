@@ -97,6 +97,91 @@ def _fake_mflux(monkeypatch, seen):
     monkeypatch.setattr(images.subprocess, "run", fake_run)
 
 
+@pytest.fixture
+def cached_mflux(monkeypatch, tmp_path):
+    """Exercise the real command builder with fake cached weights and subprocess only."""
+    seen = {}
+    command_builder = images._mflux_cmd
+    _fake_mflux(monkeypatch, seen)
+    fake_run = images.subprocess.run
+    seen["calls"] = []
+
+    def record_run(cmd, **kwargs):
+        seen["calls"].append(list(cmd))
+        return fake_run(cmd, **kwargs)
+
+    monkeypatch.setattr(images.subprocess, "run", record_run)
+    monkeypatch.setattr(images, "_mflux_cmd", command_builder)
+    monkeypatch.setattr(images, "_resolve_cli", lambda name: str(tmp_path / name))
+    for repo in (
+        "mflux-community/z-image-turbo-mflux-q4",
+        "mflux-community/flux2-klein-4b-mflux-q4",
+    ):
+        snapshot = tmp_path / "hub" / f"models--{repo.replace('/', '--')}" / "snapshots" / "test"
+        snapshot.mkdir(parents=True)
+        (snapshot / "transformer.safetensors").write_bytes(b"fake weights; never loaded")
+    return seen
+
+
+@pytest.mark.parametrize(("flag", "value"), [
+    ("--low-ram", None),
+    ("--vae-tile-size", "256"),
+    ("--mlx-cache-limit-gb", "0.25"),
+])
+def test_zimage_default_command_has_low_memory_limits(cached_mflux, flag, value):
+    cmd = images._mflux_cmd("z-image-turbo")
+    assert cmd.count(flag) == 1
+    if value is not None:
+        assert cmd[cmd.index(flag) + 1] == value
+
+
+def test_flux_default_command_is_unchanged(cached_mflux):
+    cmd = images._mflux_cmd("flux2-klein-4b", steps=12)
+    assert Path(cmd[0]).name == "mflux-generate-flux2"
+    assert cmd[1:] == [
+        "--model", "mflux-community/flux2-klein-4b-mflux-q4",
+        "--base-model", "flux2-klein-4b", "--steps", "4", "--guidance", "1.0",
+    ]
+
+
+@pytest.mark.parametrize(("engine", "repo"), [
+    ("z-image-turbo", "mflux-community/z-image-turbo-mflux-q4"),
+    ("flux2-klein-4b", "mflux-community/flux2-klein-4b-mflux-q4"),
+])
+def test_cached_mflux_invocations_keep_one_seed_q4_and_offline(
+    tmp_path, monkeypatch, cached_mflux, engine, repo,
+):
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    monkeypatch.setenv("STUDIO_ALLOW_MODEL_DOWNLOAD", "1")
+    for invocation, seed in enumerate((123, 124), start=1):
+        out = tmp_path / f"seed_{seed}.png"
+        images._mflux_image(out, "a dam, no text", seed, engine, "short")
+        cmd = cached_mflux["cmd"]
+        assert len(cached_mflux["calls"]) == invocation
+        assert cmd.count("--seed") == 1
+        # A second positional seed would be consumed by mflux's multi-seed parser.
+        seed_index = cmd.index("--seed")
+        assert cmd[seed_index + 1] == str(seed)
+        assert cmd[seed_index + 2].startswith("--")
+        assert cmd.count("--model") == 1
+        assert cmd[cmd.index("--model") + 1] == repo
+        assert not any(arg.startswith(("-q", "--quantiz")) for arg in cmd[1:])
+        assert cached_mflux["env"]["HF_HUB_OFFLINE"] == "1"
+        assert cmd[cmd.index("--output") + 1] == str(out)
+        assert out.exists()
+
+
+@pytest.mark.parametrize("engine", ["z-image-turbo", "flux2-klein-4b"])
+def test_mflux_missing_cache_never_starts_subprocess(tmp_path, monkeypatch, engine):
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    monkeypatch.setenv("STUDIO_ALLOW_MODEL_DOWNLOAD", "1")
+    monkeypatch.setattr(images.subprocess, "run", lambda *a, **kw: pytest.fail("model launched"))
+    out = tmp_path / "missing.png"
+    with pytest.raises(EngineUnavailable, match="not downloaded"):
+        images._mflux_image(out, "a dam, no text", 123, engine, "short")
+    assert not out.exists()
+
+
 def _spec(tmp_path):
     from studio.stages.visuals import BeatSpec
 
