@@ -1,5 +1,7 @@
 # 12 — Final Portfolio: US High-CPM Channels and Presenter Formats
 
+> **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
+
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [13 Channel brands](13-channel-brands.md), [07 Execution roadmap](../1-strategy/07-execution-roadmap.md), [08 High-CPM US niches](08-high-cpm-us-niches.md), [09 AI avatar presenters (archived)](../archive/09-ai-avatar-presenters.md), [11 Avatar and YMYL policy](../3-policy/11-avatar-and-ymyl-policy.md), [17 Replacement niches](17-replacement-niches.md)
 
 **This doc replaces the portfolio in 02 §6.** It combines the niche research for US ad value (08), the avatar research (09, now archived), the cartoon research (10) and the AI-persona policy check (11). Figures marked *(est.)* are estimates.

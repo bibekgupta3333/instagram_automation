@@ -2,7 +2,7 @@
 
 > **Status:** current · **Updated:** 2026-10-16 · Master index for the planning docs.
 
-This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–17) as a stable ID, so citations like "04 §5" still work after the move into folders.
+This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–18) as a stable ID, so citations like "04 §5" still work after the move into folders.
 
 ## Start here
 
@@ -17,14 +17,14 @@ This plan covers 10 faceless channels across YouTube, Instagram and Facebook, pr
 
 - **Goal, reframed.** 1M followers in a week is about 0% for a new account (01 §1). **1M combined views in week 1** is the stretch goal (250k committed); real milestones are 10k followers in month 1 and the first monetisable channel by month 3.
 - **The biggest risk is platform policy, not tooling.** YouTube's "inauthentic content" rule and Meta's unoriginal-content crackdown target templated faceless AI; one termination can spread to all of an owner's channels (03).
-- **Automated, with a person in the loop.** Per-channel brand packs, fact-checks, a cross-channel similarity check, human review before publishing, AI disclosure on.
+- **Current implementation:** follow [SETUP.md](../SETUP.md) and the [current code](../studio/). Every channel receives model uncertainty review; generated citations are not verified evidence. Research proposals below do not establish implemented features or production readiness. Human approval remains required before publishing.
 - **The money is in long-form.** Shorts/Reels build audience; revenue comes from long-form YouTube, affiliates, products and eventually channel sales (02 §3, 06 §10).
 - **Buffer handles short-form only** (GraphQL API, beta May 2026). **Long-form goes through the YouTube Data API** (05).
 - **No AI-persona sensitive topics.** YouTube demonetises a whole channel where an AI persona gives health, legal, finance or political advice, disclaimers notwithstanding (11), so the finance/legal channels were replaced (17). **HeyGen and the AI avatars were removed on 2026-10-16**, so all 10 channels are faceless (12 §2).
 - **Model split (updated 2026-10-16):**
   - **Text** runs on **Bedrock** (text models only): Haiku 5.5 for drafts, Sonnet 5.5 for polish and fact-checks, Opus 5.5 for disputes. The model IDs come from `.env` (`BEDROCK_MODEL_ID_FAST` / `_QUALITY` / `_ESCALATION`, 15 §Model IDs from .env). It costs about $23.50/month at full scale. **Claude Code headless** (`claude -p`) is the alternative.
   - **Audio runs locally on the M4 Pro**: Kokoro TTS and Parakeet captions, installed (about 2.7 GB). A 36 s Short takes about 10 s.
-  - **Visuals** (per beat): **local Z-Image-Turbo 4-bit** first, then **Pixabay** stock (free API key; Pexels dropped 2026-10-16), then a mock placeholder marked "do not publish". **No Bedrock image or video** (removed 2026-10-16). Stills are upscaled with **Real-ESRGAN**, and motion is **our own 2.5D parallax** (Depth Anything V2 Small) with zoompan as fallback (18).
+  - **Visuals** (per beat): **local Z-Image-Turbo 4-bit → Pixabay → mock** is the baseline. For stock-suitable beats with a `stock_query` and no diagram/cutaway shot, `car-cost-truth`, `square-foot-money` and `business-model-files` try Pixabay → Z-Image → mock. Other beats use Z-Image → Pixabay → mock. An explicit `STUDIO_IMAGES_AUTO_ORDER` overrides this conditional routing; stock-first can still fall back to Z-Image. Mock placeholders are marked "do not publish". Z-Image defaults to **640×1152**; `STUDIO_ZIMAGE_SIZE=576x1024` is the lower-memory override. **No Bedrock image or video** (removed 2026-10-16). Stills are upscaled with **Real-ESRGAN**, and motion is **our own 2.5D parallax** (Depth Anything V2 Small) with zoompan as fallback (18).
   - **AI video** clips use cloud APIs. They aren't practical locally (14 §7). No avatar lip-sync is used.
 - **Bedrock for judgement, not volume; text models only** (15): Sonnet 5.5 polish and fact-check, Opus 5.5 for disputes, about $25–30/month, behind one LiteLLM gateway.
 - **Agents only where they help** (16): Trend Scout and Fact-Checker are Strands agents; rendering and publishing are plain code queued by Prefect. **Nothing publishes without human approval.**
@@ -154,5 +154,5 @@ The plan is being built in this repo:
 3. How YouTube treats disclosed AI hosts and cartoon personas (no longer blocking: all channels are faceless since 2026-10-16). Watch the Creator Insider video linked in 11 §1.
 4. Buffer's per-channel price for more than 10 channels (05 §2).
 5. Instagram and Facebook availability for the 10 handles, and trademark clearance (13 §6).
-6. Your Bedrock account's actual quotas, and a first real Bedrock call (15 §8). No key is configured yet.
+6. Your Bedrock account's actual quotas and remaining integration checks (15 §8); historical setup notes do not establish current credential state.
 7. Whether posts scheduled through the API get less reach. No source confirms or rules this out, so test it in the pilot (06 §7).

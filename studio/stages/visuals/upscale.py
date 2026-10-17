@@ -2,18 +2,20 @@
 
 Stills are generated small (e.g. 544x960) and upscaled x4, then lanczos-resized and
 centre-cropped to exactly the frame size (doc 18 §5). The model is never downloaded here:
-run `scripts/setup/20-pull-models.sh --stage image` (or `hf download` the one file listed in
-models.manifest.yaml). The model stays resident between calls; `unload()` frees it.
+run `make models-dry STAGE=image` then `make models STAGE=image`. The model stays resident
+between calls; `unload()` frees it.
 """
 
 from __future__ import annotations
 
 import gc
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
 from studio.stages.base import EngineUnavailable
+from studio.stages.visuals.common import configure_cpu_threads
 
 REPO = "Comfy-Org/Real-ESRGAN_repackaged"
 FILENAME = "RealESRGAN_x4plus.safetensors"
@@ -48,7 +50,7 @@ def model_path() -> Path:
     if path is None or not path.exists():
         raise EngineUnavailable(
             f"upscale: Real-ESRGAN x4plus ({REPO}/{FILENAME}, 67 MB) is not downloaded. Run "
-            f"`hf download {REPO} {FILENAME}` or `scripts/setup/20-pull-models.sh --stage image` "
+            "`make models-dry STAGE=image` then `make models STAGE=image` "
             "(disk-checked), or set STUDIO_REALESRGAN_PATH"
         )
     return path
@@ -84,6 +86,7 @@ def _load() -> tuple[Any, str]:
         from spandrel import ModelLoader
     except ImportError as exc:  # pragma: no cover - deps are in the local-audio extra
         raise EngineUnavailable(f"upscale: needs torch + spandrel ({exc})") from exc
+    configure_cpu_threads(torch=torch)
     desc = ModelLoader().load_from_file(str(path))
     if desc.scale != SCALE:
         raise EngineUnavailable(f"upscale: expected a x{SCALE} model, got x{desc.scale}")
@@ -99,6 +102,7 @@ def _run_tiled(model: Any, img: Any, device: str) -> Any:
     """img: float32 tensor (1,3,H,W) on CPU in [0,1]. Returns (1,3,4H,4W) on CPU."""
     import torch
 
+    configure_cpu_threads(torch=torch)
     _, c, h, w = img.shape
     out = torch.zeros((1, c, h * SCALE, w * SCALE), dtype=torch.float32)
     dtype = next(model.parameters()).dtype
@@ -113,17 +117,16 @@ def _run_tiled(model: Any, img: Any, device: str) -> Any:
                 oy, ox = (y0 - py0) * SCALE, (x0 - px0) * SCALE
                 out[:, :, y0 * SCALE:y1 * SCALE, x0 * SCALE:x1 * SCALE] = res[
                     :, :, oy:oy + (y1 - y0) * SCALE, ox:ox + (x1 - x0) * SCALE]
+                del tile, res
+                _empty_cache(device)
     return out
 
 
 def _empty_cache(device: str | None) -> None:
-    try:
-        import torch
-
-        if device == "mps" and torch.backends.mps.is_available():
-            torch.mps.empty_cache()
-    except ImportError:  # pragma: no cover
-        pass
+    # Cleanup cannot initialise a GPU runtime by importing torch or probing MPS.
+    torch = sys.modules.get("torch")
+    if device == "mps" and torch is not None:
+        torch.mps.empty_cache()
 
 
 def upscale_to(path_in: Path | str, path_out: Path | str, width: int, height: int) -> Path:
@@ -132,6 +135,7 @@ def upscale_to(path_in: Path | str, path_out: Path | str, width: int, height: in
     import cv2
     import numpy as np
 
+    configure_cpu_threads(cv2=cv2)
     path_in, path_out = Path(path_in), Path(path_out)
     src = cv2.imread(str(path_in), cv2.IMREAD_COLOR)
     if src is None:

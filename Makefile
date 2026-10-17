@@ -58,6 +58,9 @@ smoke: ## 5 s test clip through each stage; SKIPs stages whose models are missin
 smoke-mock: ## run `studio make --mock` (SKIPs if the CLI isn't ready)
 	@bash $(SETUP)/30-smoke-test.sh --mock $(if $(ARGS),-- $(ARGS),)
 
+guarded: ## macOS: run studio with 3 CPU threads, stop if memory leaves green or disk <10 GB
+	.venv/bin/python scripts/run_guarded.py -- .venv/bin/studio $(ARGS)
+
 test: ## run the test suite
 	uv run pytest -q
 

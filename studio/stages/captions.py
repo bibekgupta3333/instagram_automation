@@ -1,7 +1,11 @@
 """Stage 4: captions. Word timestamps from parakeet-mlx (doc 14 §5, default), from Kokoro's
 own timings (`kokoro-timestamps`, no second model), or a mock engine that spreads each
 segment's words evenly over its narration time. Writes words.json, a styled
-.ass (big centred karaoke-style words in the brand palette, 9:16 safe margins) and an .srt.
+.ass and an .srt. The .ass holds Shorts-style captions (1-3 big upper-case words, thick outline
+and shadow, the spoken word in the brand accent with a scale pop, kept in the 9:16 safe area:
+clear of the bottom 18% UI band, the top 10% and the right rail; long-form gets smaller 1-2
+line captions at the bottom) and each `beat.overlay` as an animated title card in the upper
+third, timed to its beat, so no text ever has to be inside the AI images.
 """
 
 from __future__ import annotations
@@ -10,10 +14,12 @@ import gc
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
-from studio.contracts import BrandPack, VideoJob
+from studio.config import REPO_ROOT
+from studio.contracts import BrandPack, Script, VideoJob
 from studio.stages.base import (
     EngineUnavailable,
     StageContext,
@@ -21,21 +27,34 @@ from studio.stages.base import (
     hash_inputs,
     is_cached,
     log,
+    luminance,
     media_duration,
     palette_roles,
     write_cache,
 )
 
 STAGE = "captions"
-VERSION = 2
+VERSION = 4  # 4: safe caption text and nonzero ASS event durations
 PARAKEET_MODEL = os.environ.get("STUDIO_PARAKEET_MODEL", "mlx-community/parakeet-tdt-0.6b-v2")
-FONT = os.environ.get("STUDIO_CAPTION_FONT", "Arial Black")
+FONT_ENV = os.environ.get("STUDIO_CAPTION_FONT", "").strip()
+# macOS system fallbacks, boldest first (libass finds them via CoreText)
+SYSTEM_FONTS = (
+    ("Arial Black", "/System/Library/Fonts/Supplemental/Arial Black.ttf"),
+    ("Helvetica Neue", "/System/Library/Fonts/HelveticaNeue.ttc"),
+    ("Impact", "/System/Library/Fonts/Supplemental/Impact.ttf"),
+)
+OVERLAY_DELAY_S = 0.12  # the title card lands just after the beat starts
+OVERLAY_MAX_S = 3.0  # and leaves before it becomes wallpaper
 CHUNK_S = 120.0  # parakeet chunk length for long narration (its CLI default)
 CHUNK_OVER_S = 150.0  # transcribe in one pass below this
 
 _parakeet: Any = None
 
 Word = dict[str, Any]  # {"text": str, "start": float, "end": float}
+
+
+def assets_fonts_dir() -> Path:
+    return Path(os.environ.get("STUDIO_ASSETS_DIR") or REPO_ROOT / "assets") / "fonts"
 
 
 def frame_size(fmt: str) -> tuple[int, int]:
@@ -89,8 +108,10 @@ def parakeet_words(audio: Path) -> list[Word]:
     kwargs: dict[str, Any] = {}
     if media_duration(audio) > CHUNK_OVER_S:
         kwargs = {"chunk_duration": CHUNK_S, "overlap_duration": 15.0}
-    result = model.transcribe(str(audio), **kwargs)
-    _clear_mlx_cache()  # don't let freed Metal buffers pile up across a batch
+    try:
+        result = model.transcribe(str(audio), **kwargs)
+    finally:
+        _clear_mlx_cache()  # don't let freed Metal buffers pile up across a batch
     words: list[Word] = []
     new_word = True
     for sentence in result.sentences:
@@ -125,11 +146,10 @@ def kokoro_words(workdir: Path) -> list[Word]:
 
 
 def _clear_mlx_cache() -> None:
-    try:
-        import mlx.core as mx
-    except ImportError:
-        return
-    mx.clear_cache()
+    # Mock runs and cleanup must never initialise Metal merely to release it.
+    mx = sys.modules.get("mlx.core")
+    if mx is not None:
+        mx.clear_cache()
 
 
 def unload() -> None:
@@ -165,13 +185,23 @@ def _srt_time(t: float) -> str:
 
 
 def _clean(text: str) -> str:
-    return text.replace("\\", "/").replace("{", "(").replace("}", ")")
+    return " ".join(text.split()).replace("\\", "/").replace("{", "(").replace("}", ")")
 
 
-def chunk_words(words: list[Word], size: int) -> list[list[Word]]:
+def chunk_words(
+    words: list[Word], size: int, max_chars: int = 0, max_gap: float = 0.0
+) -> list[list[Word]]:
+    """Group words into on-screen chunks: at most `size` words (and `max_chars` characters
+    when set), always breaking after sentence punctuation and before a pause > max_gap."""
     chunks: list[list[Word]] = []
     cur: list[Word] = []
     for w in words:
+        if cur:
+            chars = sum(len(x["text"]) + 1 for x in cur) + len(w["text"])
+            gap = float(w["start"]) - float(cur[-1]["end"])
+            if (max_chars and chars > max_chars) or (max_gap and gap > max_gap):
+                chunks.append(cur)
+                cur = []
         cur.append(w)
         if len(cur) >= size or re.search(r"[.!?:;]$", w["text"]):
             chunks.append(cur)
@@ -181,46 +211,162 @@ def chunk_words(words: list[Word], size: int) -> list[list[Word]]:
     return chunks
 
 
-def write_ass(words: list[Word], brand: BrandPack, fmt: str, path: Path) -> None:
+def caption_font() -> str:
+    """STUDIO_CAPTION_FONT, else the family of the first font bundled in assets/fonts/ (passed
+    to libass as fontsdir by render), else a macOS system face (Arial Black, Helvetica Neue)."""
+    if FONT_ENV:
+        return FONT_ENV
+    fonts = assets_fonts_dir()
+    for p in sorted(fonts.glob("*")) if fonts.is_dir() else []:
+        if p.suffix.lower() in (".ttf", ".otf"):
+            family = _font_family(p)
+            if family:
+                return family
+    for name, path in SYSTEM_FONTS:
+        if Path(path).exists():
+            return name
+    return "Arial Black"
+
+
+def _font_family(path: Path) -> str | None:
+    try:
+        from fontTools.ttLib import TTFont  # ships with matplotlib/pillow deps; optional
+    except ImportError:
+        return None
+    try:
+        with TTFont(str(path), lazy=True) as font:
+            names = font["name"]
+            rec = names.getName(16, 3, 1) or names.getName(1, 3, 1) or names.getName(1, 1, 0)
+            return str(rec) if rec else None
+    except Exception:  # noqa: BLE001 - any unreadable font file: fall through to system fonts
+        return None
+
+
+def _wrap_overlay(text: str, max_chars: int) -> str:
+    """Upper-case card text, split into two balanced lines when longer than max_chars."""
+    t = _clean(" ".join(text.split())).upper()
+    words = t.split()
+    if len(t) <= max_chars or len(words) < 2:
+        return t
+    best = min(range(1, len(words)),
+               key=lambda i: abs(len(" ".join(words[:i])) - len(" ".join(words[i:]))))
+    return " ".join(words[:best]) + "\\N" + " ".join(words[best:])
+
+
+def overlay_events(script: Script | None, timings: dict[str, Any]) -> list[dict[str, Any]]:
+    """[{text, start, end}] for each beat with an overlay, timed to the beat's narration:
+    in OVERLAY_DELAY_S after the beat starts, out after at most OVERLAY_MAX_S."""
+    if script is None:
+        return []
+    spans = {int(s["beat"]): (float(s["start"]), float(s["end"]))
+             for s in timings.get("segments", []) if s.get("kind") == "beat"}
+    out = []
+    for i, beat in enumerate(script.beats):
+        text = (beat.overlay or "").strip()
+        if not text or i not in spans:
+            continue
+        start, end = spans[i]
+        start += OVERLAY_DELAY_S
+        end = min(end, start + OVERLAY_MAX_S)
+        if end - start >= 0.5:
+            out.append({"text": text, "start": round(start, 3), "end": round(end, 3)})
+    return out
+
+
+def write_ass(
+    words: list[Word], brand: BrandPack, fmt: str, path: Path,
+    overlays: list[dict[str, Any]] | None = None,
+) -> None:
+    """Shorts: 1-3 big bold upper-case words, thick outline + shadow, the spoken word in the
+    brand accent with a scale pop, kept inside the safe area (clear of the bottom 18% UI band,
+    the top 10% and the right-hand action rail). Long-form: smaller 1-2 line captions at the
+    bottom. `overlays` become animated title cards in the upper third (brand colours)."""
     w, h = frame_size(fmt)
     roles = palette_roles(brand.palette)
     short = fmt == "short"
-    size = int(h * (0.05 if short else 0.06))
-    margin_v = int(h * (0.30 if short else 0.08))  # 9:16: clear the bottom platform UI
-    margin_l = int(w * 0.08)
-    margin_r = int(w * (0.13 if short else 0.08))  # 9:16: clear the right-hand action rail
-    style = (
-        f"Style: Word,{FONT},{size},&H00FFFFFF,{_ass_colour(roles['accent'])},"
-        f"{_ass_colour(roles['dark'])},&H80000000,-1,0,0,0,100,100,0,0,1,"
-        f"{max(4, size // 14)},2,2,{margin_l},{margin_r},{margin_v},1"
-    )
+    font = caption_font()
+    white, dark, accent = "&H00FFFFFF", _ass_colour(roles["dark"]), _ass_colour(roles["accent"])
+    shadow_col = "&H64000000"  # black, ~60% opaque
+    if short:
+        size = int(h * 0.062)  # ~119 px on 1920
+        outline, shadow = max(6, size // 10), max(3, size // 22)
+        margin_v = int(h * 0.27)  # caption block sits at ~60-73% height: clear of the UI band
+        margin_l, margin_r = int(w * 0.08), int(w * 0.14)  # 9:16: clear the action rail
+    else:
+        size = int(h * 0.05)
+        outline, shadow = max(3, size // 16), 2
+        margin_v = int(h * 0.06)
+        margin_l = margin_r = int(w * 0.12)
+    card = int(h * (0.062 if short else 0.075))
+    card_text = dark if luminance(roles["accent"]) > 0.45 else white
+    styles = [
+        (f"Style: Word,{font},{size},{white},{accent},{dark},{shadow_col},-1,0,0,0,100,100,"
+         f"{1 if short else 0},0,1,{outline},{shadow},2,{margin_l},{margin_r},{margin_v},1"),
+        # BorderStyle 3 = opaque box in OutlineColour (the accent) padded by Outline px
+        (f"Style: Card,{font},{card},{card_text},{accent},{accent},{shadow_col},-1,0,0,0,"
+         f"100,100,2,0,3,{max(10, card // 5)},{max(4, card // 14)},8,{margin_l},{margin_r},0,1"),
+    ]
     lines = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {w}", f"PlayResY: {h}",
-        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
+        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "YCbCr Matrix: TV.709", "",
         "[V4+ Styles]",
         ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
         "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
         "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"),
-        style, "",
+        *styles, "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
-    accent = _ass_colour(roles["accent"])
-    for chunk in chunk_words(words, 3 if short else 6):
-        chunk_end = chunk[-1]["end"]
-        texts = [_clean(x["text"]).upper() for x in chunk]
+    lines += _caption_events(words, short, accent, white)
+    cx, cy = w // 2, int(h * (0.13 if short else 0.08))  # top edge: below the top 10%
+    for ov in overlays or []:
+        text = _wrap_overlay(ov["text"], 16 if short else 28)
+        numeric = bool(re.search(r"\d", text)) and len(text) <= 9  # "40 TONS", "8 MIN"
+        big = "\\fs" + str(int(card * 1.35)) if numeric else ""
+        tilt = "\\frz-2" if short else ""
+        anim = ("\\fad(90,140)\\fscx45\\fscy45\\t(0,150,\\fscx110\\fscy110)"
+                "\\t(150,260,\\fscx100\\fscy100)")
+        lines.append(
+            f"Dialogue: 1,{_ass_time(ov['start'])},{_ass_time(ov['end'])},Card,,0,0,0,,"
+            f"{{\\an8\\pos({cx},{cy}){tilt}{big}{anim}}}{text}"
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _caption_events(words: list[Word], short: bool, accent: str, white: str) -> list[str]:
+    events = []
+    chunks = (chunk_words(words, 3, max_chars=15, max_gap=0.45) if short
+              else chunk_words(words, 8, max_chars=48, max_gap=0.7))
+    for n, chunk in enumerate(chunks):
+        nxt = chunks[n + 1][0]["start"] if n + 1 < len(chunks) else None
+        chunk_end = float(chunk[-1]["end"]) + 0.12
+        if nxt is not None and float(nxt) - chunk_end < 0.25:  # no flicker on tiny gaps
+            chunk_end = float(nxt)
+        if nxt is not None:
+            chunk_end = min(chunk_end, float(nxt))
+        texts = [_clean(x["text"]).upper() if short else _clean(x["text"]) for x in chunk]
         for i, word in enumerate(chunk):
             end = chunk[i + 1]["start"] if i + 1 < len(chunk) else chunk_end
-            parts = [
-                f"{{\\c{accent}\\fscx115\\fscy115}}{t}{{\\r}}" if j == i else t
-                for j, t in enumerate(texts)
-            ]
-            pop = "{\\fad(60,0)}" if i == 0 else ""
-            lines.append(
+            if round(float(end) * 100) <= round(float(word["start"]) * 100):
+                continue
+            if short:  # active word: accent + scale pop (ASS \t), the rest plain white
+                on = (f"{{\\c{accent}\\fscx100\\fscy100\\t(0,70,\\fscx124\\fscy124)"
+                      f"\\t(70,150,\\fscx112\\fscy112)}}")
+                # words after the active one: the chunk's pop-in on its first event, else 100%
+                off = (f"{{\\c{white}\\fscx88\\fscy88\\t(0,90,\\fscx100\\fscy100)}}" if i == 0
+                       else f"{{\\c{white}\\fscx100\\fscy100}}")
+            else:
+                on, off = f"{{\\c{accent}}}", f"{{\\c{white}}}"
+            parts = [f"{on}{t}{off}" if j == i else t for j, t in enumerate(texts)]
+            lead = ""
+            if i == 0:  # the chunk pops in
+                lead = ("{\\fad(40,0)\\fscx88\\fscy88\\t(0,90,\\fscx100\\fscy100)}" if short
+                        else "{\\fad(60,0)}")
+            events.append(
                 f"Dialogue: 0,{_ass_time(word['start'])},{_ass_time(end)},Word,,0,0,0,,"
-                f"{pop}{' '.join(parts)}"
+                f"{lead}{' '.join(parts)}"
             )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return events
 
 
 def write_srt(words: list[Word], path: Path) -> None:
@@ -243,8 +389,11 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     ass, srt, words_path = workdir / "captions.ass", workdir / "captions.srt", workdir / "words.json"
     engine = ctx.engine("captions")
     tts_words = workdir / "tts_words.json"
-    key = hash_inputs(STAGE, VERSION, engine, audio, timings_path, brand.palette, job.format, FONT,
-                      tts_words if engine == "kokoro-timestamps" else None)
+    font = caption_font()
+    overlays_src = [b.overlay for b in job.script.beats] if job.script else []
+    key = hash_inputs(STAGE, VERSION, engine, audio, timings_path, brand.palette, job.format, font,
+                      overlays_src, tts_words if engine == "kokoro-timestamps" else None,
+                      PARAKEET_MODEL if engine == "parakeet" else None)
     if is_cached(job, STAGE, key, [ass, srt, words_path], ctx):
         job.captions_path = ass
         log(job, "captions: cached, skipped")
@@ -268,9 +417,11 @@ def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
         raise StageError("captions: no words recognised")
 
     words_path.write_text(json.dumps(words, indent=1))
-    write_ass(words, brand, job.format, ass)
+    timings = json.loads(timings_path.read_text()) if timings_path.exists() else {}
+    overlays = overlay_events(job.script, timings)
+    write_ass(words, brand, job.format, ass, overlays)
     write_srt(words, srt)
     job.captions_path = ass
     write_cache(job, STAGE, key, [ass, srt, words_path])
-    log(job, f"captions: {engine} {len(words)} words")
+    log(job, f"captions: {engine} {len(words)} words, {len(overlays)} overlays, font {font}")
     return job

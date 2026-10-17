@@ -1,5 +1,7 @@
 # 18 — Lightweight Local Image and Video Models (Open Source)
 
+> **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
+
 Status: current · Updated: 2026-10-16 · Related: [14](14-local-models-mac-m4.md), [04](04-content-pipeline-architecture.md), [15](../5-automation/15-bedrock-hybrid-routing.md)
 
 This doc replaces doc 14's image and video picks for a disk-constrained Mac: an M4 Pro with 24 GB, about **10 GB free**, and a 10 GB floor to keep free. Three agents did the research in parallel (images, video, runtimes). Sizes come from the Hugging Face file-tree API. **No M4 Pro timings exist for these exact quants, so figures marked *(est.)* are extrapolations.**

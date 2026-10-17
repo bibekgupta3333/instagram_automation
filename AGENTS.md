@@ -22,6 +22,11 @@ Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working
 - Download only with `make models-dry` and then `make models` (`scripts/setup/20-pull-models.sh`). Never trigger a download from code or a render, and never set `STUDIO_ALLOW_MODEL_DOWNLOAD=1`.
 - Never pass `-q` to mflux or use base model names. Use only the pre-quantized `mflux-community/*-q4` repos; the others are 16–33 GB downloads.
 - Run one heavy model at a time (Z-Image peaks at about 12.6 GB). Keep the MLX cache clearing and the unloading between stages in TTS, captions and images.
+- For real media work use `make guarded ARGS='make ...'` (`scripts/run_guarded.py`).
+  It samples memory pressure every second, refuses non-green starts, stops its own process
+  group at yellow/red or below 10 GB free, and limits CPU pools to 3 threads. Never bypass
+  a resource stop or raise GPU limits to force a render. Use stock-only footage when the
+  installed image model cannot run with green pressure. Sampling cannot prevent every spike.
 
 **Platform policy** (docs 03, 11, 17)
 - Never present an AI narrator as a human expert, or give health, legal, finance or political advice. Disclaimers don't fix this. Write explainers, not advice.
@@ -51,6 +56,7 @@ Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working
 - **Setup:** `make deps` (= `uv sync --extra local-audio --extra local-image --extra bedrock --group dev`) · `make preflight` (read-only check) · `make tools` / `make tools-dry`
 - **Models:** `make models-dry [STAGE=llm|tts|asr|image|video|music|all] [OPTIONAL=1]` · `make models` · `make models-audio`
 - **Smoke:** `make smoke` (skips missing models) · `make smoke-mock`
+- **Guarded preview:** `make guarded ARGS='make --channel car-cost-truth --topic "..."'`
 - **Tests:** `make test` · one file: `uv run pytest -q tests/test_pipeline.py` · one test: `uv run pytest -q tests/test_pipeline.py -k name`
 - **Lint:** `make lint` (`ruff`, line length 100)
 - **Gateway:** `make gateway` (LiteLLM on 127.0.0.1:4000, optional)

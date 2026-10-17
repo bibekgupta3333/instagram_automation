@@ -10,11 +10,15 @@ All the scripts live in `scripts/setup/`, and every step has a `make` target.
 > (Kokoro TTS + parakeet captions) and **images** (mflux) run on the Mac.
 
 ```
-make preflight  →  make tools  →  make deps  →  make models  →  make smoke
+make preflight  →  make tools  →  make deps  →  make models-dry  →  make models
 ```
 
 This machine runs **Configuration A** (§1a): local audio, local Z-Image-Turbo 4-bit stills,
 Real-ESRGAN upscaling and depth parallax.
+
+Every channel receives model uncertainty review through the configured text backend.
+This is not source verification: model-generated citations are not trusted evidence.
+Use guarded execution for real media (§8); never raise GPU limits to force a render.
 
 ---
 
@@ -33,7 +37,6 @@ Real-ESRGAN upscaling and depth parallax.
 Then set up the project:
 
 ```bash
-uv sync                    # base deps + dev group (small)
 cp .env.example .env       # STUDIO_LLM=bedrock|claude-code; AWS_PROFILE = a *personal* account only
 make deps                  # = uv sync --extra local-audio --extra local-image --extra bedrock --group dev
 ```
@@ -82,18 +85,18 @@ make deps                                  # Python runtimes (see the uv warning
 make models-dry                            # plan + disk check
 make models                                # the manifest's default set (all non-optional models)
 make models STAGE=image                    # Z-Image q4 + Real-ESRGAN only
-uv run studio make --channel megabuild-blueprint --topic "..." --engine llm=mock   # real audio + images
+make guarded ARGS='make --channel megabuild-blueprint --topic "..." --engine llm=mock'  # real audio + images
 ```
 
-How the images stage uses it (`studio/stages/images.py`): `images=auto` tries, per beat,
-`z-image-turbo` → Pixabay → mock (a placeholder marked "do not publish"). There is no Bedrock
+How the images stage uses it (`studio/stages/images.py`): For stock-suitable beats with a `stock_query` and no diagram/cutaway shot, `car-cost-truth`, `square-foot-money` and `business-model-files` try Pixabay → Z-Image → mock. Other beats use Z-Image → Pixabay → mock. An explicit `STUDIO_IMAGES_AUTO_ORDER` overrides this conditional routing; stock-first can still fall back to Z-Image. Mock placeholders are marked "do not publish". There is no Bedrock
 image or video engine: Bedrock is used for text only. Z-Image renders a raw still at
-**576×1024** (1024×576 long-form) into `images/raw/`, then Real-ESRGAN x4 makes the
-1080×1920 frame. The exact command it runs:
+**640×1152 by default** (1152×640 long-form); use `STUDIO_ZIMAGE_SIZE=576x1024`
+for the lower-memory override (1024×576 long-form). Stills go into `images/raw/`, then Real-ESRGAN x4 makes the
+1080×1920 frame. The default mflux invocation below is shown for reference; run real media through `make guarded`:
 
 ```bash
 .venv/bin/mflux-generate-z-image-turbo --model mflux-community/z-image-turbo-mflux-q4 \
-  --steps 9 --width 576 --height 1024 --seed 42 --prompt "..." --output out.png
+  --steps 9 --width 640 --height 1152 --seed 42 --prompt "..." --output out.png
 ```
 
 - The repo id alone is enough: mflux infers `z-image-turbo` from the name (no `--base-model`).
@@ -101,10 +104,11 @@ image or video engine: Bedrock is used for text only. Z-Image renders a raw stil
   multiples of 16.
 - **Never** add `-q 4` or use the built-in `z-image-turbo` name: both pull the 32.9 GB base
   repo. The stage runs mflux with `HF_HUB_OFFLINE=1` and refuses if the repo is not in the HF
-  cache, unless `STUDIO_ALLOW_MODEL_DOWNLOAD=1`.
+  cache. Never set `STUDIO_ALLOW_MODEL_DOWNLOAD=1`; downloads belong in the setup pull script.
 - Measured on this M4 Pro 24 GB (`/usr/bin/time -l`, output/benchmarks/zimage/): 576×1024 is
   ~79–84 s per still (9 steps × ~7.1 s + ~15 s load), 720×1280 is ~96–130 s. Peak memory
-  footprint 12.6 GB (576×1024) to 15.5 GB (720×1280); close other big apps, and expect swap.
+  footprint 12.6 GB (576×1024) to 15.5 GB (720×1280). These historical measurements do not
+  guarantee a green-pressure run; respect guard stops and use stock-only footage when needed.
 
 ## 2. Free up disk first
 
@@ -135,7 +139,7 @@ holds the repo, so check the SSD yourself with `df -h /Volumes/SSD`.
 ## 3. Disk needed per stage
 
 Generated from `scripts/setup/models.manifest.yaml`. Every listed model is licensed for commercial use.
-The default pull set (`make models`) is **tts + asr + image**. Every LLM is optional because
+The default pull set (`make models`) is **tts + asr + image + video (depth)**. Every LLM is optional because
 text runs on Bedrock / Claude Code.
 
 | Stage | Models | Download (GB) |
@@ -194,10 +198,13 @@ make models STAGE=llm OPTIONAL=1      # only for offline LLM experiments (needs 
   `uvx --from huggingface_hub hf`) into the HF cache. Use
   `bash scripts/setup/20-pull-models.sh --dest models` to put them in `./models/<repo>` instead (git-ignored).
 - Models that are already present are skipped.
-- Runtimes: `make deps` (audio + image + bedrock + dev). For music, clone ACE-Step into
-  `vendor/ACE-Step-1.5` (or set `ACE_STEP_DIR`) and run `uv sync` there.
+- Runtimes: use `make deps` (audio + image + bedrock + dev). Optional external music
+  runtimes are separate from the project environment; do not sync a reduced set of extras here.
 
 ### 4.4 `make smoke`
+
+For real smoke work, use the guard: `.venv/bin/python scripts/run_guarded.py -- make smoke`.
+The `make guarded` target wraps the studio CLI, so it cannot wrap a Make target directly.
 
 This renders a 5-second 1080×1920 test clip through each stage: (optional local LLM hook) →
 Kokoro voice → parakeet word timings → Z-Image still → ACE-Step bed → FFmpeg render with
@@ -211,12 +218,11 @@ how closely parakeet's word starts match Kokoro's own timings.
 - Add `--stage <name>` to run one stage: `bash scripts/setup/30-smoke-test.sh --stage render`.
 - To run the music stage, set `ACE_STEP_CMD` to the repo's generate command, which must write `$OUT_WAV`.
 
-`make smoke-mock` runs `uv run studio make --mock` with no models. It SKIPs until the
-`studio` CLI exists. Pass extra args with `make smoke-mock ARGS="..."`.
+`make smoke-mock` runs the existing `studio` CLI with `--mock` and no models.
+Pass extra args with `make smoke-mock ARGS="..."`.
 
 A real audio run of the whole pipeline (text still mock, images placeholder):
-`uv run studio make --channel gravity-what-if --topic "..." --engine images=mock` with
-`STUDIO_LLM` set in `.env`. Captions engines: `parakeet` (default, measures the audio),
+`make guarded ARGS='make --channel gravity-what-if --topic "..." --engine llm=mock --engine images=mock'`. Captions engines: `parakeet` (default, measures the audio),
 `kokoro-timestamps` (reuses Kokoro's own word timings from `tts_words.json`, no second model)
 and `mock`.
 
@@ -227,17 +233,12 @@ peak ~4.4 GB; parakeet and Kokoro word starts agree to ~0.09 s on average.
 Then do the doc 14 §9.6 week-1 benchmark: time 20 Kokoro minutes and 20 stills, then repeat
 after 30 minutes of load to see the effect of heat.
 
-## 5. GPU wired-memory limit (optional, you run it)
+## 5. GPU memory safety
 
-See [scripts/setup/40-gpu-limit.md](scripts/setup/40-gpu-limit.md). In short:
-
-```bash
-sysctl iogpu.wired_limit_mb                  # 0 = default (~16–18 GB on 24 GB)
-sudo sysctl iogpu.wired_limit_mb=19456       # ~19 GB, until reboot
-sudo sysctl iogpu.wired_limit_mb=0           # revert
-```
-
-Never set it above about 20 GB on a 24 GB Mac. Even with the limit raised, run **one heavy model at a time**.
+Keep the system GPU memory limit unchanged and run **one heavy model at a time** through
+the guard. Never raise the wired limit or bypass a resource stop to force a render.
+Use `STUDIO_ZIMAGE_SIZE=576x1024` as a lower-memory override; if pressure cannot remain
+green, use stock-only footage. Stock-first routing alone still permits local image generation.
 
 ## 6. Ollama and the MLX backend (optional; doc 14 §3)
 
@@ -278,6 +279,22 @@ Keep this only for offline LLM experiments.
 
 ## 8. Troubleshooting
 
+For foreground-friendly work on macOS, use the guarded launcher:
+
+```bash
+make guarded ARGS='make --channel car-cost-truth --topic "Why streamlined cars face less drag"'
+```
+
+It permits one guarded job at a time, sets CPU worker pools to 3 threads, keeps model
+downloads offline, and checks macOS memory pressure and free disk every second. It stops
+only its own process group if pressure leaves green, disk drops below 10 GB, or telemetry
+cannot be read. Exit code 75 means the run was stopped or refused; re-run after resources
+recover to resume cached stages. Samples are in `output/memory-pressure.jsonl`.
+This is a sampled safeguard, not a guarantee against brief spikes or other apps using RAM.
+Three worker threads are an approximate background-work setting, not a hard 25% CPU cap.
+Keep Z-Image at `STUDIO_ZIMAGE_SIZE=576x1024` for lower memory use; set this in the shell
+for a run rather than changing global macOS GPU limits.
+
 | Symptom | Fix |
 |---|---|
 | Preflight `[FAIL] free X GB < required Y GB` | See §2. Pull one stage at a time; each model needs its size + 10 GB free |
@@ -285,14 +302,14 @@ Keep this only for offline LLM experiments.
 | `ollama server not running` | Only matters for optional local LLM pulls: `make ollama` |
 | `ollama pull` slow or stalls | Re-run; pulls resume. Check `df -h` |
 | Model runs at a few tokens/s, `ollama ps` shows CPU/GPU split | The model doesn't fit the wired limit. Use the 9B, close apps, see §5 |
-| `MPS backend out of memory` (mflux, ACE-Step) | `ollama stop <model>` first; render at 576x1024 (not larger), close other GPU apps, raise the wired limit. **Never** use mflux `-q` (it downloads the 16–33 GB base model) |
+| `MPS backend out of memory` (mflux, ACE-Step) | Stop other heavy jobs, render at 576x1024, and use the guarded launcher. Do not raise the wired limit to force a workload through. **Never** use mflux `-q` (it downloads the 16–33 GB base model) |
 | ffmpeg lacks libass / `No such filter: 'ass'` | `brew reinstall ffmpeg`; make sure `/opt/homebrew/bin` comes first on `PATH` |
 | `h264_videotoolbox` errors | Some sizes need even dimensions; use `-pix_fmt yuv420p`. Fall back to `-c:v libx264` |
-| `venv cannot import studio` | `uv sync` from the repo root |
+| `venv cannot import studio` | `make deps` from the repo root |
 | `Kokoro requires the optional 'misaki' package` / spaCy `en_core_web_sm` missing | `make deps` (the extra pins the spaCy model wheel; `spacy download` needs pip, which uv venvs lack) |
-| `uv sync` removed boto3 or mflux | `uv sync` keeps only the extras you name: pass every one you need (`--extra local-audio --extra bedrock …`) |
+| `uv sync` removed boto3 or mflux | Run `make deps` to restore all required extras |
 | `tts: unknown Kokoro US voice(s)` | Use a voice from `KOKORO_US_VOICES` in `studio/stages/tts.py` (or `STUDIO_KOKORO_ANY_VOICE=1`) |
-| `smoke-mock` SKIPs | The `studio` CLI (`studio/cli.py`) isn't built yet. This is expected for now |
+| `smoke-mock` SKIPs | Check that setup is complete and run `make deps`; the `studio` CLI exists |
 | mflux/mlx-audio flag errors in smoke | Their CLIs change often. Check `--help` and adjust `scripts/setup/30-smoke-test.sh` |
 | `hf download` 401/403 | The listed repos are public, so check `HF_TOKEN` isn't set to a stale value |
 | AWS commands touch the wrong account | Set `AWS_PROFILE` in `.env` to a **personal** account. Never use an employer profile |

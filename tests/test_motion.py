@@ -27,6 +27,9 @@ def clean_env(monkeypatch):
     for k in ("STUDIO_MOTION", "STUDIO_PARALLAX_AMP", "STUDIO_DEPTH_MODEL_DIR"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("STUDIO_SKIP_LEDGER", "1")
+    encoder_args = motion._encoder_args
+    monkeypatch.setattr(motion, "_encoder_args", lambda name: encoder_args("libx264"))
+    monkeypatch.setattr(render, "ENCODERS", [render.ENCODERS[-1]])
 
 
 def ff(*args):
@@ -52,7 +55,7 @@ def test_presets_deterministic_rotating_and_complete():
     assert len(seqs) > 5  # varies across jobs (not templated)
 
 
-@pytest.mark.parametrize("preset", motion.PRESETS)
+@pytest.mark.parametrize("preset", motion.ALL_PRESETS)
 def test_camera_stays_inside_margin(preset):
     amp_px = 0.04 * 1080  # above the default, still within the margin
     margin = 0.7 * amp_px
@@ -95,6 +98,29 @@ def test_model_dir_needs_all_files(tmp_path, monkeypatch):
     for f in ("preprocessor_config.json", "model.safetensors"):
         (snap / f).write_text("{}")
     assert motion.model_dir() == snap
+
+
+def test_failed_depth_load_does_not_leave_partial_model(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(motion, "model_dir", lambda: tmp_path)
+    for name in ("_model", "_processor", "_device"):
+        monkeypatch.setattr(motion, name, None)
+
+    def fail_device(device):
+        raise RuntimeError("device unavailable")
+
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(
+        backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda: False)),
+        set_num_threads=lambda n: None))
+    monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(
+        AutoImageProcessor=SimpleNamespace(from_pretrained=lambda *a, **k: object()),
+        AutoModelForDepthEstimation=SimpleNamespace(
+            from_pretrained=lambda *a, **k: SimpleNamespace(to=fail_device))))
+    with pytest.raises(RuntimeError, match="device unavailable"):
+        motion._load()
+    assert motion._model is motion._processor is motion._device is None
 
 
 # ---------------------------------------------------------------- edge handling
@@ -174,15 +200,16 @@ def test_depth_is_cached_per_image_hash(tmp_path, monkeypatch):
 # ---------------------------------------------------------------- render motion mode
 
 
-def ctx(tmp_path, tts="kokoro"):
+def ctx(tmp_path, tts="kokoro", images="z-image-turbo"):
     return StageContext(settings=Settings(output_dir=tmp_path), chat=MockChatClient(),
-                        engines={"images": "mock", "tts": tts})
+                        engines={"images": images, "tts": tts})
 
 
 def test_motion_mode_selection(tmp_path, monkeypatch):
     monkeypatch.setattr(motion, "available", lambda: True)
     assert render.motion_mode(ctx(tmp_path))[0] == "parallax"
-    assert render.motion_mode(ctx(tmp_path, tts="mock"))[0] == "zoompan"  # full --mock
+    assert render.motion_mode(ctx(tmp_path, tts="mock"))[0] == "zoompan"
+    assert render.motion_mode(ctx(tmp_path, images="mock"))[0] == "zoompan"
     monkeypatch.setenv("STUDIO_MOTION", "parallax")
     assert render.motion_mode(ctx(tmp_path, tts="mock"))[0] == "parallax"
     monkeypatch.setenv("STUDIO_MOTION", "zoompan")
@@ -289,3 +316,89 @@ def test_real_parallax_clip(tmp_path):
     motion.unload()
     assert int(probe(out)["streams"][0]["nb_read_frames"]) == 30
     assert list((tmp_path / "depth").glob("*.npy"))
+
+
+# ---------------------------------------------------------------- shot-driven motion
+
+
+@pytest.mark.parametrize(("shot", "family"), [
+    ("wide establishing", {"dolly-in", "dolly-out", "pan-left", "pan-right"}),
+    ("close-up detail", {"push-in", "dolly-in"}),
+    ("aerial drone", {"rise", "orbit"}),
+    ("diagram", {"gentle-zoom"}),
+    ("", set(motion.PRESETS)),
+])
+def test_preset_follows_shot_type(shot, family):
+    got = {motion.preset_for_shot(shot, p) for p in motion.PRESETS}
+    assert got == family  # the rotation still varies the move inside the family
+    first = min(family)
+    assert motion.preset_for_shot(shot, first) == first
+
+
+def test_shot_hint_from_visuals_manifest(tmp_path):
+    img_dir = tmp_path / "images"
+    img_dir.mkdir()
+    (img_dir / "visuals.json").write_text(json.dumps({"key": "k", "beats": [
+        {"beat": 0, "shot": "aerial", "visual": {"path": str(img_dir / "beat_00.png")}},
+        {"beat": 1, "visual": {"path": str(img_dir / "beat_01.png")}},
+    ]}))
+    assert motion.shot_hint(img_dir / "beat_00.png") == "aerial"
+    assert motion.shot_hint(img_dir / "beat_01.png") == ""
+    assert motion.shot_hint(tmp_path / "elsewhere.png") == ""
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg not installed")
+def test_diagram_zoom_needs_no_depth_model(tmp_path, monkeypatch):
+    img, _ = synthetic()
+    path = tmp_path / "diagram.png"
+    cv2.imwrite(str(path), img)
+    monkeypatch.setattr(motion, "model_dir", lambda: pytest.fail("depth model checked"))
+    monkeypatch.setattr(motion, "depth_map", lambda *a: pytest.fail("depth inference used"))
+    out = motion.parallax_clip(path, tmp_path / "c.mp4", 0.1, "short", shot="diagram")
+    assert int(probe(out)["streams"][0]["nb_read_frames"]) == 3
+
+
+def test_presence_check_does_not_import_gpu_libraries(tmp_path, monkeypatch):
+    import builtins
+
+    monkeypatch.setattr(motion, "model_dir", lambda: tmp_path)
+    original = builtins.__import__
+
+    def guarded(name, *args, **kwargs):
+        if name.split(".")[0] in {"torch", "mlx", "transformers"}:
+            pytest.fail(f"presence check imported {name}")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded)
+    assert isinstance(motion.available(), bool)
+
+
+def test_ease_in_out():
+    e = [motion._ease(t) for t in np.linspace(0, 1, 21)]
+    assert e[0] == 0 and abs(e[-1] - 1) < 1e-9 and e == sorted(e)
+    v = np.diff(e)
+    assert v[0] < v[10] * 0.5 and v[-1] < v[10] * 0.5  # slow at both ends
+    assert v[0] > 0  # never a dead stop inside a shot
+
+
+def test_gentle_zoom_and_push_in():
+    for t in (0.0, 0.5, 1.0):
+        g = motion.camera("gentle-zoom", t, 40)
+        assert g["px"] == g["py"] == g["z1"] == 0.0  # no depth differential on flat art
+    assert motion.camera("gentle-zoom", 1.0, 40)["z0"] > motion.camera("gentle-zoom", 0, 40)["z0"]
+    p0, p1 = motion.camera("push-in", 0.0, 40), motion.camera("push-in", 1.0, 40)
+    assert p1["z0"] > p0["z0"] and p1["z1"] > 0
+
+
+def test_depth_confidence_and_adaptive_amplitude():
+    flat = np.full((400, 225), 0.4, np.float32)
+    # a ground plane receding to the horizon with a near object on it (DA-V2-like soft edges)
+    layered = np.repeat(np.linspace(0.0, 0.7, 400, dtype=np.float32)[:, None], 225, 1)
+    layered[180:330, 60:170] = 0.95
+    layered = cv2.GaussianBlur(layered, (0, 0), 3.0)
+    assert motion.depth_confidence(flat) == 0.0
+    assert motion.depth_confidence(layered) > 0.5
+    lo, hi = motion.AMP_GAIN
+    assert motion.adaptive_amplitude(0.03, 0.0) == pytest.approx(0.03 * lo)
+    assert motion.adaptive_amplitude(0.03, 1.0) == pytest.approx(0.03 * hi)
+    assert motion.adaptive_amplitude(0.03, 5.0) == pytest.approx(0.03 * hi)  # clamped

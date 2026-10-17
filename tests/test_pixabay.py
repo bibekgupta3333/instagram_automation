@@ -41,6 +41,14 @@ def spec(tmp_path, fmt="short", index=0, visual="a red pickup truck on a desert 
                     style_prompt=b.style_prompt)
 
 
+@pytest.mark.parametrize("shot", ["diagram", "cross-section", "cutaway", "exploded view"])
+def test_stock_allowlist_does_not_override_technical_shot(tmp_path, shot):
+    from dataclasses import replace
+
+    beat = replace(spec(tmp_path), shot=shot)
+    assert not pixabay.suits_stock(beat, brand(), ("all",))
+
+
 def rend(w, h, name):
     return {"url": f"https://cdn.pixabay.com/video/{name}.mp4", "width": w, "height": h,
             "size": 1000, "thumbnail": ""}
@@ -96,7 +104,7 @@ def test_request_params_and_vertical_selection(tmp_path):
     vis = pixabay.fetch(spec(tmp_path), api_key=KEY, http=api.client(), cache_dir=None)
     path, params = api.searches[0]
     assert path == "/api/videos/"
-    assert params["key"] == KEY and params["q"] == "red pickup truck desert"
+    assert params["key"] == KEY and params["q"] == "car red pickup truck desert"
     assert params["safesearch"] == "true" and params["per_page"] == "20"
     assert params["video_type"] == "film" and "orientation" not in params  # no video filter
     assert api.downloads == ["https://cdn.pixabay.com/video/2-medium.mp4"]  # vertical, >=4 s
@@ -142,7 +150,7 @@ def test_relaxes_query_then_gives_up(tmp_path):
     with pytest.raises(StageError, match="nothing found"):
         pixabay.fetch(spec(tmp_path), api_key=KEY, http=api.client())
     qs = [p["q"] for _, p in api.searches]
-    assert qs == ["red pickup truck desert", "red pickup"] * 2  # videos, then photos
+    assert qs == ["car red pickup truck desert", "car red pickup"] * 2  # videos, then photos
 
 
 def test_cache_hit_within_24h_and_expiry(tmp_path):
@@ -252,3 +260,243 @@ def test_stage_writes_attribution_and_manifest(tmp_path, monkeypatch):
     assert all(b["visual"]["source"]["creator"] for b in beats_json)
     assert KEY not in manifest
     assert list((tmp_path / "out" / ".cache" / "pixabay").glob("*.json"))  # 24 h cache on disk
+
+
+def test_queries_prefer_stock_query():
+    assert pixabay.queries("a cinematic shot of a red pickup truck on a desert highway",
+                           "Pickup Truck, Desert!") == [
+        "pickup truck desert", "pickup truck", "red pickup truck desert", "red pickup"]
+    assert pixabay.queries("red pickup truck") == ["red pickup truck", "red pickup"]
+
+
+def test_rendition_stays_sharp_after_vertical_cover_crop():
+    hit = vhit(1, 1920, 1080)
+    hit["videos"]["large"] = rend(3840, 2160, "1-large")
+    # a 1920x1080 clip in a 9:16 Short is enlarged 1.78x; the 4K one is not enlarged
+    assert pixabay.cover_scale(1920, 1080, "short") > 1.7
+    assert pixabay.pick_rendition(hit, "short")["width"] == 3840
+    assert pixabay.pick_rendition(hit, "long")["width"] == 1920
+    vertical = vhit(2, 1080, 1920)
+    assert pixabay.pick_rendition(vertical, "short")["width"] == 1080
+    # a sharp 4K landscape beats a soft 720p vertical
+    soft = vhit(3, 720, 1280)
+    picked = pixabay.pick_video([soft, hit], "short", set())
+    assert picked[0]["id"] == 1 and picked[1]["width"] == 3840
+
+
+def test_fetch_searches_stock_query_first(tmp_path):
+    api = Api(videos=[vhit(2, 1080, 1920)])
+    s = BeatSpec(job_id="job-x", channel="car-cost-truth", index=0, fmt="short",
+                 visual_prompt="cinematic b-roll of a desert road", prompt="p",
+                 out_stem=tmp_path / "beat_00", stock_query="pickup truck desert")
+    pixabay.fetch(s, api_key=KEY, http=api.client())
+    assert api.searches[0][1]["q"] == "car pickup truck desert"
+
+
+@pytest.mark.parametrize("query", ["efficiency", "fuel", "fuel injector", "sedan on highway",
+                                  "tire tread closeup", "efficiency engine car", "vehicle fuel"])
+def test_car_queries_keep_anchor_in_every_fallback(query):
+    queries = pixabay.queries("efficiency fuel burning needle", query, "car-cost-truth")
+    assert queries
+    for q in queries:
+        assert len(q) <= 100
+        assert {"car", "cars", "vehicle", "vehicles"} & set(q.split())
+    assert pixabay.queries("", "fuel injector", "car-cost-truth") == ["car fuel injector"]
+
+
+def test_query_anchor_survives_length_limit_and_shortening():
+    qs = pixabay.queries("needle opening", "efficiency " * 15 + "vehicle", "car-cost-truth")
+    assert all(q.startswith("car ") and len(q) <= 100 for q in qs)
+    assert pixabay.anchor_query("", "car-cost-truth") == ""
+    assert pixabay.anchor_query("vehicle fuel", "car-cost-truth") == "vehicle fuel"
+    assert pixabay.queries("campfire fuel", "", "other-channel") == ["campfire fuel"]
+
+
+@pytest.mark.parametrize("tags", [
+    "fire, flames, burn, fuel, wood, efficiency", "candle, fire, flame, combustion",
+    "rice fields, night view, starry sky", "woman, rope, sport, closeup",
+    "scar, roadmap, engineering", "", None,
+])
+def test_car_relevance_rejects_preview_mismatches_and_missing_tags(tags):
+    assert not pixabay.relevant_hit({"tags": tags, "query": "car fuel injector",
+                                    "pageURL": "https://pixabay.com/car/"}, "car-cost-truth")
+
+
+@pytest.mark.parametrize("tags", ["cars, speed", "vehicle", "vehicles", "driving",
+                                  "road", "engine", "automobile", "truck, desert"])
+def test_car_relevance_accepts_domain_evidence(tags):
+    assert pixabay.relevant_hit({"tags": tags}, "car-cost-truth")
+
+
+def test_relevance_precedes_orientation_and_resolution(tmp_path):
+    bad = {**vhit(1, 2160, 3840), "tags": "fire, fuel, efficiency, burning wood"}
+    good = {**vhit(2, 1280, 720), "tags": "car, engine, injector"}
+    api = Api(videos=[bad, good])
+    beat = spec(tmp_path, visual="fuel injector efficiency")
+    result = pixabay.fetch(beat, api_key=KEY, http=api.client())
+    assert result.source["id"] == 2
+    assert api.downloads == ["https://cdn.pixabay.com/video/2-medium.mp4"]
+
+
+def test_rejects_unrelated_photos_before_download(tmp_path):
+    bad = {**phit(1), "tags": "campfire, fuel, flames"}
+    good = {**phit(2), "tags": "vehicle, engine"}
+    api = Api(videos=[], photos=[bad, good])
+    result = pixabay.fetch(spec(tmp_path, visual="fuel efficiency"), api_key=KEY, http=api.client())
+    assert result.source["id"] == 2
+    assert api.downloads == ["https://pixabay.com/get/2_1280.jpg"]
+    assert all(params["q"].startswith("car ") for _, params in api.searches)
+
+
+@pytest.mark.parametrize("unrelated", [False, True])
+def test_cached_empty_and_unrelated_results_never_drop_anchor(tmp_path, unrelated):
+    from dataclasses import replace
+
+    bad_video = {**vhit(1, 2160, 3840), "tags": "fire, wood, fuel"}
+    bad_photo = {**phit(1), "tags": "candle, combustion"}
+    api = Api(videos=[bad_video] if unrelated else [], photos=[bad_photo] if unrelated else [])
+    beat = replace(spec(tmp_path, visual="efficiency"), stock_query="fuel injector")
+    cache = tmp_path / "search-cache"
+    with api.client() as client:
+        for _ in range(2):
+            with pytest.raises(StageError, match="nothing found"):
+                pixabay.fetch(beat, api_key=KEY, http=client, cache_dir=cache)
+    assert len(api.searches) == 4  # two queries x video/photo; second pass uses only cache
+    assert {params["q"] for _, params in api.searches} == {"car fuel injector", "car efficiency"}
+    assert api.downloads == []
+
+
+@pytest.mark.parametrize("shot", ["diagram", "cutaway"])
+def test_explicit_pixabay_cannot_replace_technical_shot(tmp_path, shot):
+    from dataclasses import replace
+
+    api = Api(videos=[vhit(1, 1080, 1920)])
+    with pytest.raises(EngineUnavailable, match="local still"):
+        pixabay.fetch(replace(spec(tmp_path), shot=shot), api_key=KEY, http=api.client())
+    assert not api.searches and not api.downloads
+
+
+UNSAFE_DOWNLOAD_URLS = [
+    "http://cdn.pixabay.com/video.mp4",
+    "https://127.0.0.1/internal", "https://10.0.0.1/internal",
+    "https://169.254.169.254/latest/meta-data/", "https://[::1]/internal",
+    "https://localhost/internal", "https://example.com/video.mp4",
+    "https://cdn.pixabay.com.evil.example/video.mp4",
+    "https://evilcdn.pixabay.com/video.mp4", "https://cdn.pixabay.com./video.mp4",
+    "https://user:password@cdn.pixabay.com/video.mp4",
+    "https://@cdn.pixabay.com/video.mp4",
+    "https://cdn.pixabay.com:444/video.mp4", "https://cdn.pixabay.com:bad/video.mp4",
+    "https://cdn.pixabay.com:/video.mp4", "https://cdn%2epixabay.com/video.mp4",
+    "https://cdn.pixabay.com\\@127.0.0.1/video.mp4",
+    "https://cdn.pixabay.com/\nvideo.mp4", " https://cdn.pixabay.com/video.mp4",
+    "//cdn.pixabay.com/video.mp4", "/video.mp4", "https://[bad/video.mp4", "",
+]
+
+
+@pytest.mark.parametrize("url", UNSAFE_DOWNLOAD_URLS)
+def test_download_rejects_unsafe_url_before_request(tmp_path, url):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, content=b"must not be fetched")
+
+    out = tmp_path / "clip.mp4"
+    out.write_bytes(b"existing")
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client, \
+            pytest.raises(StageError, match="unsafe download URL") as error:
+        pixabay._download(client, url, out)
+    assert not requests and out.read_bytes() == b"existing"
+    assert not out.with_suffix(".mp4.part").exists()
+    assert "password" not in str(error.value)
+
+
+@pytest.mark.parametrize("location", [u for u in UNSAFE_DOWNLOAD_URLS if u.startswith("http")]
+                         + ["//127.0.0.1/internal", "//example.com/video.mp4"])
+def test_download_validates_redirect_before_next_request(tmp_path, location):
+    requests = []
+
+    def handler(request):
+        requests.append(str(request.url))
+        return httpx.Response(302, headers={"location": location})
+
+    out = tmp_path / "clip.mp4"
+    # The function must override clients that would otherwise automatically follow.
+    with httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True) as client, \
+            pytest.raises(StageError, match="unsafe download URL"):
+        pixabay._download(client, "https://cdn.pixabay.com/start", out)
+    assert requests == ["https://cdn.pixabay.com/start"]
+    assert not out.exists() and not out.with_suffix(".mp4.part").exists()
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_download_accepts_validated_relative_and_cross_host_redirects(tmp_path, status):
+    requests = []
+    urls = ["https://pixabay.com/get/start", "https://pixabay.com/get/next",
+            "https://www.pixabay.com/next", "https://cdn.pixabay.com/final.mp4"]
+
+    def handler(request):
+        requests.append(str(request.url))
+        if len(requests) == 1:
+            return httpx.Response(status, headers={"location": "next"})
+        if len(requests) == 2:
+            return httpx.Response(status, headers={"location": "//www.pixabay.com/next"})
+        if len(requests) == 3:
+            return httpx.Response(status, headers={"location": urls[-1]})
+        return httpx.Response(200, content=b"media")
+
+    out = tmp_path / "clip.mp4"
+    with httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True) as client:
+        assert pixabay._download(client, urls[0], out) == 5
+    assert requests == urls and out.read_bytes() == b"media"
+    assert not out.with_suffix(".mp4.part").exists()
+
+
+@pytest.mark.parametrize("location", [None, "/loop"])
+def test_download_rejects_missing_location_and_redirect_loops(tmp_path, location):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": location} if location else {})
+
+    out = tmp_path / "clip.mp4"
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client, \
+            pytest.raises(StageError, match="redirect"):
+        pixabay._download(client, "https://cdn.pixabay.com/start", out)
+    assert len(requests) == (1 if location is None else pixabay.MAX_DOWNLOAD_REDIRECTS + 1)
+    assert not out.exists() and not out.with_suffix(".mp4.part").exists()
+
+
+def test_download_accepts_explicit_https_port(tmp_path):
+    with httpx.Client(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=b"media"))) as client:
+        assert pixabay._download(client, "https://cdn.pixabay.com:443/video.mp4",
+                                tmp_path / "clip.mp4") == 5
+
+
+@pytest.mark.parametrize(("status", "body", "limit", "message"), [
+    (304, b"", 20, "HTTP 304"), (404, b"", 20, "HTTP 404"),
+    (200, b"", 20, "empty download"), (200, b"too large", 2, "size cap"),
+])
+def test_download_failures_leave_no_partial_file(tmp_path, status, body, limit, message):
+    out = tmp_path / "clip.mp4"
+    with httpx.Client(transport=httpx.MockTransport(
+            lambda request: httpx.Response(status, content=body))) as client, \
+            pytest.raises(StageError, match=message):
+        pixabay._download(client, "https://cdn.pixabay.com/video.mp4", out, max_bytes=limit)
+    assert not out.exists() and not out.with_suffix(".mp4.part").exists()
+
+
+def test_search_never_follows_redirect_with_api_key():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": "http://127.0.0.1/internal"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True) as client, \
+            pytest.raises(StageError, match="HTTP 302") as error:
+        pixabay.search(client, pixabay.VIDEO_SEARCH, {"q": "car"}, api_key=KEY)
+    assert len(requests) == 1 and requests[0].url.host == "pixabay.com"
+    assert KEY not in str(error.value)

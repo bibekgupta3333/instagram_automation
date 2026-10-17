@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from collections.abc import Iterable
@@ -122,7 +123,10 @@ def require_binary(name: str) -> str:
 
 
 def run_ffmpeg(args: list[str], cwd: Path | None = None) -> None:
-    cmd = [require_binary("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", *args]
+    threads = str(max(1, int(os.environ.get("STUDIO_CPU_THREADS", "3"))))
+    cmd = [require_binary("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y",
+           "-threads", threads, "-filter_threads", threads, "-filter_complex_threads", threads,
+           *args]
     proc = subprocess.run(cmd, check=False, cwd=cwd, capture_output=True, text=True)
     if proc.returncode != 0:
         tail = "\n".join(proc.stderr.strip().splitlines()[-15:])

@@ -1,5 +1,7 @@
 # 16 — MCP Servers, Agents and Orchestration
 
+> **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
+
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md), [15 Bedrock routing](15-bedrock-hybrid-routing.md), [05 Buffer distribution](05-distribution-buffer.md)
 
 This doc covers the orchestration and tool layer for the 10-channel pipeline in [04](../4-production/04-content-pipeline-architecture.md): which MCP servers to use, which agent framework to use, where an agent helps and where plain code should run instead, and how to get the most videos per day out of one Mac M4 Pro (24 GB) plus limited AWS Bedrock. Model choice and routing are covered elsewhere; this doc treats "local model" and "Bedrock model" as pluggable. Research date: 2026-10-16. **[V]** = verified on the vendor's or repo's own page. **[3P]** = third-party listing only. Star counts are as seen on 2026-10-16 and change quickly.

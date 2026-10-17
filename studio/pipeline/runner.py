@@ -218,11 +218,13 @@ def run_batch(
     brands = {j.channel: load_brand(j.channel, ctx.settings.brand_dir) for j in planned}
     alive = {j.job_id for j in planned if j.status != JobStatus.FAILED}
     for name, fn in STAGES:
-        for job in planned:
-            if job.job_id in alive and not run_stage(name, fn, job, brands[job.channel], ctx):
-                alive.discard(job.job_id)
-        if name in UNLOAD:
-            UNLOAD[name]()  # one heavy model resident at a time (doc 14 §9.1)
+        try:
+            for job in planned:
+                if job.job_id in alive and not run_stage(name, fn, job, brands[job.channel], ctx):
+                    alive.discard(job.job_id)
+        finally:
+            if name in UNLOAD:
+                UNLOAD[name]()  # release memory even when a backend raises unexpectedly
     return planned
 
 

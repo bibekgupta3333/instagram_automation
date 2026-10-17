@@ -22,6 +22,12 @@ DEFAULT_BRAND_DIR = REPO_ROOT / "brand_packs"
 # Bedrock is for TEXT models only: the bedrock-stability / bedrock-luma engines were removed.
 DEFAULT_IMAGES_ENGINE = "auto"
 DEFAULT_AUTO_ORDER = ("z-image-turbo", "pixabay", "mock")
+# Stock-first channels: real-world subjects (cars, houses, companies) where real Pixabay footage
+# looks far better than an AI still. A beat goes stock-first only when the script gave it a
+# `stock_query` and its shot isn't a diagram/cutaway (studio/stages/images.py); every other beat
+# of these channels, and every beat of the other channels, uses DEFAULT_AUTO_ORDER.
+STOCK_FIRST_ORDER = ("pixabay", "z-image-turbo", "mock")
+STOCK_FIRST_CHANNELS = ("car-cost-truth", "square-foot-money", "business-model-files")
 REMOVED_IMAGE_ENGINES = frozenset({"bedrock-stability", "bedrock-luma"})
 
 
@@ -116,11 +122,38 @@ class VisualsConfig:
     PIXABAY_API_KEY               enables the pixabay engine (free stock, visuals/pixabay.py)
     STUDIO_PIXABAY_CHANNELS       slugs (or `all`) whose brand style is allowed to use stock even
                                   though it looks rendered/diagrammatic
+    STUDIO_STOCK_FIRST_CHANNELS   slugs (or `none`) that try Pixabay first for beats with a
+                                  stock_query (default STOCK_FIRST_CHANNELS)
+    STUDIO_ZIMAGE_STEPS           Z-Image-Turbo denoising steps (default 9)
+    STUDIO_ZIMAGE_SIZE            portrait generation size WxH, multiples of 16 (default 640x1152;
+                                  long-form uses the transpose). Measured 2026-10-17 on the M4 Pro,
+                                  then Real-ESRGAN to 1080x1920: 576x1024 60 s (waxy, painterly
+                                  skin/texture after x4), 640x1152 76-83 s (+27%, visibly finer
+                                  texture), 720x1280 100-112 s (+67%, no further visible gain);
+                                  12 steps instead of 9 cost +30% and looked the same.
+
+    An explicit STUDIO_IMAGES_AUTO_ORDER overrides the per-brand visual order for every beat.
     """
 
     auto_order: tuple[str, ...] = DEFAULT_AUTO_ORDER
     pixabay_api_key: str = ""
     pixabay_channels: tuple[str, ...] = ()
+    stock_first_channels: tuple[str, ...] = STOCK_FIRST_CHANNELS
+    order_overridden: bool = False  # STUDIO_IMAGES_AUTO_ORDER was set
+    zimage_steps: int = 9
+    zimage_size: tuple[int, int] = (640, 1152)
+
+    def visual_order(self, slug: str, stock_beat: bool = True) -> tuple[str, ...]:
+        """The `auto` engine order for one beat of channel `slug`. `stock_beat` says whether
+        the beat suits stock (has a stock_query and isn't a diagram/cutaway shot)."""
+        if self.order_overridden:
+            return self.auto_order
+        if stock_beat and slug in self.stock_first_channels:
+            return STOCK_FIRST_ORDER
+        return self.auto_order
+
+    def is_stock_first(self, slug: str) -> bool:
+        return not self.order_overridden and slug in self.stock_first_channels
 
     @classmethod
     def from_env(cls) -> VisualsConfig:
@@ -131,11 +164,49 @@ class VisualsConfig:
         for name in order:
             check_image_engine(name, "STUDIO_IMAGES_AUTO_ORDER")
         chans = os.environ.get("STUDIO_PIXABAY_CHANNELS", "")
+        first = os.environ.get("STUDIO_STOCK_FIRST_CHANNELS")
+        if first is None:
+            stock_first = d.stock_first_channels
+        elif first.strip().lower() in _ENV_DISABLED:
+            stock_first = ()
+        else:
+            stock_first = tuple(x.strip() for x in first.split(",") if x.strip())
         return cls(
             auto_order=order or d.auto_order,
             pixabay_api_key=os.environ.get("PIXABAY_API_KEY", "").strip(),
             pixabay_channels=tuple(x.strip() for x in chans.split(",") if x.strip()),
+            stock_first_channels=stock_first,
+            order_overridden=bool(order),
+            zimage_steps=_int_env("STUDIO_ZIMAGE_STEPS", d.zimage_steps, 1, 30),
+            zimage_size=_size_env("STUDIO_ZIMAGE_SIZE", d.zimage_size),
         )
+
+
+def _int_env(name: str, default: int, lo: int, hi: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name}={raw!r} is not an integer") from exc
+    if not lo <= value <= hi:
+        raise ValueError(f"{name}={value} is outside {lo}..{hi}")
+    return value
+
+
+def _size_env(name: str, default: tuple[int, int]) -> tuple[int, int]:
+    """WxH, both multiples of 16 (mflux) and between 256 and 2048."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    try:
+        w, h = (int(x) for x in raw.split("x"))
+    except ValueError as exc:
+        raise ValueError(f"{name}={raw!r}: use WxH, e.g. 576x1024") from exc
+    if w % 16 or h % 16 or not (256 <= w <= 2048 and 256 <= h <= 2048):
+        raise ValueError(f"{name}={raw!r}: sides must be multiples of 16 in 256..2048")
+    return (w, h)
 
 
 @dataclass(frozen=True)

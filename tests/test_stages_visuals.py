@@ -33,9 +33,11 @@ HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is n
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch, tmp_path_factory):
+    monkeypatch.setattr(render, "ENCODERS", [render.ENCODERS[-1]])
     for k in list(os.environ):
         if k.startswith(("STUDIO_IMAGES", "STUDIO_PIXABAY", "STUDIO_MFLUX_CMD",
-                         "STUDIO_ALLOW_MODEL", "STUDIO_REALESRGAN")):
+                         "STUDIO_ALLOW_MODEL", "STUDIO_REALESRGAN", "STUDIO_STOCK_FIRST",
+                         "STUDIO_ZIMAGE")):
             monkeypatch.delenv(k, raising=False)
     # empty HF cache: `auto` tries local Z-Image first, and must never run real mflux in tests
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path_factory.mktemp("hf-hub")))
@@ -80,7 +82,7 @@ def fake_visual(engine, kind="image"):
 
 def fake_zimage(monkeypatch, calls, fail_beats=()):
     """Fake local mflux: writes the raw still; beats in `fail_beats` raise like a failed run."""
-    def _mflux(raw, prompt, seed, engine, fmt):
+    def _mflux(raw, prompt, seed, engine, fmt, cfg=None):
         index = int(raw.stem.split("_")[1])
         calls.append((engine, index))
         if index in fail_beats:
@@ -117,6 +119,75 @@ def test_auto_order_zimage_then_pixabay(tmp_path, monkeypatch):
     monkeypatch.setattr(images.pixabay_src, "fetch", lambda *a, **k: pytest.fail("re-fetched"))
     job = images.run(job, brand(), ctx(tmp_path, "auto"))
     assert job.log[-1].endswith("images: cached, skipped")
+
+
+@pytest.mark.parametrize("change", ["job_id", "shot", "stock_channels"])
+def test_image_cache_tracks_seed_shot_and_stock_eligibility(tmp_path, monkeypatch, change):
+    calls = []
+    fake_zimage(monkeypatch, calls)
+    job = make_job(tmp_path, n=1)
+    job.script.beats[0].shot = "medium"
+    images.run(job, brand(), ctx(tmp_path, "z-image-turbo"))
+    if change == "job_id":
+        job.job_id = "different-seed"
+    elif change == "shot":
+        job.script.beats[0].shot = "medium shot"  # same prompt framing, distinct metadata
+    else:
+        monkeypatch.setenv("STUDIO_PIXABAY_CHANNELS", "all")
+    images.run(job, brand(), ctx(tmp_path, "z-image-turbo"))
+    assert len(calls) == 2
+    entry = json.loads((tmp_path / "images" / "visuals.json").read_text())["beats"][0]
+    assert entry["shot"] == job.script.beats[0].shot
+
+
+def test_invalid_visual_config_raises_stage_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_ZIMAGE_STEPS", "invalid")
+    with pytest.raises(StageError, match="STUDIO_ZIMAGE_STEPS"):
+        images.run(make_job(tmp_path, n=1), brand(), ctx(tmp_path, "auto"))
+
+
+def test_resume_reserves_stock_ids_from_later_cached_beats(tmp_path, monkeypatch):
+    monkeypatch.setenv("PIXABAY_API_KEY", "test-placeholder")
+    calls = []
+
+    def fetch(spec, *, used, **kwargs):
+        candidates = [100, 200] if len(calls) < 2 else [200, 300]
+        picked = next(i for i in candidates if f"video:{i}" not in used)
+        calls.append(picked)
+        out = spec.out_stem.with_suffix(".mp4")
+        out.write_bytes(PNG)
+        return Visual(path=out, kind="video", engine="pixabay", model="stock",
+                      source={"id": picked})
+
+    monkeypatch.setattr(images.pixabay_src, "fetch", fetch)
+    job = make_job(tmp_path, n=2)
+    images.run(job, brand(), ctx(tmp_path, "pixabay"))
+    job.image_paths[0].unlink()
+    images.run(job, brand(), ctx(tmp_path, "pixabay"))
+    assert calls == [100, 200, 300]
+    entries = json.loads((tmp_path / "images" / "visuals.json").read_text())["beats"]
+    assert [entry["visual"]["source"]["id"] for entry in entries] == [300, 200]
+
+
+def test_stage_anchors_script_query_and_invalidates_pre_relevance_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("PIXABAY_API_KEY", "test-placeholder")
+    queries = []
+
+    def fetch(spec, **kwargs):
+        queries.append(spec.stock_query)
+        return fake_visual("pixabay", "video")(spec)
+
+    monkeypatch.setattr(images.pixabay_src, "fetch", fetch)
+    job = make_job(tmp_path, n=1)
+    job.script.beats[0].stock_query = "fuel injector"
+    current_version = images.VERSION
+    assert current_version >= 10
+    monkeypatch.setattr(images, "VERSION", 9)
+    images.run(job, brand(), ctx(tmp_path, "pixabay"))
+    monkeypatch.setattr(images, "VERSION", current_version)
+    images.run(job, brand(), ctx(tmp_path, "pixabay"))
+    assert queries == ["car fuel injector", "car fuel injector"]
+    assert job.script.beats[0].stock_query == "fuel injector"  # producer artifact is untouched
 
 
 def test_auto_skips_stock_for_unsuitable_brand(tmp_path, monkeypatch):
@@ -233,3 +304,127 @@ def test_mark_clips_offsets_continue_and_wrap():
     render.mark_clips(shots, imgs, {1: 5.0})
     assert "kind" not in shots[0]
     assert [s["offset"] for s in shots[1:]] == [0.0, 2.0, 4.0 % 5.0]
+
+
+# ---------------------------------------------------------------- prompt builder + seeds
+
+
+def test_prompt_builder_shot_style_palette_and_no_text():
+    from studio.stages.visuals.prompts import NO_TEXT, SHOT_FRAMING, build_prompt
+
+    b = brand("wing-and-turbine")
+    close = build_prompt("a turbine blade glowing hot.", b, "close-up detail")
+    wide = build_prompt("an airliner climbing at dusk", b, "wide establishing")
+    assert close.startswith("Tall vertical portrait composition. Close-up detail shot on an 85mm")
+    assert "A turbine blade glowing hot." in close  # sentence-cased, single full stop
+    assert SHOT_FRAMING["wide"].split(",")[0] in wide
+    assert close.endswith(NO_TEXT) and "no logos" in NO_TEXT and "no watermark" in NO_TEXT
+    assert "#" not in close  # hex codes would be printed into the image
+    assert "Colour palette of dark slate blue, pale silver and vivid azure blue." in close
+    style = close.split("glowing hot. ")[1].split(" Colour palette")[0]
+    assert style in wide  # one consistent brand style per video
+    long = build_prompt("x", b, "", fmt="long")
+    assert long.startswith("Wide horizontal landscape composition. Cinematic medium-wide shot")
+
+
+def test_prompt_builder_strips_text_inviting_style_words():
+    from studio.stages.visuals.prompts import build_prompt, clean_style
+
+    sq = clean_style(brand("square-foot-money").style_prompt)
+    assert "labels" not in sq and "#" not in sq and "crisp shapes" in sq
+    car = build_prompt("a used sedan on a dealer lot", brand("car-cost-truth"), "medium shot")
+    assert "overlays" not in car and "Photorealistic" in car  # photo look -> photo boosters
+    mb = build_prompt("a dam", brand("megabuild-blueprint"), "")
+    assert "dimension arrows" not in mb and "physically based materials" in mb
+
+
+@pytest.mark.parametrize(("shot", "cls"), [
+    ("wide establishing", "wide"), ("Close-up detail", "close"), ("macro insert", "close"),
+    ("aerial drone", "aerial"), ("cutaway", "cutaway"), ("cross-section", "cutaway"),
+    ("animated diagram", "diagram"), ("top-down flat lay", "top"), ("", ""), ("weird", ""),
+])
+def test_shot_class(shot, cls):
+    from studio.stages.visuals.prompts import shot_class
+
+    assert shot_class(shot) == cls
+
+
+def test_per_video_base_seed_plus_beat_offset():
+    from studio.stages.visuals.common import base_seed, beat_seed
+
+    base = base_seed("job-x")
+    assert [beat_seed("job-x", i) for i in range(3)] == [base, base + 1, base + 2]
+    assert base_seed("job-y") != base and 0 < base < 2**31
+    assert spec(Path("/tmp"), index=2).seed == base + 2
+
+
+def test_zimage_steps_and_size_from_env(monkeypatch):
+    assert (VisualsConfig.from_env().zimage_steps, images.gen_size("long")) == (
+        9, images.gen_size("short")[::-1])
+    monkeypatch.setenv("STUDIO_ZIMAGE_STEPS", "12")
+    monkeypatch.setenv("STUDIO_ZIMAGE_SIZE", "640x1152")
+    cfg = VisualsConfig.from_env()
+    assert cfg.zimage_steps == 12 and images.gen_size("long", cfg.zimage_size) == (1152, 640)
+    monkeypatch.setenv("STUDIO_ZIMAGE_SIZE", "650x1152")
+    with pytest.raises(ValueError, match="multiples of 16"):
+        VisualsConfig.from_env()
+
+
+# ---------------------------------------------------------------- per-brand visual order
+
+
+def test_visual_order_stock_first_channels(monkeypatch):
+    from studio.config import DEFAULT_AUTO_ORDER, STOCK_FIRST_ORDER
+
+    cfg = VisualsConfig.from_env()
+    for slug in ("car-cost-truth", "square-foot-money", "business-model-files"):
+        assert cfg.visual_order(slug, stock_beat=True) == STOCK_FIRST_ORDER
+        assert cfg.visual_order(slug, stock_beat=False) == DEFAULT_AUTO_ORDER
+    assert cfg.visual_order("wing-and-turbine", stock_beat=True) == DEFAULT_AUTO_ORDER
+    monkeypatch.setenv("STUDIO_STOCK_FIRST_CHANNELS", "none")
+    assert VisualsConfig.from_env().visual_order("car-cost-truth") == DEFAULT_AUTO_ORDER
+    monkeypatch.delenv("STUDIO_STOCK_FIRST_CHANNELS")
+    monkeypatch.setenv("STUDIO_IMAGES_AUTO_ORDER", "z-image-turbo,mock")  # explicit order wins
+    assert VisualsConfig.from_env().visual_order("car-cost-truth") == ("z-image-turbo", "mock")
+
+
+def test_stock_beat_needs_query_and_a_non_diagram_shot(tmp_path):
+    def s(shot="", q="used car lot", visual="cars on a dealer lot"):
+        return BeatSpec(job_id="j", channel="car-cost-truth", index=0, fmt="short",
+                        visual_prompt=visual, prompt="p", out_stem=tmp_path / "b",
+                        shot=shot, stock_query=q)
+    assert images.stock_beat(s("wide establishing"))
+    assert not images.stock_beat(s(q=""))
+    assert not images.stock_beat(s("diagram"))
+    assert not images.stock_beat(s("cutaway"))
+    assert not images.stock_beat(s(visual="a bar chart of depreciation by year"))
+
+
+def test_stock_first_beats_try_pixabay_before_zimage(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setenv("PIXABAY_API_KEY", "k")
+    fake_zimage(monkeypatch, calls)
+    seen = []
+
+    def pix(s, **kw):
+        calls.append(("pixabay", s.index))
+        seen.append(s.stock_query)
+        return fake_visual("pixabay", "video")(s)
+
+    monkeypatch.setattr(images.pixabay_src, "fetch", pix)
+    beats = [
+        Beat(text="a.", visual_prompt="cars on a dealer lot", shot="wide establishing",
+             stock_query="car dealership lot"),
+        Beat(text="b.", visual_prompt="depreciation curve", shot="diagram",
+             stock_query="car value"),
+        Beat(text="c.", visual_prompt="a sedan on a highway", shot="medium"),  # no query
+    ]
+    job = VideoJob(job_id="job-s", channel="square-foot-money", format="short", topic="t",
+                   script=Script(title="T", hook="H", beats=beats, description="d"),
+                   workdir=tmp_path)
+    job = images.run(job, brand("square-foot-money"), ctx(tmp_path, "auto"))
+    # beat 0: stock first (the brand's flat-vector style doesn't block it); beats 1-2: Z-Image
+    assert calls == [("pixabay", 0), ("z-image-turbo", 1), ("z-image-turbo", 2)]
+    assert seen == ["car dealership lot"]
+    manifest = json.loads((tmp_path / "images" / "visuals.json").read_text())
+    assert [b["shot"] for b in manifest["beats"]] == ["wide establishing", "diagram", "medium"]

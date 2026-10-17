@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from studio.config import DEFAULT_BRAND_DIR, Settings
+from studio.config import DEFAULT_BRAND_DIR, Settings, load_brand
 from studio.contracts import JobStatus, VideoJob
 from studio.pipeline import runner
 from studio.pipeline.mock_llm import MockChatClient
@@ -52,7 +52,8 @@ def test_mock_end_to_end_short(settings):
     assert video["r_frame_rate"] == "30/1" and video["codec_name"] == "h264"
     assert audio and audio[0]["codec_name"] == "aac"
     segs = tts.segments(job.script)
-    expected = sum(tts.estimate_seconds(s["text"], 1.0) for s in segs) + tts.GAP_S * (len(segs) - 1)
+    speed = tts.delivery(load_brand(job.channel, DEFAULT_BRAND_DIR))[1]  # energy floor
+    expected = sum(tts.estimate_seconds(s["text"], speed) for s in segs) + tts.GAP_S * (len(segs) - 1)
     assert abs(float(probe["format"]["duration"]) - expected) < 0.5
     work = Path(job.workdir)
     for name in ("job.json", "script.json", "narration.wav", "captions.ass", "captions.srt",

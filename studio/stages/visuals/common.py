@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -14,8 +15,34 @@ logger = logging.getLogger("studio.visuals")
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".m4v", ".webm"})
 
 
+def configure_cpu_threads(*, cv2: Any = None, torch: Any = None) -> None:
+    """Limit libraries the caller already uses; never import a runtime just to tune it."""
+    try:
+        threads = max(1, int(os.environ.get("STUDIO_CPU_THREADS", "3")))
+    except ValueError:
+        threads = 3
+    if cv2 is not None:
+        cv2.setNumThreads(threads)
+    if torch is not None:
+        torch.set_num_threads(threads)
+
+
 def is_video(path: Path | str) -> bool:
     return Path(path).suffix.lower() in VIDEO_SUFFIXES
+
+
+SEED_SPAN = 2**31 - 1024  # keeps base + beat offset inside a signed 32-bit seed
+
+
+def base_seed(job_id: str) -> int:
+    """One deterministic seed per video (job), in 1..SEED_SPAN."""
+    return int(sha256_bytes(f"seed:{job_id}".encode())[:8], 16) % SEED_SPAN + 1
+
+
+def beat_seed(job_id: str, index: int) -> int:
+    """The per-video base seed plus the beat offset, so a video's stills share one noise
+    family and a re-run reproduces every beat exactly."""
+    return base_seed(job_id) + index
 
 
 @dataclass(frozen=True)
@@ -27,14 +54,16 @@ class BeatSpec:
     index: int
     fmt: str  # "short" (9:16) | "long" (16:9)
     visual_prompt: str  # the script's prompt, without the brand style
-    prompt: str  # visual_prompt + brand style_prompt
+    prompt: str  # the full generation prompt (studio.stages.images.build_prompt)
     out_stem: Path  # images/beat_00 (the source picks the suffix)
     style_prompt: str = ""
+    shot: str = ""  # Beat.shot, e.g. "wide establishing", "close-up detail", "aerial"
+    stock_query: str = ""  # Beat.stock_query: 2-4 keywords for stock search (preferred)
 
     @property
     def seed(self) -> int:
-        """Deterministic per job + beat, in 1..4294967294."""
-        return int(sha256_bytes(f"{self.job_id}:{self.index}".encode())[:8], 16) % 4294967294 + 1
+        """Per-video base seed plus the beat offset (see base_seed)."""
+        return beat_seed(self.job_id, self.index)
 
     @property
     def aspect_ratio(self) -> str:

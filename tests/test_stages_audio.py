@@ -36,6 +36,23 @@ def _reset_models():
     captions.unload()
 
 
+@pytest.mark.parametrize("module", [tts, captions])
+def test_cache_cleanup_does_not_import_mlx(module, monkeypatch):
+    monkeypatch.delitem(sys.modules, "mlx.core", raising=False)
+    real_import = builtins.__import__
+
+    def no_mlx(name, *args, **kwargs):
+        assert not name.startswith("mlx"), "cleanup must not initialise MLX/Metal"
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_mlx)
+    module.unload()
+    calls = []
+    monkeypatch.setitem(sys.modules, "mlx.core", SimpleNamespace(clear_cache=lambda: calls.append(1)))
+    module.unload()
+    assert calls == [1]
+
+
 # ---------------------------------------------------------------- fakes
 
 
@@ -176,7 +193,7 @@ def test_kokoro_run_writes_audio_timings_and_words(tmp_path, monkeypatch):
     assert [w["text"] for w in words] == ["Hi", "there.", "Go", "now.", "One", "two", "three."]
     assert words[2]["start"] == 1.0  # second pipeline chunk of the hook
     assert words[4]["start"] == 2.08  # beat words are offset by hook + gap
-    assert fake.calls[0][1:] == (brand().voice.voice, brand().voice.speed)
+    assert fake.calls[0][1:] == (brand().voice.voice, tts.ENERGY_SPEED)  # 1.0 raised to 1.07
     # cached second run does not synthesise again
     tts.run(job, brand(), ctx(tmp_path, tts="kokoro"))
     assert len(fake.calls) == 2
@@ -285,3 +302,119 @@ def test_kokoro_timestamps_needs_kokoro_tts(tmp_path):
     job = tts.run(job, brand(), ctx(tmp_path, tts="mock"))
     with pytest.raises(StageError, match="tts_words.json"):
         captions.run(job, brand(), ctx(tmp_path, captions="kokoro-timestamps"))
+
+
+# ---------------------------------------------------------------- delivery (voice + speed)
+
+
+def test_delivery_energy_floor_and_overrides(monkeypatch):
+    monkeypatch.delenv("STUDIO_TTS_VOICE", raising=False)
+    monkeypatch.delenv("STUDIO_TTS_SPEED", raising=False)
+    b = brand()  # gravity-what-if: af_bella at 1.0
+    assert tts.delivery(b) == ("af_bella", tts.ENERGY_SPEED)
+    fast = load_brand("software-shortcut", DEFAULT_BRAND_DIR)  # af_heart at 1.1 stays 1.1
+    assert tts.delivery(fast) == ("af_heart", 1.1)
+    monkeypatch.setenv("STUDIO_TTS_SPEED", "0.95")
+    monkeypatch.setenv("STUDIO_TTS_VOICE", "am_michael")
+    assert tts.delivery(b) == ("am_michael", 0.95)  # an explicit override is not floored
+    monkeypatch.setenv("STUDIO_TTS_SPEED", "fast")
+    with pytest.raises(StageError, match="STUDIO_TTS_SPEED"):
+        tts.delivery(b)
+
+
+def test_voice_grades_cover_every_us_voice():
+    assert set(tts.VOICE_GRADES) == set(tts.KOKORO_US_VOICES)
+    assert tts.voice_grade("af_heart") == "A" and tts.voice_grade("am_michael") == "C+"
+    assert tts.voice_grade("af_heart,am_onyx") == "D"  # a blend is as weak as its weakest
+    assert all(v in tts.KOKORO_US_VOICES for v in tts.RECOMMENDED_VOICES)
+
+
+@needs_ffmpeg
+def test_kokoro_logs_a_weak_voice_and_speed_changes_the_cache_key(tmp_path, monkeypatch):
+    pytest.importorskip("numpy")
+    fake = FakePipeline()
+    monkeypatch.setattr(tts, "_load_kokoro", lambda: fake)
+    monkeypatch.setenv("STUDIO_TTS_VOICE", "am_onyx")
+    monkeypatch.delenv("STUDIO_TTS_SPEED", raising=False)
+    job = tts.run(make_job(tmp_path), brand(), ctx(tmp_path, tts="kokoro"))
+    assert any("grade D" in line for line in job.log)
+    assert fake.calls[0][1:] == ("am_onyx", tts.ENERGY_SPEED)
+    monkeypatch.setenv("STUDIO_TTS_SPEED", "1.15")
+    tts.run(job, brand(), ctx(tmp_path, tts="kokoro"))
+    assert fake.calls[-1][2] == 1.15  # new speed -> re-synthesised, not cached
+
+
+@pytest.mark.parametrize("raw", ["nan", "inf", "-inf"])
+def test_delivery_rejects_nonfinite_speed(monkeypatch, raw):
+    monkeypatch.setenv("STUDIO_TTS_SPEED", raw)
+    with pytest.raises(StageError, match="finite"):
+        tts.delivery(brand())
+
+
+def test_kokoro_streams_chunks_without_retaining_audio(tmp_path, monkeypatch):
+    import gc
+    import wave
+    import weakref
+
+    np = pytest.importorskip("numpy")
+    cleared = []
+
+    class StreamingPipeline:
+        model = SimpleNamespace(sample_rate=RATE)
+
+        def __call__(self, text, **kwargs):
+            for _ in range(12):
+                result = Res(np.zeros(RATE // 2, dtype=np.float32),
+                             [Tok("word", " ", 0.0, 0.4)])
+                ref = weakref.ref(result.audio)
+                yield result
+                del result
+                gc.collect()
+                assert ref() is None, "TTS retained a previous chunk's audio"
+
+    monkeypatch.setattr(tts, "_load_kokoro", StreamingPipeline)
+    monkeypatch.setattr(tts, "_clear_mlx_cache", lambda: cleared.append(1))
+    path = tmp_path / "voice.wav"
+    durations, words = tts._kokoro_tts([{"text": "one"}, {"text": "two"}], path,
+                                        "af_heart", 1.0)
+    assert durations == [6.0, 6.0]
+    assert words[12]["start"] == 6.08
+    assert len(cleared) >= 24
+    with wave.open(str(path)) as wav:
+        assert wav.getnframes() == round(12.08 * RATE)
+
+
+def test_kokoro_failure_cleans_partial_output_and_cache(tmp_path, monkeypatch):
+    np = pytest.importorskip("numpy")
+    cleared = []
+
+    class BrokenPipeline:
+        model = SimpleNamespace(sample_rate=RATE)
+
+        def __call__(self, text, **kwargs):
+            yield Res(np.zeros(20, dtype=np.float32))
+            raise RuntimeError("synthesis failed")
+
+    monkeypatch.setattr(tts, "_load_kokoro", BrokenPipeline)
+    monkeypatch.setattr(tts, "_clear_mlx_cache", lambda: cleared.append(1))
+    path = tmp_path / "voice.wav"
+    path.write_bytes(b"old audio")
+    with pytest.raises(StageError, match="synthesis failed"):
+        tts._kokoro_tts([{"text": "one"}], path, "af_heart", 1.0)
+    assert path.read_bytes() == b"old audio"
+    assert not path.with_suffix(".tmp.wav").exists()
+    assert len(cleared) >= 2
+
+
+def test_parakeet_failure_still_clears_cache(tmp_path, monkeypatch):
+    calls = []
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("transcription failed")
+
+    monkeypatch.setattr(captions, "_load_parakeet", lambda: SimpleNamespace(transcribe=broken))
+    monkeypatch.setattr(captions, "media_duration", lambda _: 1.0)
+    monkeypatch.setattr(captions, "_clear_mlx_cache", lambda: calls.append(1))
+    with pytest.raises(RuntimeError, match="transcription failed"):
+        captions.parakeet_words(tmp_path / "a.wav")
+    assert calls == [1]

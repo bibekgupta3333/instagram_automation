@@ -2,6 +2,8 @@
 
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [04 Pipeline architecture](04-content-pipeline-architecture.md), [15 Bedrock routing](../5-automation/15-bedrock-hybrid-routing.md), [16 MCP and agents](../5-automation/16-mcp-agent-orchestration.md)
 
+> **Current operation:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/); the model comparisons and batch estimates below are historical research, not an installation or production-readiness checklist.
+
 > Status: research and proposal, as of **2026-10-16**. Licences and file sizes come from the Hugging Face API and the Ollama library pages that day. Repo activity comes from the GitHub API. **Very few published M4 Pro 24 GB benchmarks exist.** Every speed figure here is marked either **measured** (with its source) or **est.** (an estimate, ours or a third-party site's). Run the §9 smoke test on the real machine before you rely on any number.
 >
 > Scope: what can run **locally** for the pipeline in [04](04-content-pipeline-architecture.md). That means scripts, metadata, voice, captions, stills, music, and the cartoon rig from [10 §3.2](../archive/10-ai-cartoon-characters.md). Bedrock and cloud APIs are covered in another doc. Here they only appear as "send this step out" decisions.
@@ -10,7 +12,7 @@
 
 ## 1. TL;DR
 
-- **On 24 GB you have about 16–20 GB of GPU memory to work with, and about 273 GB/s of bandwidth.** By default, macOS lets the GPU wire roughly two-thirds to three-quarters of RAM. `sudo sysctl iogpu.wired_limit_mb=19456` raises that to about 19 GB. That is the practical ceiling: macOS, FFmpeg and Remotion need the remaining ~5 GB. **Run one heavy model at a time.**
+- **On 24 GB you have about 16–20 GB of GPU memory to work with, and about 273 GB/s of bandwidth.** By default, macOS lets the GPU wire roughly two-thirds to three-quarters of RAM. Keep the system wired limit unchanged; macOS and other applications need memory headroom. Use guarded execution and respect non-green stops. **Run one heavy model at a time.**
 - **LLM: Qwen3.5-9B or Gemma 4 12B as the workhorse (6–8 GB at 4-bit), and gpt-oss-20b (about 12 GB) as the "smarter" pass.** All three are Apache-2.0. 27B dense models and 35B MoE models technically load but leave no headroom, so don't run them in production on this machine.
 - **Runtime: Ollama ≥ 0.40.** Since 2026-09-25 it runs supported models on MLX by default on Apple Silicon. It exposes an OpenAI-compatible `/v1/chat/completions` endpoint with tool calling. `mlx_lm.server` and LM Studio are the alternatives.
 - **Voice: Kokoro-82M through mlx-audio** (Apache-2.0, far faster than real time). Its preset voices aren't anyone's clone. **Qwen3-TTS VoiceDesign** (Apache-2.0) designs a new voice from a text description. Avoid F5-TTS (CC-BY-NC) and Higgs TTS 3 (non-commercial plus a creator grant that requires credit).
@@ -27,7 +29,7 @@
 |---|---|---|
 | M4 Pro memory bandwidth | **273 GB/s** (both the 16-core and 20-core GPU bins) | llama.cpp Apple Silicon table; Apple launch coverage |
 | Default GPU-wired limit | About **⅔–¾ of RAM**, so **~16–18 GB** on 24 GB. Apple doesn't document it | Community sources disagree on the exact fraction. Check with `sysctl iogpu.wired_limit_mb` (0 = system default) |
-| Raise it | `sudo sysctl iogpu.wired_limit_mb=19456` (≈ 19 GB). Resets at reboot. Revert with `=0` | mlx-lm README; leave **≥ 4–5 GB** for macOS |
+| Resource safety | Keep the system wired limit unchanged; use guarded execution | Stop at non-green pressure; never raise limits to force a workload |
 | What spills over | If a model exceeds the wired limit it swaps or crawls, and MPS throws `MPS backend out of memory` | mlx-lm README ("model will likely be slow") |
 | Measured LLM anchor (llama.cpp, Llama-2-7B Q4_0, M4 Pro 16-core GPU) | **Prompt processing 364 t/s · text generation 49.6 t/s** (Q8_0: 367 / 30.5) | **measured**, llama.cpp discussion #4167 |
 
@@ -175,7 +177,7 @@ Music isn't per-video work. Generate the library in one night, then a human pick
 
 1. **One heavy model resident at a time.** Run the pipeline **stage by stage** (all scripts, then all audio, then all images, then all renders), not video by video. Each model then loads once per night instead of 40 times.
 2. **Resident all day (~1–2 GB):** Kokoro, parakeet-mlx, Rhubarb, FFmpeg and Postgres/Redis. **Load and unload:** the LLM (6–13 GB), the image model (8–12 GB) and ACE-Step.
-3. **Wired limit 19 GB, model budget ≤ 14 GB**, which leaves room for the KV cache, MLX buffers, Remotion's Chromium and the Finder.
+3. **Keep the system wired limit unchanged.** Guarded runs must stay green and leave room for caches, runtime buffers and other applications.
 4. **Daytime (interactive):** only the 9B LLM, for ideation and human-review edits. **Overnight:** the full batch, run under `caffeinate -dims` on mains power.
 5. **Laptop thermals:** sustained GPU load on a MacBook Pro throttles more than on a Mac mini. Measure speed after 30 minutes, not after 30 seconds.
 
@@ -183,7 +185,7 @@ Music isn't per-video work. Generate the library in one night, then a human pick
 
 ```mermaid
 gantt
-    title Nightly batch on M4 Pro 24 GB (GPU wired limit ≈ 19 GB) — ESTIMATES
+    title Historical nightly batch on M4 Pro 24 GB — ESTIMATES
     dateFormat HH:mm
     axisFormat %H:%M
     section LLM (unload after)
@@ -244,44 +246,24 @@ The real bottleneck is still **human review: ~75–85 h a month** ([12 §5](../2
 
 ### 9.6 Install (recommended stack)
 
+Use [SETUP.md](../../SETUP.md) and `make deps` for the current runtime installation.
+The earlier direct-install recipe is superseded. Text uses Bedrock / Claude Code;
+all channels receive model uncertainty review, which is not source verification.
+No additional local image or video models may be added under the current disk budget.
+
 ```bash
-# base
-xcode-select --install
-brew install ffmpeg uv node git-lfs
-sudo sysctl iogpu.wired_limit_mb=19456      # ~19 GB GPU; re-apply after reboot (LaunchDaemon) or set 0 to revert
-
-# LLMs (Ollama ≥ 0.40 runs qwen3.5 / gemma4 on MLX by default)
-brew install ollama && brew services start ollama
-ollama pull qwen3.5:9b
-ollama pull gemma4:12b
-ollama pull gpt-oss:20b
-launchctl setenv OLLAMA_MAX_LOADED_MODELS 1
-launchctl setenv OLLAMA_KEEP_ALIVE 10m
-launchctl setenv OLLAMA_CONTEXT_LENGTH 16384
-ollama ps                                   # check which model is loaded and its size
-ollama stop gpt-oss:20b                     # free the memory before the image stage
-
-# Alternative LLM server (MLX directly)
-uv tool install mlx-lm
-mlx_lm.server --model mlx-community/Qwen3.5-9B-4bit --host 127.0.0.1 --port 8081
-
-# TTS + ASR (OpenAI-compatible /v1/audio/speech and /v1/audio/transcriptions)
-uv tool install --force mlx-audio --prerelease=allow
-mlx_audio.server --host 127.0.0.1 --port 8000
-uv tool install parakeet-mlx                # parakeet-mlx audio.wav --output-format json (word timings)
-pip install mlx-whisper                     # fallback: mlx_whisper audio.wav --word-timestamps True
-
-# Images
-uv tool install --upgrade mflux --with hf_transfer
-mflux-generate-z-image-turbo --prompt "..." --width 1024 --height 1024 -q 8 --seed 42   # check `mflux --help` for exact command names
-
-# Rig + render (no GPU)
-brew install rhubarb-lip-sync || echo "download the release from GitHub"
-npx create-video@latest   # Remotion project; caption template uses whisper.cpp
-
-# Music library (one night)
-git clone https://github.com/ace-step/ACE-Step-1.5 && cd ACE-Step-1.5 && uv sync
+make deps
+make models-dry                           # inspect the plan and disk check before any pull
+make models                               # existing Configuration A manifest only
+STUDIO_ZIMAGE_SIZE=576x1024 make guarded ARGS='make --channel car-cost-truth --topic "Why streamlined cars face less drag"'
 ```
+
+The code default is 640×1152; 576×1024 above is a lower-memory override. Auto routing
+is stock-first only for stock-suitable beats with a `stock_query` and no diagram/cutaway
+shot on Car Cost Truth, Square Foot Money and Business Model Files. Other beats try
+Z-Image first; `STUDIO_IMAGES_AUTO_ORDER` overrides the order. Stock-first can still
+fall back to local generation. Use stock-only footage if the model cannot stay green.
+Do not raise GPU limits or bypass a guard stop.
 
 **Week-1 smoke test:**
 1. Run `ollama run qwen3.5:9b --verbose` and record eval tokens/s.
@@ -293,9 +275,9 @@ git clone https://github.com/ace-step/ACE-Step-1.5 && cd ACE-Step-1.5 && uv sync
 
 ## 10. Don't do this on 24 GB
 
-- **Don't keep the LLM and the image model loaded together.** 6–12 GB plus 8–12 GB exceeds the ~19 GB wired limit, and everything swaps.
+- **Don't keep the LLM and the image model loaded together.** Their combined memory use leaves insufficient headroom and can trigger pressure or swapping.
 - **Don't run 27B dense or 30–35B MoE models in production** (Qwen3.6/3.8-27B, Qwen3.6-35B-A3B, Gemma 4 31B). They "load" but run at ~10 t/s or swap. Use Bedrock for that quality tier.
-- **Don't raise `iogpu.wired_limit_mb` above about 20 GB** on a 24 GB machine. macOS will kernel-panic or freeze under pressure.
+- **Don't raise `iogpu.wired_limit_mb` to force a workload through.** Keep system limits unchanged and respect the resource guard.
 - **Don't use 32K+ contexts** casually. The KV cache quietly eats 3–6 GB.
 - **Don't try local AI video at volume** (Wan, LTX-2, Hunyuan). It takes tens of minutes to hours per few seconds of footage, and FP8 checkpoints fail on Metal.
 - **Don't run Wan- or Hunyuan-based talking heads** (InfiniteTalk, HunyuanVideo-Avatar) on a Mac. Use the rig, or an API.

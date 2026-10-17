@@ -12,10 +12,38 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
-## Unreleased (uncommitted work in progress)
-- Changed: 22 files from the stopped quality-pass agents (script prompt v2, fact-check rewrite, captions/overlays, transitions, image prompt builder `visuals/prompts.py`, motion tweaks, `assets/` music/sfx folders, tests).
-- Status: **unfinished and untested together.** Either review, finish and commit it, or discard it with `git restore . && git clean -fd assets studio/stages/visuals/prompts.py tests/test_render_edit.py`.
-- Agents: don't build on these files until they are committed.
+## 2026-10-17 · Quality pass completed; guarded macOS execution
+- Changed: finished the interrupted script/visual/audio/edit work. Scripts use draft and
+  polish passes with shot directions, overlays and stock queries. Every channel gets model
+  uncertainty review; quantities without supplied evidence are rejected, and model-generated
+  citations are explicitly not verified sources. No policy rules were weakened.
+- Visuals: centralized no-text/shot-aware prompts, stock-first real-world channels, automotive
+  search anchors and metadata filtering, sharper crop selection, repeat avoidance and cache
+  corrections. Local q4 models only; no downloads or additional providers.
+- Edit/audio: word captions and overlay cards, short shots and beat transitions, voice
+  compression, optional licensed music ducking and SFX, streamed TTS, and cache-correct
+  shot-directed parallax. Mock/silence cleanup no longer initializes GPU libraries.
+- Resources: `scripts/run_guarded.py` / `make guarded ARGS='make ...'` permits one guarded
+  job, caps CPU worker pools at 3 threads, disables model downloads and samples macOS
+  pressure once per second. Non-green pressure, unreadable telemetry or disk below 10 GB
+  stops only the launched process group (exit 75). Brief inter-sample spikes remain possible.
+- Cleanup: batches unload their current model even on unexpected backend exceptions.
+- Security: Pixabay asset URLs and every redirect must use exact approved HTTPS hosts;
+  credentials, private destinations and nonstandard ports are refused before download.
+- Fact-check false-positive fix: qualitative "one factor" is not a measured figure;
+  percentages, multipliers and measured counts remain blocked. Source verification is still
+  distinct from a model's vote.
+- Live validation: a source-checked editorial storyboard rendered a 45.37-second stock-only
+  preview at 1080x1920, -14.0 LUFS / -1.5 dBFS true peak. All 35 sampled pressure readings
+  were green; minimum free disk was 13.09 GB. Preview is not approved or published.
+  A prior Z-Image run was stopped by the guard when pressure left green; do not claim local
+  image generation stayed green, or bypass the guard to make it finish.
+- Checks: final offline suite **608 passed, 3 skipped**; Ruff and diff checks passed;
+  documentation audit checked 210 local links without broken paths or fragments.
+- Agents: versions are script **4**, fact_check **5**, images **10**, motion **3**, render **5**,
+  captions/TTS **4**. New controls: `STUDIO_CPU_THREADS`, `STUDIO_ZIMAGE_SIZE/STEPS`,
+  `STUDIO_STOCK_FIRST_CHANNELS`, `STUDIO_TTS_VOICE/SPEED`, `STUDIO_MUSIC/MUSIC_MOOD`.
+  Preserve streamed audio, model unloading, offline tests and the human publishing gate.
 
 ## 2026-10-17 · 4418335 · Add AGENTS.md
 - Changed: `AGENTS.md` (new: hard rules, commands, architecture, agent roster, protocol, brief template), `CLAUDE.md` (points to AGENTS.md), `SETUP.md` (troubleshooting no longer suggests mflux `-q`).

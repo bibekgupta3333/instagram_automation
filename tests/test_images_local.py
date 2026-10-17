@@ -10,6 +10,14 @@ from studio.stages import images
 from studio.stages.base import EngineUnavailable
 
 
+@pytest.fixture(autouse=True)
+def isolate_local_engines(monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "mflux", types.ModuleType("mflux"))
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hub"))
+    for name in ("STUDIO_MFLUX_CMD_Z_IMAGE_TURBO", "STUDIO_MFLUX_CMD_FLUX2_KLEIN_4B"):
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_mflux_models_use_prequantized_repos_without_q_flag():
     for _name, cmd in images.MFLUX_MODELS.values():
         repo = images._mflux_repo(cmd)
@@ -37,6 +45,22 @@ def test_missing_model_raises_instead_of_downloading(tmp_path, monkeypatch):
         images._mflux_cmd("flux2-klein-4b")
 
 
+def test_legacy_download_override_cannot_enable_downloads(monkeypatch):
+    monkeypatch.setenv("STUDIO_ALLOW_MODEL_DOWNLOAD", "1")
+    with pytest.raises(EngineUnavailable, match="not downloaded"):
+        images._mflux_cmd("z-image-turbo")
+
+
+@pytest.mark.parametrize("args", [
+    "--model z-image-turbo -q 4", "--model Tongyi-MAI/Z-Image-Turbo",
+    "--model mflux-community/z-image-turbo-mflux-q4 -q4", "--model", "",
+])
+def test_unsafe_mflux_override_rejected(monkeypatch, args):
+    monkeypatch.setenv("STUDIO_MFLUX_CMD_Z_IMAGE_TURBO", f"mflux {args}")
+    with pytest.raises(EngineUnavailable, match="installed"):
+        images._mflux_cmd("z-image-turbo")
+
+
 def test_z_image_turbo_is_default_and_sizes_are_multiples_of_16():
     from studio.config import DEFAULT_AUTO_ORDER
 
@@ -48,7 +72,7 @@ def test_z_image_turbo_is_default_and_sizes_are_multiples_of_16():
     for fmt in ("short", "long"):
         w, h = images.gen_size(fmt)
         assert w % 16 == 0 and h % 16 == 0
-    assert images.gen_size("short") == (576, 1024)
+    assert images.gen_size("short") == (640, 1152)
 
 
 def test_cli_prefers_the_venv_bin(tmp_path, monkeypatch):
@@ -69,7 +93,7 @@ def _fake_mflux(monkeypatch, seen):
         Image.new("RGB", (576, 1024), "blue").save(out)
         return types.SimpleNamespace(returncode=0, stderr="")
 
-    monkeypatch.setattr(images, "_mflux_cmd", lambda e: ["mflux-generate-z-image-turbo"])
+    monkeypatch.setattr(images, "_mflux_cmd", lambda e, steps=None: ["mflux-generate-z-image-turbo"])
     monkeypatch.setattr(images.subprocess, "run", fake_run)
 
 
@@ -97,7 +121,7 @@ def test_mflux_runs_offline_and_upscales_raw_still(tmp_path, monkeypatch):
     vis = images._produce("z-image-turbo", _spec(tmp_path), None)
     assert seen["env"]["HF_HUB_OFFLINE"] == "1"
     cmd = seen["cmd"]
-    assert (cmd[cmd.index("--width") + 1], cmd[cmd.index("--height") + 1]) == ("576", "1024")
+    assert (cmd[cmd.index("--width") + 1], cmd[cmd.index("--height") + 1]) == ("640", "1152")
     assert (tmp_path / "raw" / "beat_00.png").exists() and vis.path == tmp_path / "beat_00.png"
     assert calls == [("beat_00.png", "beat_00.png", 1080, 1920)]
     assert vis.model.endswith(images.UPSCALED_SUFFIX)
@@ -116,3 +140,68 @@ def test_upscale_unavailable_falls_back_to_raw_copy(tmp_path, monkeypatch):
     vis = images._produce("z-image-turbo", _spec(tmp_path), None)
     assert vis.path.read_bytes() == (tmp_path / "raw" / "beat_00.png").read_bytes()
     assert vis.model == images.MFLUX_MODELS["z-image-turbo"][0]
+
+
+def test_mflux_subprocess_always_offline(tmp_path, monkeypatch):
+    seen = {}
+    _fake_mflux(monkeypatch, seen)
+    monkeypatch.setenv("STUDIO_ALLOW_MODEL_DOWNLOAD", "1")
+    images._mflux_image(tmp_path / "raw.png", "no text", 1, "z-image-turbo", "short")
+    assert seen["env"]["HF_HUB_OFFLINE"] == "1"
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_upscaler_unloads_before_generation_and_after_upscale(tmp_path, monkeypatch, fail):
+    calls = []
+    monkeypatch.setattr(images, "unload", lambda: calls.append("unload"))
+    monkeypatch.setattr(images, "_mflux_image", lambda *a: calls.append("generate"))
+
+    def upscale(*args):
+        calls.append("upscale")
+        if fail:
+            raise RuntimeError("upscale failed")
+        return True
+
+    monkeypatch.setattr(images, "_to_frame", upscale)
+    if fail:
+        with pytest.raises(RuntimeError, match="upscale failed"):
+            images._produce("z-image-turbo", _spec(tmp_path), None)
+    else:
+        images._produce("z-image-turbo", _spec(tmp_path), None)
+    assert calls == ["unload", "generate", "upscale", "unload"]
+
+
+def test_cleanup_never_imports_gpu_runtime(monkeypatch):
+    import builtins
+
+    from studio.stages import motion
+    from studio.stages.visuals import upscale
+
+    original = builtins.__import__
+
+    def guarded(name, *args, **kwargs):
+        if name.split(".")[0] in {"torch", "mlx", "mflux"}:
+            pytest.fail(f"cleanup imported {name}")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded)
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    for module in (motion, upscale):
+        monkeypatch.setattr(module, "_device", "mps")
+        module.unload()
+        assert module._model is None and module._device is None
+    images.unload()
+
+
+@pytest.mark.parametrize(("value", "expected"), [(None, 3), ("2", 2), ("0", 1), ("bad", 3)])
+def test_cpu_thread_limits_use_only_supplied_modules(monkeypatch, value, expected):
+    from studio.stages.visuals.common import configure_cpu_threads
+
+    if value is None:
+        monkeypatch.delenv("STUDIO_CPU_THREADS", raising=False)
+    else:
+        monkeypatch.setenv("STUDIO_CPU_THREADS", value)
+    calls = []
+    configure_cpu_threads(cv2=types.SimpleNamespace(setNumThreads=lambda n: calls.append(n)),
+                          torch=types.SimpleNamespace(set_num_threads=lambda n: calls.append(n)))
+    assert calls == [expected, expected]

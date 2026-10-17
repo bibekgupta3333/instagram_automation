@@ -12,6 +12,14 @@ plate (foreground masked out and filled with cv2.inpaint at low resolution), com
 the foreground with a soft alpha. With the subtle default amplitude (3% of the short side) this
 removes the rubber-band stretching that a plain depth warp shows at silhouettes.
 
+Camera moves follow the beat's shot type when the images stage recorded one (``shot`` in
+images/visuals.json): wide -> slow dolly or pan, close-up -> push-in, aerial -> rise or orbit,
+cutaway -> slow dolly or orbit, diagram -> gentle zoom only (no depth warp: flat graphics have
+unreliable depth). Within that family the job's rotation still varies the move. The amplitude
+adapts to depth confidence (``depth_confidence``): up to +45% for a clean, smooth, well-separated
+depth map, down to -10% for a noisy/flat one. Moves ease in and out (cosine, with a linear share
+so a 3.5 s shot never looks stop-start).
+
 Frames are piped as raw BGR to ffmpeg (h264_videotoolbox, libx264 fallback); the clip is
 video-only. The model is never downloaded here: `scripts/setup/20-pull-models.sh --stage video`.
 """
@@ -20,21 +28,38 @@ from __future__ import annotations
 
 import gc
 import hashlib
+import importlib.util
 import math
 import os
 import random
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 from studio.stages.base import EngineUnavailable, StageError, require_binary
+from studio.stages.visuals.common import configure_cpu_threads
 from studio.stages.visuals.upscale import cover_geometry, hf_hub_dir
 
 REPO = "depth-anything/Depth-Anything-V2-Small-hf"
-MOTION_VERSION = 1  # bump when the look changes (it is part of the clip cache name)
+MOTION_VERSION = 3  # 3: diagram zooms skip depth inference; bounded CPU threads
+# 2: ease-in-out, shot-driven presets (push-in, gentle-zoom), depth-confidence amplitude
 FPS = 30
 PRESETS: tuple[str, ...] = ("dolly-in", "dolly-out", "pan-left", "pan-right", "orbit", "rise")
+SHOT_ONLY_PRESETS: tuple[str, ...] = ("push-in", "gentle-zoom")  # chosen by shot type only
+ALL_PRESETS: tuple[str, ...] = (*PRESETS, *SHOT_ONLY_PRESETS)
 DEFAULT_AMPLITUDE = 0.03  # parallax differential, fraction of the frame's short side
+AMP_GAIN = (0.9, 1.45)  # amplitude multiplier at depth confidence 0 and 1
+# shot class (studio.stages.visuals.prompts.shot_class) -> presets that suit it
+SHOT_PRESETS: dict[str, tuple[str, ...]] = {
+    "wide": ("dolly-in", "pan-right", "pan-left", "dolly-out"),
+    "close": ("push-in", "dolly-in"),
+    "aerial": ("rise", "orbit"),
+    "top": ("dolly-in", "rise"),
+    "low": ("rise", "dolly-in"),
+    "cutaway": ("dolly-in", "orbit", "dolly-out"),
+    "diagram": ("gentle-zoom",),
+}
 DEPTH_RES = 518  # Depth Anything's native short side (multiple of 14)
 
 _model: Any = None
@@ -70,13 +95,8 @@ def available() -> bool:
         model_dir()
     except EngineUnavailable:
         return False
-    try:
-        import cv2  # noqa: F401
-        import torch  # noqa: F401
-        import transformers  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    return all(name in sys.modules or importlib.util.find_spec(name) is not None
+               for name in ("cv2", "torch", "transformers"))
 
 
 # ---------------------------------------------------------------- presets
@@ -96,13 +116,44 @@ def preset_for(job_id: str, index: int) -> str:
     return preset_sequence(job_id, index + 1)[index]
 
 
+def preset_for_shot(shot: str, requested: str) -> str:
+    """The preset for a still whose beat has shot type `shot`: `requested` (the job's
+    rotation) when it suits the shot, else the family member it maps to, so consecutive shots
+    of one job still vary. Unknown/empty shot -> `requested`."""
+    from studio.stages.visuals.prompts import shot_class
+
+    family = SHOT_PRESETS.get(shot_class(shot))
+    if not family or requested in family:
+        return requested
+    idx = ALL_PRESETS.index(requested) if requested in ALL_PRESETS else 0
+    return family[idx % len(family)]
+
+
+def shot_hint(image: Path) -> str:
+    """The beat's shot type recorded by the images stage in <image dir>/visuals.json."""
+    import json
+
+    try:
+        data = json.loads((Path(image).parent / "visuals.json").read_text())
+    except (OSError, ValueError):
+        return ""
+    for entry in data.get("beats", []) if isinstance(data, dict) else []:
+        try:
+            if Path(entry["visual"]["path"]).name == Path(image).name:
+                return str(entry.get("shot") or "")
+        except (KeyError, TypeError):
+            continue
+    return ""
+
+
 def frame_size(fmt: str) -> tuple[int, int]:
     return (1080, 1920) if fmt == "short" else (1920, 1080)
 
 
 def _ease(t: float) -> float:
-    """Mostly linear (shots are cut every <=3.5 s, so a full ease reads as stop-start)."""
-    return 0.6 * t + 0.4 * (0.5 - 0.5 * math.cos(math.pi * t))
+    """Ease-in-out: a cosine ease with a 30% linear share, so the camera starts and settles
+    gently but never stops dead inside a 3.5 s shot."""
+    return 0.3 * t + 0.7 * (0.5 - 0.5 * math.cos(math.pi * t))
 
 
 def camera(preset: str, t: float, amp_px: float) -> dict[str, float]:
@@ -111,8 +162,8 @@ def camera(preset: str, t: float, amp_px: float) -> dict[str, float]:
     Offsets are *sampling* offsets: output(x) = source(c + (x - c) / zoom + shift), with
     shift = (gx + px * d, gy + py * d) and zoom = 1 + z0 + z1 * d for depth d.
     """
-    if preset not in PRESETS:
-        raise ValueError(f"unknown parallax preset {preset!r}; one of {PRESETS}")
+    if preset not in ALL_PRESETS:
+        raise ValueError(f"unknown parallax preset {preset!r}; one of {ALL_PRESETS}")
     e = _ease(t)
     c = e - 0.5  # -0.5 .. 0.5: the move is centred on the still's framing
     g = 0.35 * amp_px  # global drift: the whole frame moves a little too
@@ -135,7 +186,46 @@ def camera(preset: str, t: float, amp_px: float) -> dict[str, float]:
     elif preset == "rise":
         s["gy"], s["py"] = -c * g, -c * amp_px  # camera rises: content moves down
         s["z0"], s["z1"] = 0.01 + 0.01 * e, 0.0
+    elif preset == "push-in":
+        # close-up: a deliberate push towards the subject; near things grow faster, with a
+        # slight upward drift so it doesn't read as a flat digital zoom
+        s["z0"], s["z1"] = 0.06 * e, 1.6 * zoom * e
+        s["gy"] = -0.15 * c * amp_px
+    elif preset == "gentle-zoom":
+        # diagrams: a plain slow zoom, no depth differential (flat art has no real depth)
+        s["z0"] = 0.045 * e
     return s
+
+
+def depth_confidence(d: Any) -> float:
+    """0..1: how trustworthy a relative depth map is for parallax. High when the depth has
+    distinct near/far layers (a share of strong depth edges), is smooth (variance is
+    low-frequency structure, not texture noise) and is well spread; ~0 for flat graphics and
+    placeholders (no depth edges) and for noisy maps. Calibrated on Z-Image stills
+    (2026-10-17): real scenes 0.6-1.0, flat cards 0.0."""
+    import cv2
+    import numpy as np
+
+    configure_cpu_threads(cv2=cv2)
+    h, w = d.shape[:2]
+    k = 128.0 / max(1, min(h, w))
+    small = cv2.resize(d.astype(np.float32), (max(8, round(w * k)), max(8, round(h * k))),
+                       interpolation=cv2.INTER_AREA)
+    smooth = cv2.GaussianBlur(small, (0, 0), 3.0)
+    structure = float(smooth.var())
+    noise = float((small - smooth).var())
+    smoothness = structure / max(structure + 4.0 * noise, 1e-9)
+    lo, hi = np.percentile(smooth, [10, 90])
+    gy, gx = np.gradient(small)
+    edges = float((np.hypot(gx, gy) > 0.02).mean())
+    c = (np.clip((edges - 0.01) / 0.04, 0, 1) * np.clip((smoothness - 0.8) / 0.15, 0, 1)
+         * np.clip((float(hi - lo) - 0.3) / 0.3, 0, 1))
+    return float(c)
+
+
+def adaptive_amplitude(base: float, confidence: float) -> float:
+    lo, hi = AMP_GAIN
+    return base * (lo + (hi - lo) * float(min(max(confidence, 0.0), 1.0)))
 
 
 # ---------------------------------------------------------------- depth
@@ -151,11 +241,12 @@ def _load() -> tuple[Any, Any, str]:
         from transformers import AutoImageProcessor, AutoModelForDepthEstimation
     except ImportError as exc:  # pragma: no cover
         raise EngineUnavailable(f"motion: needs torch + transformers ({exc})") from exc
+    configure_cpu_threads(torch=torch)
     device = "mps" if torch.backends.mps.is_available() else "cpu"
-    _processor = AutoImageProcessor.from_pretrained(str(path), local_files_only=True)
-    _model = AutoModelForDepthEstimation.from_pretrained(str(path), local_files_only=True)
-    _model = _model.to(device).eval()
-    _device = device
+    processor = AutoImageProcessor.from_pretrained(str(path), local_files_only=True)
+    model = AutoModelForDepthEstimation.from_pretrained(str(path), local_files_only=True)
+    model = model.to(device).eval()
+    _model, _processor, _device = model, processor, device
     return _model, _processor, device
 
 
@@ -173,6 +264,7 @@ def depth_map(image: Path, cache_dir: Path) -> Any:
     import cv2
     import numpy as np
 
+    configure_cpu_threads(cv2=cv2)
     cache = Path(cache_dir) / f"{_image_hash(Path(image))}.v{MOTION_VERSION}.npy"
     bgr = cv2.imread(str(image), cv2.IMREAD_COLOR)
     if bgr is None:
@@ -185,6 +277,7 @@ def depth_map(image: Path, cache_dir: Path) -> Any:
     import torch
     from PIL import Image
 
+    configure_cpu_threads(torch=torch)
     model, processor, device = _load()
     rgb = Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
     inputs = processor(images=rgb, return_tensors="pt")
@@ -193,6 +286,7 @@ def depth_map(image: Path, cache_dir: Path) -> Any:
         pred = torch.nn.functional.interpolate(
             pred.unsqueeze(1), size=(h, w), mode="bicubic", align_corners=False
         )[0, 0].float().cpu().numpy()
+    del inputs
     if device == "mps":
         torch.mps.empty_cache()
     lo, hi = np.percentile(pred, [1.0, 99.0])
@@ -209,6 +303,7 @@ def condition_depth(d: Any, short_side: int) -> Any:
     offset field is smooth (no tearing) and the transition lands in the background."""
     import cv2
 
+    configure_cpu_threads(cv2=cv2)
     r = max(3, round(short_side * 0.008)) | 1
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (r, r))
     d = cv2.dilate(d, k)
@@ -228,6 +323,7 @@ def clean_plate(bgr: Any, d: Any, short_side: int) -> tuple[Any, Any, Any]:
     import cv2
     import numpy as np
 
+    configure_cpu_threads(cv2=cv2)
     thr = float(np.clip(np.percentile(d, 50) + 0.25, 0.45, 0.85))
     fg = (d > thr).astype(np.uint8)
     fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))  # drop speckles
@@ -284,26 +380,37 @@ def _encoder_args(name: str) -> list[str]:
 
 
 def _render(image: Path, out: Path, frames: int, fmt: str, preset: str, amp: float,
-            cache_dir: Path, encoder: str) -> None:
+            cache_dir: Path, encoder: str, adaptive: bool = False) -> None:
     import cv2
     import numpy as np
 
+    configure_cpu_threads(cv2=cv2)
     w, h = frame_size(fmt)
     short = min(w, h)
-    amp_px = amp * short
-    margin = math.ceil(0.7 * amp_px) + 8  # max |shift| is 0.675 amp_px (pan, rise)
-    bw, bh = w + 2 * margin, h + 2 * margin
     src = cv2.imread(str(image), cv2.IMREAD_COLOR)
     if src is None:
         raise StageError(f"motion: cannot read {image}")
-    d_full = depth_map(image, cache_dir)
+    # A flat diagram zoom has no depth differential and needs no depth model at all.
+    d_full = (np.zeros(src.shape[:2], np.float32) if preset == "gentle-zoom"
+              else depth_map(image, cache_dir))
+    if adaptive and preset != "gentle-zoom":
+        amp = adaptive_amplitude(amp, depth_confidence(d_full))
+    amp_px = amp * short
+    margin = math.ceil(0.7 * amp_px) + 8  # max |shift| is 0.675 amp_px (pan, rise)
+    bw, bh = w + 2 * margin, h + 2 * margin
     sw, sh, x0, y0 = cover_geometry(src.shape[1], src.shape[0], bw, bh)
     interp = cv2.INTER_AREA if sw < src.shape[1] else cv2.INTER_LANCZOS4
     base = cv2.resize(src, (sw, sh), interpolation=interp)[y0:y0 + bh, x0:x0 + bw]
     raw = cv2.resize(d_full, (sw, sh), interpolation=cv2.INTER_LINEAR)[y0:y0 + bh, x0:x0 + bw]
     raw = np.ascontiguousarray(raw)
+    del src, d_full
     dep = condition_depth(raw, short)
-    plate, alpha, grown = clean_plate(base, raw, short)
+    if preset == "gentle-zoom":  # flat art: no depth warp, so nothing can tear or stretch
+        dep = np.zeros_like(dep)
+        alpha, grown = np.zeros_like(dep), np.zeros(dep.shape, bool)
+        plate = base
+    else:
+        plate, alpha, grown = clean_plate(base, raw, short)
     layered = bool(alpha.max() > 0)
 
     scale = 2.0  # offset maps are smooth: compute them at half resolution, then upsample
@@ -352,29 +459,35 @@ def _render(image: Path, out: Path, frames: int, fmt: str, preset: str, amp: flo
 
 def parallax_clip(image: Path | str, out: Path | str, seconds: float, fmt: str,
                   preset: str | None = None, *, cache_dir: Path | str | None = None,
-                  amplitude: float | None = None) -> Path:
+                  amplitude: float | None = None, shot: str | None = None) -> Path:
     """Render `seconds` (rounded to whole frames at 30 fps) of 2.5D parallax from a still.
 
     fmt "short" -> 1080x1920, "long" -> 1920x1080. preset None picks one deterministically
-    from the image and output name. Depth is cached in `cache_dir` (default: <out dir>/.depth).
-    Raises EngineUnavailable if the depth model isn't downloaded.
+    from the image and output name; either way it is then fitted to the beat's shot type
+    (`shot`, or the images stage's hint in visuals.json; see preset_for_shot). The amplitude
+    adapts to depth confidence unless `amplitude` or STUDIO_PARALLAX_AMP fixes it. Depth is
+    cached in `cache_dir` (default: <out dir>/.depth). Raises EngineUnavailable if the depth
+    model isn't downloaded.
     """
     image, out = Path(image), Path(out)
     frames = max(1, round(seconds * FPS))
     if preset is None:
         preset = preset_for(f"{_image_hash(image)}:{out.name}", 0)
-    if preset not in PRESETS:
-        raise ValueError(f"unknown parallax preset {preset!r}; one of {PRESETS}")
-    amp = amplitude if amplitude is not None else float(
-        os.environ.get("STUDIO_PARALLAX_AMP", DEFAULT_AMPLITUDE))
-    model_dir()  # fail fast with a clear message before any work
+    if preset not in ALL_PRESETS:
+        raise ValueError(f"unknown parallax preset {preset!r}; one of {ALL_PRESETS}")
+    preset = preset_for_shot(shot_hint(image) if shot is None else shot, preset)
+    env_amp = os.environ.get("STUDIO_PARALLAX_AMP", "").strip()
+    adaptive = amplitude is None and not env_amp
+    amp = amplitude if amplitude is not None else float(env_amp or DEFAULT_AMPLITUDE)
+    if preset != "gentle-zoom":
+        model_dir()  # fail fast with a clear message before any work
     cache = Path(cache_dir) if cache_dir else out.parent / ".depth"
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_name(out.stem + ".tmp" + out.suffix)
     last: StageError | None = None
     for encoder in ("h264_videotoolbox", "libx264"):
         try:
-            _render(image, tmp, frames, fmt, preset, amp, cache, encoder)
+            _render(image, tmp, frames, fmt, preset, amp, cache, encoder, adaptive)
             last = None
             break
         except StageError as exc:
@@ -390,10 +503,6 @@ def unload() -> None:
     device = _device
     _model, _processor, _device = None, None, None
     gc.collect()
-    if device == "mps":
-        try:
-            import torch
-
-            torch.mps.empty_cache()
-        except ImportError:  # pragma: no cover
-            pass
+    torch = sys.modules.get("torch")
+    if device == "mps" and torch is not None:
+        torch.mps.empty_cache()

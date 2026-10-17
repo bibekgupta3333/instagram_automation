@@ -1,5 +1,7 @@
 # 15 — Bedrock Hybrid Routing: Local-First, Bedrock Where It Matters
 
+> **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
+
 > **Status:** current · **Updated:** 2026-10-16 · **Related:** [14 Local models](../4-production/14-local-models-mac-m4.md), [16 MCP and agents](16-mcp-agent-orchestration.md), [04 Pipeline architecture](../4-production/04-content-pipeline-architecture.md)
 
 > **Text-only since 2026-10-16. Image/video rows below are historical.** The studio uses Bedrock for text models only. Stills come from local Z-Image-Turbo 4-bit, then Pixabay, then a "do not publish" mock; motion is local parallax (doc 18). The Stability, Luma Ray2 and Nova Canvas/Reel rows, the paid-thumbnail lines and the Ray2 line in §6 are kept as research history, not as recommendations. Model IDs now come from `.env` (§7.2a).

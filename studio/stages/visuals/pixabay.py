@@ -42,10 +42,12 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 from studio.contracts import BrandPack
 from studio.stages.base import EngineUnavailable, StageError
 from studio.stages.visuals.common import BeatSpec, Visual, logger
+from studio.stages.visuals.prompts import shot_class
 
 IMAGE_SEARCH = "https://pixabay.com/api/"
 VIDEO_SEARCH = "https://pixabay.com/api/videos/"
@@ -56,6 +58,9 @@ MIN_SHORT_SIDE = 1080
 CACHE_TTL_S = 24 * 3600
 PER_PAGE = 20
 MAX_429_RETRIES = 3
+MAX_DOWNLOAD_REDIRECTS = 3
+DOWNLOAD_HOSTS = frozenset({"pixabay.com", "www.pixabay.com", "cdn.pixabay.com"})
+REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 RENDITIONS = ("large", "medium", "small", "tiny")
 
 # Visuals that stock footage can't plausibly match (renders, diagrams, UI, illustration).
@@ -77,6 +82,38 @@ STOPWORDS = frozenset({
 })
 
 _KEY_RE = re.compile(r"(?i)\b(key=)[^&\s'\"]+")
+
+# Search relevance is not guaranteed by Pixabay. Ambiguous terms such as "fuel" also
+# retrieve firewood; a query match alone is never evidence that a hit depicts a car.
+DOMAIN_ANCHORS = {"car-cost-truth": "car"}
+_CAR_QUERY_ANCHOR = re.compile(r"\b(?:cars?|vehicles?)\b", re.IGNORECASE)
+_CAR_TAGS = re.compile(
+    r"\b(?:cars?|vehicles?|driving|roads?|engines?|automobiles?|automotive|highways?|"
+    r"traffic|trucks?|sedans?|motorways?)\b", re.IGNORECASE,
+)
+
+
+def anchor_query(query: str, channel: str = "") -> str:
+    """Keep the channel subject in each search, including shortened and visual fallbacks."""
+    query = " ".join(re.findall(r"[a-zA-Z0-9][a-zA-Z0-9'-]*", query.lower()))
+    if not query:
+        return ""
+    anchor = DOMAIN_ANCHORS.get(channel)
+    if anchor and not _CAR_QUERY_ANCHOR.search(query[:100]):
+        query = f"{anchor} {query}"
+    return query[:100].rstrip()
+
+
+def relevant_hit(hit: dict[str, Any], channel: str) -> bool:
+    """Require domain evidence in the asset's tags, never its query or download URL.
+
+    Missing tags fail closed for anchored channels. This is applied after search/cache
+    lookup and before either quality ranking or download, for both videos and photos.
+    """
+    if channel not in DOMAIN_ANCHORS:
+        return True
+    tags = hit.get("tags")
+    return isinstance(tags, str) and bool(_CAR_TAGS.search(tags))
 
 
 def redact(text: str) -> str:
@@ -101,9 +138,15 @@ for _name in ("httpx", "httpcore", logger.name):
         logging.getLogger(_name).addFilter(_FILTER)
 
 
+def stock_subject(spec: BeatSpec) -> bool:
+    """A stock asset cannot stand in for a requested technical illustration."""
+    return not (UNSTOCKABLE.search(spec.visual_prompt) or UNSTOCKABLE.search(spec.shot)
+                or shot_class(spec.shot) in ("diagram", "cutaway"))
+
+
 def suits_stock(spec: BeatSpec, brand: BrandPack, allow_channels: tuple[str, ...] = ()) -> bool:
     """True when a real-world stock shot is a reasonable stand-in for the beat's visual."""
-    if UNSTOCKABLE.search(spec.visual_prompt):
+    if not stock_subject(spec):
         return False
     if "all" in allow_channels or brand.slug in allow_channels:
         return True
@@ -122,11 +165,16 @@ def keywords(visual_prompt: str, limit: int = 4) -> str:
     return " ".join(picked)
 
 
-def queries(visual_prompt: str) -> list[str]:
-    """Pixabay ANDs the terms, so try 4 keywords, then the first 2 if that finds nothing."""
-    full = keywords(visual_prompt, 4)
-    short = keywords(visual_prompt, 2)
-    return [q for q in dict.fromkeys([full, short]) if q]
+def queries(visual_prompt: str, stock_query: str = "", channel: str = "") -> list[str]:
+    """Pixabay ANDs the terms. The script's ``stock_query`` comes first (it names the real
+    subject, unlike a styled image prompt), then its first 2 words; keyword extraction from the
+    visual prompt is the fallback (4 keywords, then 2)."""
+    out: list[str] = []
+    sq = " ".join(re.findall(r"[a-zA-Z0-9][a-zA-Z0-9'-]*", stock_query.lower()))[:100]
+    if sq:
+        out += [sq, " ".join(sq.split()[:2])]
+    out += [keywords(visual_prompt, 4), keywords(visual_prompt, 2)]
+    return list(dict.fromkeys(anchored for q in out if (anchored := anchor_query(q, channel))))
 
 
 # ---------------------------------------------------------------- rate limit + cache
@@ -195,7 +243,7 @@ def search(http: Any, url: str, params: dict[str, Any], *, api_key: str,
     for attempt in range(MAX_429_RETRIES + 1):
         limiter.before()
         try:
-            resp = http.get(url, params=full)
+            resp = http.get(url, params=full, follow_redirects=False)
         except Exception as exc:  # noqa: BLE001 - httpx errors embed the URL (with the key)
             raise StageError(f"pixabay: request failed: {redact(exc)}") from None
         limiter.after(resp.headers)
@@ -213,7 +261,7 @@ def search(http: Any, url: str, params: dict[str, Any], *, api_key: str,
         if resp.status_code in (400, 401, 403) and "key" in (resp.text or "").lower():
             raise EngineUnavailable(f"pixabay: auth failed ({resp.status_code}); "
                                     "check PIXABAY_API_KEY")
-        if resp.status_code >= 400:
+        if resp.status_code >= 300:
             raise StageError(f"pixabay: HTTP {resp.status_code} for {redact(str(resp.url))}")
         data = resp.json()
         if cache is not None:
@@ -240,11 +288,28 @@ def _renditions(hit: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def pick_rendition(hit: dict[str, Any]) -> dict[str, Any] | None:
-    """Smallest rendition whose short side is >= 1080; else the largest available."""
+def _frame(fmt: str) -> tuple[int, int]:
+    return (1080, 1920) if fmt == "short" else (1920, 1080)
+
+
+def cover_scale(width: int, height: int, fmt: str) -> float:
+    """How much render must enlarge a clip to cover the frame (centre crop); <= 1 is sharp.
+    A 1920x1080 clip in a 9:16 Short is cropped to 608x1080 and enlarged 1.78x (soft); the 4K
+    rendition only 0.89x."""
+    fw, fh = _frame(fmt)
+    return max(fw / width, fh / height)
+
+
+def pick_rendition(hit: dict[str, Any], fmt: str | None = None) -> dict[str, Any] | None:
+    """Smallest rendition that covers the frame without enlarging (with `fmt`), else the
+    smallest whose short side is >= 1080, else the largest available."""
     files = _renditions(hit)
     if not files:
         return None
+    if fmt is not None:
+        sharp = [f for f in files if cover_scale(f["width"], f["height"], fmt) <= 1.0]
+        if sharp:
+            return min(sharp, key=lambda f: f["width"] * f["height"])
     big = [f for f in files if min(f["width"], f["height"]) >= MIN_SHORT_SIDE]
     if big:
         return min(big, key=lambda f: f["width"] * f["height"])
@@ -252,16 +317,18 @@ def pick_rendition(hit: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def pick_video(hits: list[dict[str, Any]], fmt: str, used: set[str]) -> tuple | None:
-    """Prefer: frame orientation (vertical for shorts), >= 4 s, short side >= 1080."""
+    """Prefer: sharp after the cover crop (enlarged <= 1.15x), frame orientation (vertical
+    for shorts), >= 4 s, short side >= 1080, then Pixabay's relevance order."""
     want_vertical = fmt == "short"
     best: tuple[tuple, dict, dict] | None = None
     for i, hit in enumerate(hits):
         if f"video:{hit.get('id')}" in used:
             continue
-        f = pick_rendition(hit)
+        f = pick_rendition(hit, fmt)
         if f is None:
             continue
         score = (
+            cover_scale(f["width"], f["height"], fmt) <= 1.15,
             (f["height"] > f["width"]) == want_vertical,
             (hit.get("duration") or 0) >= MIN_CLIP_S,
             min(f["width"], f["height"]) >= MIN_SHORT_SIDE,
@@ -295,26 +362,63 @@ def _client(api_key: str, http: Any | None):
         return http
     import httpx
 
-    return httpx.Client(timeout=60.0, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+    return httpx.Client(timeout=60.0, follow_redirects=False, headers={"User-Agent": USER_AGENT})
+
+
+def _validate_download_url(url: str) -> None:
+    """Only exact Pixabay HTTPS authorities; never trust an API/cache URL or redirect."""
+    try:
+        if not isinstance(url, str) or any(c.isspace() or ord(c) < 32 or ord(c) == 127
+                                           or c == "\\" for c in url):
+            raise ValueError
+        parsed = urlsplit(url)
+        # Compare the entire authority, rejecting credentials, suffix tricks, encoded
+        # hosts, IP literals and every port spelling except an explicit :443.
+        authority = parsed.netloc.lower()
+        allowed = DOWNLOAD_HOSTS | {f"{host}:443" for host in DOWNLOAD_HOSTS}
+        if parsed.scheme != "https" or authority not in allowed:
+            raise ValueError
+    except ValueError:
+        # Don't echo URLs: rejected credentials or query parameters may be secrets.
+        raise StageError("pixabay: unsafe download URL") from None
 
 
 def _download(http: Any, url: str, out: Path, max_bytes: int = MAX_DOWNLOAD_BYTES) -> int:
+    import httpx
+
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + ".part")
     size = 0
     try:
-        with http.stream("GET", url) as resp:
-            if resp.status_code >= 400:
-                raise StageError(f"pixabay: download HTTP {resp.status_code}")
-            with tmp.open("wb") as fh:
-                for chunk in resp.iter_bytes():
-                    size += len(chunk)
-                    if size > max_bytes:
-                        raise StageError("pixabay: download exceeded size cap")
-                    fh.write(chunk)
+        for redirects in range(MAX_DOWNLOAD_REDIRECTS + 1):
+            _validate_download_url(url)
+            # Override even injected clients configured to follow redirects.
+            with http.stream("GET", url, follow_redirects=False) as resp:
+                if resp.status_code in REDIRECT_STATUSES:
+                    location = resp.headers.get("location")
+                    if not location or redirects == MAX_DOWNLOAD_REDIRECTS:
+                        raise StageError("pixabay: missing redirect location or too many redirects")
+                    # Validate the raw header before urljoin can discard control characters.
+                    if any(c.isspace() or ord(c) < 32 or ord(c) == 127 or c == "\\"
+                           for c in location):
+                        raise StageError("pixabay: unsafe download URL")
+                    url = urljoin(url, location)
+                    continue
+                if not 200 <= resp.status_code < 300:
+                    raise StageError(f"pixabay: download HTTP {resp.status_code}")
+                with tmp.open("wb") as fh:
+                    for chunk in resp.iter_bytes():
+                        size += len(chunk)
+                        if size > max_bytes:
+                            raise StageError("pixabay: download exceeded size cap")
+                        fh.write(chunk)
+                break
     except StageError:
         tmp.unlink(missing_ok=True)
         raise
+    except (httpx.InvalidURL, httpx.RemoteProtocolError, ValueError):
+        tmp.unlink(missing_ok=True)
+        raise StageError("pixabay: unsafe download URL") from None
     except Exception as exc:  # noqa: BLE001
         tmp.unlink(missing_ok=True)
         raise StageError(f"pixabay: download failed: {redact(exc)}") from None
@@ -357,10 +461,12 @@ def fetch(
     """Search by the beat's keywords, prefer a clip in the frame's orientation, else a photo;
     download it next to the beat. ``used`` holds ``video:<id>``/``photo:<id>`` already in this
     video and is updated."""
+    if not stock_subject(spec):
+        raise EngineUnavailable("pixabay: diagram/cutaway or illustrated beat needs a local still")
     used = used if used is not None else set()
-    qs = queries(spec.visual_prompt)
+    qs = queries(spec.visual_prompt, spec.stock_query, spec.channel)
     if not qs:
-        raise StageError("pixabay: no keywords in visual_prompt")
+        raise StageError("pixabay: no keywords in stock_query / visual_prompt")
     client = _client(api_key, http)
     owns = http is None
     common = {"safesearch": "true", "per_page": PER_PAGE}
@@ -370,7 +476,8 @@ def fetch(
         if prefer_video:
             for q in qs:
                 data = search(client, VIDEO_SEARCH, {"q": q, "video_type": "film", **common}, **kw)
-                picked = pick_video(data.get("hits") or [], spec.fmt, used)
+                hits = [hit for hit in data.get("hits") or [] if relevant_hit(hit, spec.channel)]
+                picked = pick_video(hits, spec.fmt, used)
                 if picked:
                     hit, f = picked
                     out = spec.out_stem.with_suffix(".mp4")
@@ -387,7 +494,8 @@ def fetch(
                 "q": q, "image_type": "photo",
                 "orientation": "vertical" if vertical else "horizontal",
                 "min_width": w, "min_height": h, **common}, **kw)
-            picked = pick_photo(data.get("hits") or [], used)
+            hits = [hit for hit in data.get("hits") or [] if relevant_hit(hit, spec.channel)]
+            picked = pick_photo(hits, used)
             if picked:
                 hit, link, (pw, ph) = picked
                 out = spec.out_stem.with_suffix(".jpg")
