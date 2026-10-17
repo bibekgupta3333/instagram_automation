@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working in this repo. **Read this and [CLAUDE.md](CLAUDE.md) before editing.** The planning docs are in [docs/](docs/README.md). Code cites them as "doc NN §x"; never renumber them.
+Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working in this repo. **Read this, [CLAUDE.md](CLAUDE.md) and the latest entries of [CODE_CHANGELOG.md](CODE_CHANGELOG.md) before editing.** The planning docs are in [docs/](docs/README.md). Code cites them as "doc NN §x"; never renumber them.
 
 **What this is:** a local-first AI video studio for **10 faceless channels** on YouTube, Instagram and Facebook, aimed at a US audience and AdSense revenue. Text comes from Bedrock or Claude Code. Voice, captions, images and motion run locally on an M4 Pro 24 GB. Publishing goes through Buffer, behind a human approval gate.
 
@@ -110,14 +110,14 @@ Many agents may work at once. **Each role edits only the paths it owns.** For an
 | Setup & Models | `scripts/setup/**`, `Makefile`, `SETUP.md` (proposes `pyproject.toml` changes) | smoke scripts | downloads without dry-run, going below 10 GB free |
 | Docs & Brand | `docs/**`, `brand_packs/**` | `test_brand_packs.py` | code; renumbering docs |
 
-**Shared files (Orchestrator only):** `studio/contracts.py`, `studio/config.py` (apart from the Visuals section), `studio/stages/base.py`, `studio/stages/__init__.py`, `pyproject.toml`, `uv.lock`, `.env.example`, `.gitignore`, `tests/conftest.py`, `tests/test_config_env.py`, `CLAUDE.md` and `AGENTS.md`. A role that needs a test in a file it doesn't own adds a new file, `tests/test_<role>_<topic>.py`.
+**Shared files (Orchestrator only):** `studio/contracts.py`, `studio/config.py` (apart from the Visuals section), `studio/stages/base.py`, `studio/stages/__init__.py`, `pyproject.toml`, `uv.lock`, `.env.example`, `.gitignore`, `tests/conftest.py`, `tests/test_config_env.py`, `CLAUDE.md`, `AGENTS.md` and `CODE_CHANGELOG.md`. A role that needs a test in a file it doesn't own adds a new file, `tests/test_<role>_<topic>.py`.
 
 ### Parallel-work protocol
 1. **Contracts first.** The Orchestrator edits `contracts.py`, `base.py` or `config.py` on its own, adding new fields as optional with defaults. It runs `make test`, commits, and only then briefs the roles that produce and consume the change. Roles never change a contract.
 2. **Dependencies.** Only the Orchestrator (or Setup & Models, after a committed `pyproject.toml` change) runs `make deps`. Everyone else uses `uv run`.
 3. **Tests while others edit.** Run your own tests first, then `make test`. If a test outside your paths fails, re-run it once. If it still fails, report "unrelated, owned by <role>" and don't fix it.
 4. **GPU and RAM.** Only one heavy job at a time (Z-Image, parallax, ESRGAN, Kokoro or Parakeet). Ask the Orchestrator for the GPU slot before a real-engine `studio make` or `make smoke`. Otherwise use `--mock` or `--engine x=mock`.
-5. **Git.** Agents never commit, stash, reset, check out or rebase, and never touch `.env`. The Orchestrator reviews each diff against the roster, runs `make test` and `make lint`, checks for secrets (`git grep` for the key values, never printing them), and commits one subject per commit with the attribution trailer.
+5. **Git.** Agents never commit, stash, reset, check out or rebase, and never touch `.env`. The Orchestrator reviews each diff against the roster, runs `make test` and `make lint`, checks for secrets (`git grep` for the key values, never printing them), and commits one subject per commit with the attribution trailer. **With every code commit it adds an entry to [CODE_CHANGELOG.md](CODE_CHANGELOG.md)** covering what changed, why, and agent gotchas (VERSION bumps, new env vars, contract changes).
 6. **Report** (15 lines max): files changed, the tests run and their results, proposed diffs to shared files, anything still `unverified`, and follow-ups for other roles.
 7. **Never approve or publish.**
 
