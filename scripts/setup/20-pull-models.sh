@@ -3,13 +3,16 @@
 #
 # Usage: scripts/setup/20-pull-models.sh [--stage llm|tts|asr|image|video|music|all]
 #                                        [--dry-run] [--include-optional] [--dest hf-cache|models]
+#                                        [--name NAME ...]
 #   --stage             only that stage (default: all)
 #   --dry-run           print the plan and the disk check, download nothing
 #   --include-optional  also pull models marked optional (e.g. gemma4:12b)
 #   --dest              where HF repos go: the shared HF cache (default) or ./models/<repo>
+#   --name              exact model name, repeatable; optional names need --include-optional
 #
 # Before EACH model it re-checks free disk and exits 1 if free space is below
-# (model size + buffer). Models already present are skipped. LLMs go through
+# (model size + buffer). Models already present are skipped, except HF include-file
+# selections, which use the download client's file cache. LLMs go through
 # `ollama pull` (server must be running: make ollama). HF repos go through `hf download`
 # (or huggingface-cli, or `uvx --from huggingface_hub hf` as a fallback).
 set -euo pipefail
@@ -17,23 +20,32 @@ set -euo pipefail
 # shellcheck source=scripts/setup/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-STAGE="all"; DRY=0; OPT=(); DEST="hf-cache"
+STAGE="all"; DRY=0; OPT=(); NAMES=(); DEST="hf-cache"
 while (($#)); do
   case "$1" in
     --stage) STAGE="${2:-}"; shift 2 ;;
     --stage=*) STAGE="${1#*=}"; shift ;;
     --dry-run) DRY=1; shift ;;
     --include-optional) OPT=(--include-optional); shift ;;
+    --name)
+      if (( $# < 2 )) || [[ -z "$2" || "$2" == --* ]]; then
+        echo "--name requires a model name" >&2; exit 2
+      fi
+      NAMES+=(--name "$2"); shift 2 ;;
+    --name=*) NAMES+=(--name "${1#*=}"); shift ;;
     --dest) DEST="${2:-}"; shift 2 ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 case "$STAGE" in llm|tts|asr|image|video|music|all) ;; *) echo "bad --stage: $STAGE" >&2; exit 2 ;; esac
 case "$DEST" in hf-cache|models) ;; *) echo "bad --dest: $DEST" >&2; exit 2 ;; esac
 
+# Materialize and validate the complete list before any presence checks or downloads.
+# Process substitution hides the producer's exit status from `set -e`.
+ROWS="$(manifest list --stage "$STAGE" ${OPT[@]+"${OPT[@]}"} ${NAMES[@]+"${NAMES[@]}"})"
 BUF="$(manifest buffer)"
-TOTAL="$(manifest total --stage "$STAGE" ${OPT[@]+"${OPT[@]}"})"
+TOTAL="$(manifest total --stage "$STAGE" ${OPT[@]+"${OPT[@]}"} ${NAMES[@]+"${NAMES[@]}"})"
 FREE="$(free_gb "$REPO_ROOT")"
 
 MODE=""; if (( DRY )); then MODE=" (DRY RUN)"; fi
@@ -61,7 +73,9 @@ while IFS=$'\t' read -r name stage runtime source size optional include verified
   if [[ "$runtime" == "ollama" ]]; then
     if ollama_running && ollama_has "$source"; then present=1; fi
   else
-    if hf_has "$source"; then present=1; fi
+    # Repo presence does not prove that the selected include files are cached.
+    # Let `hf download` resolve those files idempotently instead of skipping them.
+    if [[ "$include" == "-" ]] && hf_has "$source"; then present=1; fi
   fi
   if (( present )); then
     skip "$label already present"
@@ -108,7 +122,7 @@ while IFS=$'\t' read -r name stage runtime source size optional include verified
   "${cmd[@]}"
   pass "$label pulled"
   PULLED=$((PULLED + 1))
-done < <(manifest list --stage "$STAGE" ${OPT[@]+"${OPT[@]}"})
+done <<< "$ROWS"
 
 echo
 echo "Models: $PLANNED planned, $PULLED pulled, $SKIPPED already present."

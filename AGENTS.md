@@ -2,6 +2,12 @@
 
 Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working in this repo. **Read this, [CLAUDE.md](CLAUDE.md) and the latest entries of [CODE_CHANGELOG.md](CODE_CHANGELOG.md) before editing.** The planning docs are in [docs/](docs/README.md). Code cites them as "doc NN §x"; never renumber them.
 
+**Current installation status (2026-10-18):** all local model weights installed for
+this project were removed at the user's request, including Rhubarb's bundled speech
+models. Source, dependencies, runtime executables and generated media remain.
+Do not reinstall weights unless the user explicitly requests it. Local real-model
+generation requires reinstalling the selected models; historical benchmarks remain valid.
+
 **What this is:** a local-first AI video studio for **10 faceless channels** on YouTube, Instagram and Facebook, aimed at a US audience and AdSense revenue. Text comes from Bedrock or Claude Code. Voice, captions, images and motion run locally on an M4 Pro 24 GB. Publishing goes through Buffer, behind a human approval gate.
 
 ## Hard rules
@@ -18,7 +24,8 @@ Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working
 - Never use this machine's AWS profiles (`bamboo.*`, `default`) or `~/.aws`, because they belong to the user's employer. Bedrock auth comes only from `.env` (`AWS_PROFILE` / `AWS_BEARER_TOKEN_BEDROCK`), which the user fills in. When a key is set, keep the rule that cuts boto3 off from profiles (`studio/llm/bedrock.py`).
 
 **Disk and models**
-- The 12 GB local visual-model budget is used up, so add no new local image or video models. Keep **at least 10 GB of disk free**.
+- Local model weights have been removed. Do not download or reinstall models without
+  a new user request. Keep **at least 10 GB of disk free**.
 - Download only with `make models-dry` and then `make models` (`scripts/setup/20-pull-models.sh`). Never trigger a download from code or a render, and never set `STUDIO_ALLOW_MODEL_DOWNLOAD=1`.
 - Never pass `-q` to mflux or use base model names. Use only the pre-quantized `mflux-community/*-q4` repos; the others are 16–33 GB downloads.
 - Run one heavy model at a time (Z-Image peaks at about 12.6 GB). Keep the MLX cache clearing and the unloading between stages in TTS, captions and images.
@@ -39,7 +46,9 @@ Guide for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, …) working
 **Provider decisions** (2026-10-16)
 - **Bedrock is text-only.** Never add Bedrock image or video engines.
 - **No HeyGen, avatars or Pexels.** All 10 channels are faceless, and **Pixabay** is the only stock source (credits go in `images/attribution.txt`).
-- The local models are Z-Image-Turbo q4, Real-ESRGAN x4plus, Depth Anything V2 **Small** (Base and Large are non-commercial), Kokoro 82M and parakeet-tdt-0.6b-v2. flux2-klein q4 is optional.
+- The supported local stack (weights currently removed) is Z-Image-Turbo q4,
+  Real-ESRGAN x4plus, Depth Anything V2 **Small** (Base and Large are non-commercial),
+  Kokoro 82M and parakeet-tdt-0.6b-v2. flux2-klein q4 is optional.
 - Over budget, quality roles raise `BudgetDeferred` and are re-queued. Never fall back silently to a local model (`studio/llm/budget.py`).
 
 **Engineering**

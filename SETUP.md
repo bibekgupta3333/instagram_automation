@@ -1,5 +1,11 @@
 # Local setup: Apple Silicon Mac (M4 Pro, 24 GB)
 
+> **Current status — 2026-10-18:** local model weights installed for this project
+> were removed at the user's request, including bundled Rhubarb speech models and
+> the archive containing them. Code, dependencies, runtime executables and generated
+> media remain. Do not run model download/install steps unless the user explicitly
+> requests reinstalling models. The stack descriptions below document the earlier setup.
+
 This guide sets up the local video studio from
 [docs/4-production/14-local-models-mac-m4.md](docs/4-production/14-local-models-mac-m4.md) ("doc 14").
 All the scripts live in `scripts/setup/`, and every step has a `make` target.
@@ -13,8 +19,8 @@ All the scripts live in `scripts/setup/`, and every step has a `make` target.
 make preflight  →  make tools  →  make deps  →  make models-dry  →  make models
 ```
 
-This machine runs **Configuration A** (§1a): local audio, local Z-Image-Turbo 4-bit stills,
-Real-ESRGAN upscaling and depth parallax.
+This machine previously ran **Configuration A** (§1a): local audio, local Z-Image-Turbo
+4-bit stills, Real-ESRGAN upscaling and depth parallax. Its weights are now removed.
 
 Every channel receives model uncertainty review through the configured text backend.
 This is not source verification: model-generated citations are not trusted evidence.
@@ -201,10 +207,26 @@ make models STAGE=music OPTIONAL=1    # ACE-Step, when space allows
 make models STAGE=llm OPTIONAL=1      # only for offline LLM experiments (needs make ollama)
 ```
 
+For the explicitly requested neural-video pilot, select exact names rather than
+all optional video repositories (some contain many quantizations):
+
+```bash
+make models-dry STAGE=video OPTIONAL=1 MODEL='wan2.1-vace-1.3b-q4 wan-umt5-q3 wan2.1-tiny-vae'
+make models STAGE=video OPTIONAL=1 MODEL='wan2.1-vace-1.3b-q4 wan-umt5-q3 wan2.1-tiny-vae'
+```
+
+The recommended tiny-codec weights total 4.23 GB. Include `--decoder tiny` when
+running the standalone generator. See [doc 24](docs/4-production/24-local-wan-video-pilot.md)
+for the external Metal runtime, offline guarded command and measured comparison:
+4.4 minutes with the tiny codec versus 28.2 minutes with the full VAE for the same
+1.06-second pilot; all recorded pressure samples stayed green.
+This optional experiment is separate from the default Configuration A stack.
+
 - HF repos come through `hf download` (falling back to `huggingface-cli`, then
   `uvx --from huggingface_hub hf`) into the HF cache. Use
   `bash scripts/setup/20-pull-models.sh --dest models` to put them in `./models/<repo>` instead (git-ignored).
-- Models that are already present are skipped.
+- Whole repositories that are already present are skipped. Exact-file selections
+  are resolved through the downloader's cache so a partial repository cannot hide a missing file.
 - Runtimes: use `make deps` (audio + image + bedrock + dev). Optional external music
   runtimes are separate from the project environment; do not sync a reduced set of extras here.
 

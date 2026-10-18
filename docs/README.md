@@ -1,5 +1,13 @@
 # Multi-Channel AI Content Automation: Plan
 
+> **Current status · 2026-10-18:** All project-installed local model weights were
+> removed at the user's request; see `output/model-removal/result.json` for
+> verification. Source, generated media, executable runtimes, historical benchmarks
+> and unrelated caches are preserved. Rhubarb's executable remains, but its bundled
+> Sphinx speech resources and release ZIP were removed. Model installation commands
+> and older “installed” descriptions below are historical references; reinstall
+> weights only after an explicit future user request.
+
 > **Status:** current · **Updated:** 2026-10-17 · Master index for the planning docs.
 
 > **New kids-channel research:** [19 — Opportunity and revenue experiment](1-strategy/19-kids-channel-opportunity.md), [20 — Pocket Meadow Question Club](2-channels/20-pocket-meadow-question-club.md), [21 — Production and publishing requirements](4-production/21-kids-pilot-production.md). This is a proposed original preschool pilot alongside the ten adult brands, with no guaranteed revenue. The current gate cannot publish it. Child-directed content must be classified accurately; the adult portfolio’s blanket audience setting does not apply.
@@ -105,6 +113,7 @@ flowchart LR
 - [04 — Content pipeline architecture](4-production/04-content-pipeline-architecture.md): repo comparison (fork MoneyPrinterTurbo), vendor pricing, reference architecture, cost per video.
 - [14 — Local models on M4 Pro 24 GB](4-production/14-local-models-mac-m4.md): what runs locally, licences, install commands, nightly batch, throughput.
 - [18 — Lightweight local image and video models](4-production/18-local-image-video-models.md): open-source image and video models of 6 GB or less, runtimes (mflux, stable-diffusion.cpp), disk traps. Supersedes 14 §6–7.
+- [24 — Local Wan video pilot](4-production/24-local-wan-video-pilot.md): exact 4.23 GB tiny-codec reference-to-video bundle, offline runner and measured green-pressure Mac comparison.
 
 ## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))
 

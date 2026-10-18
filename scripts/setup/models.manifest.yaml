@@ -183,6 +183,60 @@ models:
     verified: false
     verified_how: "Doc 18 round 2: DiT Q4 0.78 + Qwen3-VL-4B Q4_K_M 2.50 + Wan2.1 VAE 0.25. M4 Pro est. 10-25 min per clip"
 
+  # Explicitly requested local neural-video pilot, separate from Configuration A.
+  # Pull exactly these three names together; never the whole calcuis repo (~78 GB).
+  - name: wan2.1-vace-1.3b-q4
+    stage: video
+    purpose: "Reference-image-to-video pilot via stable-diffusion.cpp Metal; not audio-driven lip-sync"
+    runtime: hf
+    source: "calcuis/wan-1.3b-gguf"
+    include: ["wan2.1-v3-vace-1.3b-q4_0.gguf"]
+    size_gb: 1.347
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-18 exact v3 file 1346314016 bytes includes the missing vace_patch_embedding. M4 Pro guarded R2V passed, 17 frames at 320x384/20 steps, with full and tiny codecs. Requires wan-umt5-q3 and either wan2.1-vae or wan2.1-tiny-vae. Doc 24 records measurements."
+
+  - name: wan-umt5-q3
+    stage: video
+    purpose: "Quantized text encoder shared by Wan video models"
+    runtime: hf
+    source: "city96/umt5-xxl-encoder-gguf"
+    include: ["umt5-xxl-encoder-Q3_K_S.gguf"]
+    size_gb: 2.859
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-18 HF API: exact file 2858489696 bytes; Apache-2.0 model card."
+
+  - name: wan2.1-vae
+    stage: video
+    purpose: "Wan2.1 video encoder/decoder; use spatial and temporal tiling for pilot"
+    runtime: hf
+    source: "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
+    include: ["split_files/vae/wan_2.1_vae.safetensors"]
+    size_gb: 0.254
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-18 HF API: exact file 253815318 bytes; Apache-2.0 model card. Wan2.2 5B uses a different VAE."
+
+  - name: wan2.1-tiny-vae
+    stage: video
+    purpose: "Optional faster/lower-memory Wan2.1 reference encode and video decode; quality tradeoff"
+    runtime: hf
+    source: "Kijai/WanVideo_comfy"
+    include: ["taew2_1.safetensors"]
+    size_gb: 0.023
+    licence: mit
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-18 exact mirror file 22642926 bytes. Upstream madebyollin/taehv is MIT. Local paired pilot passed: 264.98 seconds, all 268 pressure samples green, 17 distinct decoded frames. Slightly softer inspected detail than full VAE; see doc 24."
+
   - name: realesrgan-x4plus
     stage: image
     purpose: "Tiny 4x upscaler: render stills at 544x960 then upscale, about 2x faster (doc 18 §5)"

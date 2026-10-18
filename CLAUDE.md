@@ -4,6 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Also read [AGENTS.md](AGENTS.md)**: the hard rules, agent roster (who owns which files) and parallel-work protocol for multi-agent work.
 
+**Current installation status (2026-10-18):** project-installed local model weights
+and Rhubarb's bundled speech models were removed at the user's request. Code,
+dependencies, executables and generated media remain. Installed-stack descriptions
+below describe the previous setup, not current model availability. Do not reinstall
+models without an explicit new user request.
+
 ## What this is
 
 A local-first AI video studio for 10 faceless channels (no avatar hosts; HeyGen was removed 2026-10-16) on YouTube, Instagram and Facebook, aimed at US viewers and AdSense revenue. Publishing goes through Buffer. The strategy, policy research and design decisions are in `docs/`, and `docs/README.md` is the index. Docs keep a stable number prefix (`04`, `12`, …), and code comments cite them as `doc 15 §5`.
@@ -65,6 +71,6 @@ background applications can change whether a given image size stays green.
 - Never post for real or disable `DRY_RUN`. Agents may use the Buffer MCP in `.mcp.json` read-only only; see `infra/MCP.md`.
 - Don't use the AWS profiles on this machine. They belong to the user's employer. Bedrock uses `AWS_PROFILE` from `.env`, which is empty by default.
 - Disk is tight (about 10 GB free). Keep at least 10 GB free, and run `make models-dry` before any download. Model weights, `output/` and `.env` are git-ignored.
-- mflux runs with `HF_HUB_OFFLINE=1`. The mflux engines refuse to run if their pre-quantized model isn't cached, and never pass `-q` (that pulls 16–33 GB). Only download through `scripts/setup/20-pull-models.sh`. The 12 GB local visual-model budget is used up; add no new local image or video models.
+- mflux runs with `HF_HUB_OFFLINE=1`. The mflux engines refuse to run if their pre-quantized model isn't cached, and never pass `-q` (that pulls 16–33 GB). Local weights are currently removed; only reinstall after an explicit user request, through `scripts/setup/20-pull-models.sh` after its dry-run.
 - MLX caches grow fast. The TTS and caption engines clear the MLX cache per segment and unload between stages. Keep that behaviour if you touch them.
 - Several external API field names (Buffer GraphQL, Bedrock model IDs, mflux/mlx-audio CLI flags) are marked `unverified` in code and docs. Check them against the live API or the installed library before relying on them.

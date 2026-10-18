@@ -11,6 +11,9 @@ STAGE ?= all
 # make models OPTIONAL=1  also pulls models marked optional (local LLMs, flux2-klein, video, ACE-Step)
 OPTIONAL ?=
 OPT_FLAG := $(if $(OPTIONAL),--include-optional,)
+# Exact names (space separated); avoids downloading every optional video model.
+MODEL ?=
+MODEL_FLAGS := $(foreach name,$(MODEL),--name $(name))
 # make smoke-mock ARGS="--channel demo"  extra args passed to `studio make --mock`
 ARGS ?=
 
@@ -43,10 +46,10 @@ deps: ## install Configuration A runtimes: audio + image (mflux, torch, opencv, 
 deps-audio: deps ## alias for `make deps` (a narrower sync would uninstall local-image)
 
 models-dry: ## plan model downloads + disk check, download nothing
-	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) --dry-run $(OPT_FLAG)
+	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) --dry-run $(OPT_FLAG) $(MODEL_FLAGS)
 
 models: ## download the manifest's default (non-optional) models (refuses if disk is short)
-	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) $(OPT_FLAG)
+	@bash $(SETUP)/20-pull-models.sh --stage $(STAGE) $(OPT_FLAG) $(MODEL_FLAGS)
 
 models-audio: ## download only the audio models: Kokoro TTS + parakeet ASR (~2.9 GB)
 	@bash $(SETUP)/20-pull-models.sh --stage tts

@@ -2,6 +2,13 @@
 
 > **Implementation status:** follow [SETUP.md](../../SETUP.md) and the [current code](../../studio/) for supported setup, routing and resource guards; stack, retrieval, orchestration and capacity proposals below are historical plans, not evidence of implemented or validated behavior.
 
+> **2026-10-18 local video trial:** [doc 24](24-local-wan-video-pilot.md) records the
+> installed Wan2.1 **VACE** 1.3B v3 Q4 reference-to-video bundle (4.23 GB with tiny
+> codec, 4.46 GB with full VAE). A paired 17-frame 320×384 trial took 4.4 versus
+> 28.2 minutes, with all recorded pressure samples green. The original GGUF is
+> missing a required tensor. Do not treat the estimated timings below as measured
+> performance of this setup. Plain Wan2.1 T2V 1.3B remains text-to-video only.
+
 Status: current · Updated: 2026-10-16 · Related: [14](14-local-models-mac-m4.md), [04](04-content-pipeline-architecture.md), [15](../5-automation/15-bedrock-hybrid-routing.md)
 
 This doc replaces doc 14's image and video picks for a disk-constrained Mac: an M4 Pro with 24 GB, about **10 GB free**, and a 10 GB floor to keep free. Three agents did the research in parallel (images, video, runtimes). Sizes come from the Hugging Face file-tree API. **No M4 Pro timings exist for these exact quants, so figures marked *(est.)* are extrapolations.**
@@ -158,13 +165,16 @@ Rejected for licence: CausVid and Self-Forcing I2V/VACE GGUFs (CC-BY-NC-SA), Hum
 
 ## 7. Wan 2.1 1.3B (requested evaluation)
 
-**It only does text-to-video**, so it can't animate our scene still. Use it for **generic cutaways** where matching the still's style doesn't matter (clouds, traffic, machinery, space), and keep FastWan2.2-5B for image-to-video hero shots.
+**Plain Wan2.1 T2V 1.3B only does text-to-video**, so it cannot animate a supplied
+still. **Wan2.1 VACE 1.3B is a different variant** that supports reference-to-video;
+the optional local pilot and actual resource evidence are in [doc 24](24-local-wan-video-pilot.md).
 
 | Way to run it | Download | Disk free needed | Per 2–3 s clip on M4 Pro | Licence |
 |---|---|---|---|---|
 | GGUF in stable-diffusion.cpp (Q8 DiT ~1.4 + umT5 Q3_K_S 2.86 + VAE 0.25) | ~4.5 GB | ~15 GB | 3–6 min *(est., undistilled)* | Apache-2.0 |
 | **FastMetal-1.3B-QAD** (MLX, Apache): encode a bank of motion prompts once with `--prompt-embeds-cache`, then delete umT5 | 13.4 GB once (put it on an external SSD); **~1.5 GB** afterwards | ~24 GB during setup | **~30–40 s** *(est.; 45 s measured on M4 Max with `--fast`)* | Apache-2.0 |
-| Wan2.1-Fun-1.3B-InP (the only 1.3B image-to-video) | ~4–5 GB + CLIP-H | ~15 GB | slow (50 steps, no clean distill) | Apache-2.0 |
+| Wan2.1 VACE 1.3B v3 Q4 + UMT5 Q3 + tiny codec | 4.23 GB | At least 14.23 GB plus runtime/output headroom | **4.4 min measured for 1.06 s**, 320×384/17 frames/20 steps, all samples green; doc 24 | Apache-2.0 + MIT |
+| Wan2.1-Fun-1.3B-InP (alternative conditioning variant) | ~4–5 GB + CLIP-H | ~15 GB | slow (50 steps, no clean distill) | Apache-2.0 |
 
 Don't use the 1.3B speed-up distills: CausVid and Self-Forcing are **CC-BY-NC-SA** (non-commercial), and lightx2v's 1.3B has no licence. Manifest entry: `wan2.1-t2v-1.3b-gguf` (optional).
 

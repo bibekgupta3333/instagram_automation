@@ -12,6 +12,53 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-18 · Project-installed model weights removed
+- Removed at the user's request: Z-Image q4, Kokoro, Parakeet, Depth Anything Small,
+  Real-ESRGAN, Wan VACE v3 Q4, UMT5 Q3 and both Wan codecs from their nine HF cache
+  repositories; also removed the exclusively referenced ESRGAN shared blob and
+  bundled Rhubarb Sphinx models plus the archive containing a second copy.
+- Audit: **13.551 GB** of model/cache/archive files removed; free disk measured
+  **30.419 GB** after removal. Inventory and exact-target deletion/verification records
+  are in git-ignored `output/model-removal/`. No active guarded workload was present.
+- Preserved: unrelated model/dataset caches, source, dependencies, executable runtimes,
+  credentials and generated videos/images/audio. Rhubarb's executable remains but its
+  speech resources are absent. Real local generation now requires model reinstallation.
+- Agents: do not automatically reinstall models to repair missing-model checks. Wait
+  for an explicit user request; retain offline rendering and the existing publish gates.
+  Updated current-status guidance without erasing historical benchmark results.
+- Verification: exact removal targets are absent and unrelated HF entries are retained;
+  two agents assisted inventory, documentation and independent checks. No model loads,
+  downloads, approvals or publishing were performed during removal.
+
+## 2026-10-18 · Optional low-memory Wan reference-video pilot
+- Added: exact `MODEL='name name'` selection for `make models-dry` / `make models`,
+  with validation before downloads and safe handling of partially cached HF repositories.
+  Default Configuration A selection is unchanged.
+- Added: explicit optional Wan components (VACE 1.3B v3 Q4, UMT5 Q3, full or tiny
+  codec) and `scripts/generate_wan_video.py`. The recommended `--decoder tiny` bundle
+  is 4.227 GB; full is 4.459 GB; both installed together share files and total 4.481 GB.
+  The standalone runner checks
+  pinned cached-file digests, requires guarded/offline settings, limits pilot dimensions,
+  uses Metal-compatible memory controls and refuses to overwrite media. It is not a new
+  pipeline stage or a publishing integration; no stage VERSION or contracts changed.
+- Why: the user explicitly requested a real local video model with a smaller footprint.
+  This optional pilot is an exception to the earlier exhausted model-budget restriction;
+  it does not enable downloads during rendering or alter default faceless production.
+- Agents: the original calcuis VACE GGUF omits `vace_patch_embedding.weight` and fails
+  before inference. Use the exact **v3** filename in the manifest; the incompatible file
+  downloaded by this task was removed. The 6 GiB runtime budget is not total unified RAM.
+  Retain the pressure guard, three threads and 10 GB disk floor. R2V is not audio lip-sync.
+- Measured: same seeded 17-frame 320×384/20-step pilot completed with both codecs.
+  Tiny took **264.98 s** versus full **1,693.05 s** (6.39× faster); all **268 / 1,686**
+  pressure samples stayed green. Native process maximum RSS was 5.82 / 5.91 GB,
+  not a measurement of total shared CPU/GPU memory. Both clips fully decoded and
+  spaced frames were inspected; tiny is slightly softer. These are silent low-resolution
+  pilots, not narration-synchronized presenters or finished episodes.
+- Checks: **678 passed, 3 skipped** in the offline suite; Ruff and shell syntax passed.
+  Five agents contributed setup, compatibility checks, documentation and offline tests.
+  Guarded media results and runtime provenance are recorded in doc 24; no approval or
+  publishing action was performed. Bedrock remains text-only.
+
 ## 2026-10-17 · Original portfolio script library (docs only)
 - Added: `docs/6-script-library/`: 20 detailed treatments per adult channel plus 20 for the proposed kids pilot; each has exact opening/closing lines, five timed beats, an attention magnet, an independent short cut, two thumbnail concepts and episode-specific evidence/rights checks. Ten specialist agents contributed the adult files in two waves.
 - Added: doc 22 directing/retention/thumbnail/rights guide and library index; linked from master index, portfolio, brands and production. These are treatments, not full timed narrations, completed experiments or cleared assets.
