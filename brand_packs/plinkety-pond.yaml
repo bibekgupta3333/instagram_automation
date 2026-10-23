@@ -3,8 +3,8 @@
 # Intended to be set "Made for kids" on YouTube (YouTube Kids-eligible). The Platform enum has
 # no youtube_kids value: YouTube Kids eligibility follows from the made-for-kids setting, not a
 # separate upload target. Instagram/Facebook are deliberately excluded (child audience).
-# PUBLISHING IS BLOCKED BY DESIGN: studio/publish/gate.py rejects made_for_kids=True. This pack is
-# for local production only until a human deliberately implements and reviews kids publishing.
+# PUBLISHING: only the reviewed kids path (studio/publish/gate.py `kids_problems`): YouTube, PRIVATE
+# direct upload via scripts/youtube_upload.py after a HUMAN `approve`; the human clicks Publish.
 # Handle/.com checked 2026-10-23 (YouTube 404, Verisign RDAP 404); trademarks unverified.
 slug: plinkety-pond
 name: Plinkety Pond

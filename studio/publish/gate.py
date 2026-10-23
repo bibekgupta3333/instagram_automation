@@ -5,8 +5,24 @@ problem, unless:
 - a human approval is bound to this exact content (approved_hash == content_hash),
 - media/thumbnail URLs are public https and NOT pre-signed/expiring (Buffer fetches at publish
   time; docs 05 gotcha 6),
-- made_for_kids is False and ai_disclosure is True,
+- ai_disclosure is True,
+- made_for_kids is False, EXCEPT on the reviewed kids path below,
 - per-platform caption/title/hashtag limits from docs 05 §3 hold.
+
+Reviewed kids path (user decision 2026-10-23, doc 26). ``made_for_kids=True`` is allowed ONLY when
+all of these hold; anything else is blocked:
+- the caller passes the channel's ``BrandPack`` and it has ``made_for_kids: true`` (and its slug
+  is the request's channel),
+- every platform is YouTube (Shorts/long-form): no Instagram or Facebook for child audiences,
+- it is a direct YouTube Data API upload (``direct_privacy`` given) and the privacy is "private":
+  the human reviews in YouTube Studio and clicks Publish.
+A kids brand can never be declared ``made_for_kids=False`` (that would mislabel child-directed
+content), and adult brands keep ``made_for_kids=False`` exactly as before.
+
+``direct_privacy`` marks a direct YouTube API upload of local bytes (``studio/publish/youtube.py``).
+Only "private" is accepted, the platforms must all be YouTube, and the public-URL checks are
+skipped because nothing is fetched from a URL (they protect Buffer, which fetches at publish time);
+the uploader verifies the local file's sha256 against the approval instead.
 """
 
 from __future__ import annotations
@@ -16,7 +32,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import parse_qsl, urlsplit
 
-from studio.contracts import Platform, PublishRequest
+from studio.contracts import BrandPack, Platform, PublishRequest
 
 
 @dataclass(frozen=True)
@@ -57,6 +73,9 @@ PRESIGN_PARAMS = frozenset(
 )
 # Hosts docs 05 says not to use (not permanent / not direct media).
 BLOCKED_HOSTS = ("drive.google.com", "docs.google.com", "dropbox.com", "dl.dropboxusercontent.com")
+
+YOUTUBE_PLATFORMS = frozenset({Platform.YT_SHORTS, Platform.YT_LONG})
+DIRECT_PRIVACY = "private"  # the only privacy a direct upload may use (user decision 2026-10-23)
 
 HASHTAG = re.compile(r"(?<!\w)#\w+")
 
@@ -126,7 +145,42 @@ def caption_problems(request: PublishRequest) -> list[str]:
     return errs
 
 
-def publish_problems(request: PublishRequest) -> list[str]:
+def kids_problems(
+    request: PublishRequest, brand: BrandPack | None, direct_privacy: str | None
+) -> list[str]:
+    """made_for_kids rules: blocked unless the reviewed kids path holds (module docstring)."""
+    errs: list[str] = []
+    if brand is not None and brand.slug != request.channel:
+        errs.append(f"brand pack {brand.slug!r} does not match request channel {request.channel!r}")
+    if request.made_for_kids is not True:
+        if brand is not None and brand.made_for_kids:
+            errs.append(
+                f"brand {brand.slug!r} is made for kids: the request must declare "
+                "made_for_kids=True (accurate audience setting, doc 26)"
+            )
+        return errs
+    if brand is None or not brand.made_for_kids:
+        errs.append(
+            "made_for_kids must be False for this portfolio (only a brand pack with "
+            "made_for_kids: true may use the reviewed kids path)"
+        )
+    non_yt = [Platform(p).value for p in request.platforms if Platform(p) not in YOUTUBE_PLATFORMS]
+    if non_yt:
+        errs.append(f"made_for_kids content may only go to YouTube, not {non_yt} (doc 26)")
+    if direct_privacy != DIRECT_PRIVACY:
+        errs.append(
+            "made_for_kids content may only be a private direct YouTube upload "
+            f"(got privacy {direct_privacy!r}); a human publishes it in YouTube Studio"
+        )
+    return errs
+
+
+def publish_problems(
+    request: PublishRequest,
+    *,
+    brand: BrandPack | None = None,
+    direct_privacy: str | None = None,
+) -> list[str]:
     errs: list[str] = []
     if not request.content_hash or not request.approved_hash:
         errs.append("missing content_hash or approved_hash: no recorded human approval")
@@ -134,19 +188,32 @@ def publish_problems(request: PublishRequest) -> list[str]:
         errs.append("approved_hash != content_hash: content changed after approval")
     if not request.platforms:
         errs.append("no platforms")
-    if request.made_for_kids is not False:
-        errs.append("made_for_kids must be False for this portfolio")
+    errs += kids_problems(request, brand, direct_privacy)
     if request.ai_disclosure is not True:
         errs.append("ai_disclosure must be set (isAiGenerated / containsSyntheticMedia)")
-    errs += url_problems(request.media_url, "media_url")
-    if request.thumbnail_url:
-        errs += url_problems(request.thumbnail_url, "thumbnail_url")
+    if direct_privacy is None:
+        errs += url_problems(request.media_url, "media_url")
+        if request.thumbnail_url:
+            errs += url_problems(request.thumbnail_url, "thumbnail_url")
+    else:
+        if direct_privacy != DIRECT_PRIVACY:
+            errs.append(f"direct YouTube uploads must be private (got {direct_privacy!r})")
+        non_yt = [
+            Platform(p).value for p in request.platforms if Platform(p) not in YOUTUBE_PLATFORMS
+        ]
+        if non_yt:
+            errs.append(f"a direct YouTube upload cannot target {non_yt}")
     errs += caption_problems(request)
-    return errs
+    return list(dict.fromkeys(errs))
 
 
-def assert_publishable(request: PublishRequest) -> None:
-    errs = publish_problems(request)
+def assert_publishable(
+    request: PublishRequest,
+    *,
+    brand: BrandPack | None = None,
+    direct_privacy: str | None = None,
+) -> None:
+    errs = publish_problems(request, brand=brand, direct_privacy=direct_privacy)
     if errs:
         raise PublishBlocked(errs)
 

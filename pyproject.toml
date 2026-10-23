@@ -32,6 +32,8 @@ local-ml = ["studio[local-audio,local-image]"]  # compatibility: union of the tw
 bedrock = ["boto3>=1.39"]  # 1.39+ reads AWS_BEARER_TOKEN_BEDROCK (Bedrock API keys)
 gateway = ["litellm[proxy]"]
 flows = ["prefect>=3.0"]
+# Private-only YouTube uploads (studio/publish/youtube.py, scripts/youtube_upload.py; infra/YOUTUBE.md)
+youtube = ["google-api-python-client>=2.201.0", "google-auth-oauthlib>=1.5.0", "google-auth>=2.62.0"]
 
 [project.scripts]
 studio = "studio.cli:app"

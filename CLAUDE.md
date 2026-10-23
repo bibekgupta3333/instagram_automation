@@ -70,7 +70,7 @@ background applications can change whether a given image size stays green.
 
 - **Bedrock is text-only.** Don't add Bedrock image/video engines.
 - **Never write an approval on the user's behalf.** `studio approve` must be run by a human, and agents must not set `approved_hash` or pass `--by` with the user's name.
-- Never post for real or disable `DRY_RUN`. Agents may use the Buffer MCP in `.mcp.json` read-only only; see `infra/MCP.md`.
+- Never post for real or disable `DRY_RUN`. Kids pilots upload **private only** via `scripts/youtube_upload.py` after a human approval; the human publishes in YouTube Studio. Agents may use the Buffer MCP in `.mcp.json` read-only only; see `infra/MCP.md`.
 - Don't use the AWS profiles on this machine. They belong to the user's employer. Bedrock uses `AWS_PROFILE` from `.env`, which is empty by default.
 - Disk is tight (about 10 GB free). Keep at least 10 GB free, and run `make models-dry` before any download. Model weights, `output/` and `.env` are git-ignored.
 - mflux runs with `HF_HUB_OFFLINE=1`. The mflux engines refuse to run if their pre-quantized model isn't cached, and never pass `-q` (that pulls 16–33 GB). Local weights are currently removed; only reinstall after an explicit user request, through `scripts/setup/20-pull-models.sh` after its dry-run.

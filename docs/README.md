@@ -105,6 +105,7 @@ flowchart LR
 - [13 — Channel brands](2-channels/13-channel-brands.md): 10 brand packs (handles, taglines, palettes, starter titles, availability checks).
 - [17 — Replacement niches](2-channels/17-replacement-niches.md): why the 5 YMYL channels went, the 18-niche scoring and the final picks.
 - [08 — High-CPM US niches](2-channels/08-high-cpm-us-niches.md): US RPM by niche, attracting US viewers, posting times, seasonality.
+- [28 — Plinkety Pond launch plan](2-channels/28-plinkety-pond-oct-nov-2026-plan.md): 23 Oct – 30 Nov 2026 plan for the proposed kids channel (10 songs, 4 compilations, 24 Shorts, human-published; publishing blocked by the gate). Episode 01: [27](2-channels/27-plinkety-pond-episode-01.md).
 
 ## 3-policy: red lines ([folder](3-policy/README.md))
 
@@ -164,6 +165,7 @@ flowchart LR
 | 22 Directing and rights playbook | editorial plan | 2026-10-17 |
 | 25 Script workflow | current | 2026-10-23 |
 | 26 Nursery-song channel | proposed pilot | 2026-10-23 |
+| 28 Plinkety Pond Oct–Nov 2026 plan | proposed plan | 2026-10-23 |
 
 **current** = plan from it · **reference** = research a current doc rests on · **archived** = superseded, kept for history.
 

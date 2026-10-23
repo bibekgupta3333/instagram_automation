@@ -12,6 +12,21 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-23 · Private-only YouTube uploads + reviewed kids path; ACE-Step/klein plan; Oct–Nov calendar
+- Changed: `studio/publish/youtube.py` is rewritten as a real Data API v3 uploader. It covers OAuth with a Desktop client (token at `~/.config/studio/youtube-token.json`, mode 0600), resumable upload, thumbnail, playlist and a `youtube_uploads` ledger keyed on content_hash.
+  - **Privacy is always private.** Any other value raises `PrivacyViolation`, and the upload fails if the API reports the video as anything but private. The old public path (`YOUTUBE_PROJECT_AUDITED`) is removed.
+  - Request fields: `selfDeclaredMadeForKids` and `containsSyntheticMedia=True`, plus en-GB defaults.
+- `gate.py` adds `kids_problems`: a made-for-kids brand is allowed only on YouTube, as a private direct upload, with a human approval and AI disclosure. Adult behaviour and Buffer behaviour are unchanged.
+- `scripts/youtube_upload.py` adds `auth`, `approve` (human-only: needs a TTY and a typed hash code; binds the video, thumbnail and metadata), `upload` (with `--dry-run`, and refusing mock runs) and `status`. Setup is in `infra/YOUTUBE.md`. New optional extra `youtube` (google-api-python-client, google-auth-oauthlib, google-auth), not installed yet.
+- Verified against Google's docs: `videos.insert` costs 1 unit in its own upload bucket (100 a day); `thumbnails.set` and `playlistItems.insert` cost about 50 each. Unverified projects are no longer forced private, so private is enforced by our code.
+- Docs: `docs/2-channels/28-plinkety-pond-oct-nov-2026-plan.md`, covering 30 Oct – 30 Nov. It plans 10 songs, 4 compilations and 24 Shorts, with 2 reserve songs. Songs go out at 07:00 GMT and Shorts at 20:00 GMT. It includes title, description and tag templates.
+- Plan, research only, nothing installed:
+  - **ACE-Step 1.5** turbo 2B + 0.6B LM (7.7 GB, MIT, commercial outputs allowed). It needs its own Python 3.12 venv (~3 GB), follows lyrics, style and BPM rather than notes, and takes an estimated 35–60 s per 60 s song.
+  - Caption sync: Demucs plus wav2vec2-base-960h forced alignment.
+  - **FLUX.2 klein 4B q4** (4.6 GB) with up to 4 reference images per character, a locked character pack in `assets/characters/`, BiRefNet_lite cut-outs, a DINOv2-small consistency check, and layered squash-and-stretch, bob and blink motion.
+  - Total about 16 GB, so it needs about 26 GB free (16 GB free today).
+- Agents: kids videos go private on YouTube only. Never make a video public or unlisted. Never run `approve` for the user.
+
 ## 2026-10-23 · Kids nursery-song pilot: Plinkety Pond (local only)
 - Direction (user): a CoComelon-**style** channel (original, no Moonbug/Pinkfong IP) in UK English for the UK/EU and Australia/NZ, focused on virality.
 - Docs: `docs/1-strategy/26-nursery-song-channel.md` (genre playbook, public-domain rhyme list with UK/EU/AU caveats, compliance: accurate made-for-kids, COPPA, UK Children's Code, GDPR Art 8, AU privacy, YouTube's 2025–26 enforcement against AI kids' content; realistic targets; 1B views is franchise-scale). `docs/2-channels/27-plinkety-pond-episode-01.{md,json}` (original song "Bubbles on My Tummy", 96 BPM C major, original melody, 24 shots = 60 s).

@@ -2,6 +2,8 @@
 
 Production planning: [220 original episode treatments](../6-script-library/README.md) and [22 — Directing and rights](../6-script-library/22-directing-and-rights-playbook.md).
 
+Proposed nursery-song pilot: [27 — Plinkety Pond episode 01](27-plinkety-pond-episode-01.md) and [28 — Plinkety Pond launch plan, 23 Oct – 30 Nov 2026](28-plinkety-pond-oct-nov-2026-plan.md): cadence, song slate, calendar, made-for-kids metadata templates, KPIs and the human publish workflow. Not published; the gate blocks made-for-kids.
+
 Proposed pilot: [20 — Pocket Meadow Question Club](20-pocket-meadow-question-club.md), an original preschool discovery series. Documented research; not an enabled eleventh brand pack.
 
 What the 10 channels are and why. Reading order:
