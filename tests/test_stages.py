@@ -16,6 +16,13 @@ from studio.stages.policy import lint_script
 from studio.stages.render import MOTIONS, plan_shots
 
 
+@pytest.fixture(autouse=True)
+def _no_angle_step(monkeypatch):
+    # ScriptedChat replies are consumed in order; the optional angle call is covered in
+    # tests/test_script_quality.py.
+    monkeypatch.setenv("STUDIO_SCRIPT_ANGLE", "0")
+
+
 def brand(slug):
     return load_brand(slug, DEFAULT_BRAND_DIR)
 

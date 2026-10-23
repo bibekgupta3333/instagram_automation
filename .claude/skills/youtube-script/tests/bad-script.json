@@ -1,0 +1,31 @@
+{
+  "title": "Hey guys, the terrifying moment this engine failed and why you won't believe what happened next",
+  "hook": "Hey guys, in this video I'm a pilot and I'll show you something mind-blowing.",
+  "beats": [
+    {
+      "text": "Basically this plane crash happened because of one engine part.",
+      "shot": "wide",
+      "visual_prompt": "Labeled diagram of a jet engine with text that says FAN and 3 arrows",
+      "overlay": "One tiny part caused the whole failure",
+      "stock_query": "plane crash"
+    },
+    {
+      "text": "It burns 40 percent less fuel than older engines.",
+      "shot": "wide",
+      "visual_prompt": "Airline logo on the tail",
+      "overlay": "",
+      "stock_query": ""
+    },
+    {
+      "text": "Grab the engine poster with my promo code in the description.",
+      "shot": "diagram",
+      "visual_prompt": "Engine poster",
+      "overlay": "",
+      "stock_query": ""
+    }
+  ],
+  "cta": "Like and subscribe for more!",
+  "sources": [],
+  "description": "Use code JET10 for the poster.",
+  "hashtags": ["aviation", "#jet engine"]
+}

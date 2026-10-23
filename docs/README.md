@@ -114,6 +114,7 @@ flowchart LR
 - [14 — Local models on M4 Pro 24 GB](4-production/14-local-models-mac-m4.md): what runs locally, licences, install commands, nightly batch, throughput.
 - [18 — Lightweight local image and video models](4-production/18-local-image-video-models.md): open-source image and video models of 6 GB or less, runtimes (mflux, stable-diffusion.cpp), disk traps. Supersedes 14 §6–7.
 - [24 — Local Wan video pilot](4-production/24-local-wan-video-pilot.md): exact 4.23 GB tiny-codec reference-to-video bundle, offline runner and measured green-pressure Mac comparison.
+- [25 — Script workflow](4-production/25-script-workflow.md): topic intake and topics-file format, automated vs `/youtube-script` paths, reviewer checklist, 24 h/72 h iteration loop, skill licences.
 
 ## 5-automation: routing, agents, publishing ([folder](5-automation/README.md))
 
@@ -158,6 +159,7 @@ flowchart LR
 | 20 Pocket Meadow Question Club | proposed pilot | 2026-10-17 |
 | 21 Kids pilot production and publishing | proposed pilot | 2026-10-17 |
 | 22 Directing and rights playbook | editorial plan | 2026-10-17 |
+| 25 Script workflow | current | 2026-10-23 |
 
 **current** = plan from it · **reference** = research a current doc rests on · **archived** = superseded, kept for history.
 

@@ -1,11 +1,17 @@
-"""Stage 1: script. Two passes, then the deterministic policy lint.
+"""Stage 1: script. An angle brief, two passes, the quality gate, then the policy lint.
 
+0. **Angle** (role="draft", optional, `STUDIO_SCRIPT_ANGLE=0` disables): one short call picks
+   the most surprising true fact, the target viewer and the promise; it feeds the draft prompt.
+   An invalid reply is logged and skipped (doc: chaseraw/youtube-script-skill brief-and-angle,
+   MIT). It is internal planning text, never narrated or treated as evidence.
 1. **Draft** (role="draft"): a brand-aware writer prompt -> JSON validated as `Script`.
 2. **Polish** (role="polish"): an editor prompt gets the draft plus a deterministic QA report
    (beat count, word count/timing at ~150 wpm, hook clarity, shot variety, overlay length,
    visual specificity) and returns the tightened script, again validated as `Script`.
-3. `normalize` canonicalises shot names, overlays and stock queries; `lint_script` (policy.py)
-   is the hard gate.
+3. `normalize` canonicalises shot names, overlays and stock queries.
+4. `script_quality.gate` (deterministic): on ERROR issues one repair pass via role="polish"
+   with the issue list, then re-gate; remaining errors fail the job, warnings go to the log.
+5. `lint_script` (policy.py) is the hard compliance gate.
 
 Each LLM call gets one retry with the validation error fed back. The fact-check stage reuses
 `polish_script` for its one rewrite pass. Retention rules come from doc 06 §2-3: the hook
@@ -16,18 +22,20 @@ the hook.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable
 from pathlib import Path
 
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from studio.contracts import Beat, BrandPack, Presenter, Script, VideoJob
+from studio.stages import script_quality
 from studio.stages.base import StageContext, StageError, hash_inputs, is_cached, log, write_cache
 from studio.stages.policy import Violation, lint_script
 
 STAGE = "script"
-VERSION = 4  # 4: evidence constraints and qualitative hooks; no mandatory statistics
+VERSION = 5  # 5: angle brief before drafting; deterministic quality gate with one repair pass
 
 WPM = 150  # matches studio/stages/tts.py
 
@@ -263,8 +271,9 @@ def _with_error(messages: list[dict[str, str]], error: str | None) -> list[dict[
     return messages
 
 
-def build_messages(job: VideoJob, brand: BrandPack, error: str | None = None) -> list[dict[str, str]]:
-    """Draft-pass prompt."""
+def build_messages(job: VideoJob, brand: BrandPack, error: str | None = None,
+                   angle: AngleBrief | None = None) -> list[dict[str, str]]:
+    """Draft-pass prompt (with the optional angle brief in the user turn)."""
     system = "\n".join([
         "You are the head writer of a top faceless YouTube Shorts / Reels studio. Your scripts",
         "hold 80%+ of viewers to the end because every line earns the next one.",
@@ -274,8 +283,87 @@ def build_messages(job: VideoJob, brand: BrandPack, error: str | None = None) ->
         _json_tail(),
     ])
     user = f"Topic: {job.topic}"
+    if angle is not None:
+        user += "\n\n" + angle.as_prompt()
     return _with_error([{"role": "system", "content": system}, {"role": "user", "content": user}],
                        error)
+
+
+# ---------------------------------------------------------------- angle brief (optional)
+
+
+class AngleBrief(BaseModel):
+    """Internal planning note for the writer; never narrated, never evidence."""
+
+    surprising_fact: str = Field(min_length=3, description="the most surprising TRUE qualitative "
+                                 "fact or mechanism behind the topic, no numbers")
+    viewer: str = Field(min_length=3, description="who this is for and what they believe now")
+    promise: str = Field(min_length=3, description="the one thing the viewer can explain after")
+    angle: str = Field(default="", description="how this beats common coverage: the mechanism, "
+                       "counterexample or constraint others skip")
+
+    def as_prompt(self) -> str:
+        lines = [
+            "ANGLE BRIEF (internal planning from an editor; build the script around it, but do",
+            "not narrate these labels; every evidence constraint still applies, so drop any part",
+            "of it you cannot state qualitatively and accurately):",
+            f"- Most surprising true fact: {self.surprising_fact}",
+            f"- Target viewer: {self.viewer}",
+            f"- Promise (the hook makes it, the payoff keeps it): {self.promise}",
+        ]
+        if self.angle:
+            lines.append(f"- Angle: {self.angle}")
+        return "\n".join(lines)
+
+
+def angle_enabled() -> bool:
+    return os.environ.get("STUDIO_SCRIPT_ANGLE", "1").strip().lower() not in {"0", "false", "off", "no"}
+
+
+def build_angle_messages(job: VideoJob, brand: BrandPack) -> list[dict[str, str]]:
+    system = "\n".join([
+        "You are the angle strategist of a faceless explainer studio. Before anyone writes,",
+        "you pick the single angle for one video. One video moves the viewer from what they",
+        "believe now to one thing they can explain afterwards; never two unrelated takeaways.",
+        f"Channel: '{brand.name}', niche: {brand.niche}. Format: {job.format}. US viewers.",
+        "Choose the angle with the most specific promise, the clearest mechanism you can",
+        "explain accurately, and the biggest difference from common coverage. A contrarian",
+        "take without a real mechanism is decoration; do not pick it.",
+        "- surprising_fact: the most surprising TRUE fact or mechanism behind the topic, as one",
+        "  qualitative sentence. No numbers, statistics, dates, names of studies or sources.",
+        "  If you are not sure it is true, pick a safer fact.",
+        "- viewer: who watches and the belief or confusion they arrive with (one sentence).",
+        "- promise: the one thing they can explain after watching (one sentence).",
+        "- angle: one sentence, 'improves on common coverage by ... using ...'.",
+        "EVIDENCE: no verified sources are supplied. Do not invent numbers, statistics or",
+        "sources. Promise only what the mechanism itself explains: no causal leaps to money,",
+        "fuel use, health, safety or performance outcomes the topic does not establish, and",
+        "no generalizing a result across all conditions. A narrower true promise beats a",
+        "bigger shaky one.",
+        "Stay inside the niche and these red lines:",
+        *(f"- {r}" for r in brand.red_lines),
+        "Reply with ONE JSON object only: " + json.dumps(
+            {"surprising_fact": "...", "viewer": "...", "promise": "...", "angle": "..."}),
+    ])
+    return [{"role": "system", "content": system},
+            {"role": "user", "content": f"Topic: {job.topic}"}]
+
+
+def pick_angle(job: VideoJob, brand: BrandPack, ctx: StageContext) -> AngleBrief | None:
+    """One role="draft" call. Optional: an invalid reply is logged and the draft runs without it."""
+    try:  # SchemaError (structured-output failure) is a ValueError; budget/transport errors raise
+        raw = ctx.chat.complete(build_angle_messages(job, brand), role="draft",
+                                json_schema=AngleBrief.model_json_schema(), max_tokens=800)
+        text = raw.strip()
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError("no JSON object in angle reply")
+        angle = AngleBrief.model_validate_json(text[start : end + 1])
+    except (ValidationError, ValueError) as exc:
+        log(job, f"script: angle brief skipped (invalid reply: {str(exc).splitlines()[0][:200]})")
+        return None
+    log(job, f"script: angle: {angle.promise[:160]}")
+    return angle
 
 
 def build_polish_messages(
@@ -500,8 +588,9 @@ def _ask(job: VideoJob, ctx: StageContext, role: str, label: str,
     raise StageError(f"script: {label} reply failed validation twice: {error}")
 
 
-def draft_script(job: VideoJob, brand: BrandPack, ctx: StageContext) -> Script:
-    return _ask(job, ctx, "draft", "draft", lambda err: build_messages(job, brand, err))
+def draft_script(job: VideoJob, brand: BrandPack, ctx: StageContext,
+                 angle: AngleBrief | None = None) -> Script:
+    return _ask(job, ctx, "draft", "draft", lambda err: build_messages(job, brand, err, angle))
 
 
 def polish_script(job: VideoJob, brand: BrandPack, ctx: StageContext, draft: Script,
@@ -515,8 +604,53 @@ def polish_script(job: VideoJob, brand: BrandPack, ctx: StageContext, draft: Scr
     return normalize(script.model_copy(update=keep) if keep else script, brand)
 
 
+def _is_fixture(ctx: StageContext) -> bool:
+    """A reduced offline mock (MockChatClient(beats=N)) used by fast render tests."""
+    from studio.pipeline.mock_llm import MockChatClient
+
+    return isinstance(ctx.chat, MockChatClient) and ctx.chat.beats is not None
+
+
+def _log_report(job: VideoJob, label: str, report: script_quality.QualityReport) -> None:
+    log(job, f"script: quality gate ({label}): {report.summary()}")
+    for issue in report.issues:
+        log(job, f"script: quality {issue}")
+
+
+def quality_gate(job: VideoJob, brand: BrandPack, ctx: StageContext, script: Script) -> Script:
+    """Deterministic quality gate; on errors one repair pass via role="polish", then re-gate."""
+    workdir = Path(job.workdir)
+    fixture = _is_fixture(ctx)
+
+    def run_gate() -> script_quality.QualityReport:
+        return script_quality.gate(script, job.format, brand.voice.speed, fixture=fixture)
+
+    report = run_gate()
+    _log_report(job, "polish", report)
+    rounds = [{"round": "polish", **report.to_dict()}]
+    if report.errors:
+        log(job, f"script: quality gate found {len(report.errors)} errors; one repair pass")
+        fixes = [f"QUALITY ERROR (must fix): {i.check}: {i.message}" for i in report.errors]
+        fixes += [f"quality warning (fix if you can): {i.check}: {i.message}"
+                  for i in report.warnings]
+        fixes += [f"POLICY VIOLATION, remove or reword: {v}" for v in lint_all(script, brand)]
+        script = polish_script(job, brand, ctx, script, fixes=fixes)
+        report = run_gate()
+        _log_report(job, "repair", report)
+        rounds.append({"round": "repair", **report.to_dict()})
+    (workdir / "script_quality.json").write_text(json.dumps(rounds, indent=2))
+    if report.errors:
+        (workdir / "script.rejected.json").write_text(script.model_dump_json(indent=2))
+        detail = "; ".join(str(i) for i in report.errors)
+        raise StageError(f"script quality gate failed ({len(report.errors)}): {detail}")
+    return script
+
+
 def generate_script(job: VideoJob, brand: BrandPack, ctx: StageContext) -> Script:
-    draft = normalize(draft_script(job, brand, ctx), brand)
+    angle = pick_angle(job, brand, ctx) if angle_enabled() else None
+    if angle is not None:
+        (Path(job.workdir) / "angle.json").write_text(angle.model_dump_json(indent=2))
+    draft = normalize(draft_script(job, brand, ctx, angle), brand)
     log(job, f"script: draft {len(draft.beats)} beats, {spoken_words(draft)} words")
     script = polish_script(job, brand, ctx, draft)
     violations = lint_all(script, brand)
@@ -527,7 +661,7 @@ def generate_script(job: VideoJob, brand: BrandPack, ctx: StageContext) -> Scrip
     left = [q for q in qa_issues(script, job.format, brand) if not q.startswith("policy:")]
     if left:
         log(job, f"script: polish left {len(left)} QA notes: " + " | ".join(left[:6]))
-    return script
+    return quality_gate(job, brand, ctx, script)  # the policy lint (assert_clean) runs after
 
 
 def assert_clean(script: Script, brand: BrandPack, workdir: Path) -> None:
@@ -541,7 +675,7 @@ def assert_clean(script: Script, brand: BrandPack, workdir: Path) -> None:
 def run(job: VideoJob, brand: BrandPack, ctx: StageContext) -> VideoJob:
     workdir = Path(job.workdir)
     out = workdir / "script.json"
-    key = hash_inputs(STAGE, VERSION, job.topic, job.format, brand)
+    key = hash_inputs(STAGE, VERSION, job.topic, job.format, brand, angle_enabled())
     if is_cached(job, STAGE, key, [out], ctx):
         if job.script is None:
             job.script = Script.model_validate_json(out.read_text())

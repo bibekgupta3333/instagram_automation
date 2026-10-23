@@ -1,5 +1,7 @@
 """Offline ChatClient used by --mock: returns a deterministic, schema-valid, lint-clean Script
-(role="draft" or "polish") or a passing claim list (role="fact_check"). No network.
+(role="draft" or "polish"), an angle brief (role="draft" with the AngleBrief schema) or a passing
+claim list (role="fact_check"). No network. The default Shorts and long-form scripts pass the
+script quality gate (studio/stages/script_quality.py); `beats=N` gives a reduced test fixture.
 
 The script is shaped like a real Shorts script: a qualitative hook, 10 beats with escalating
 mechanisms, varied `shot` types, short `overlay` keywords, `stock_query` keywords (empty on diagram
@@ -8,6 +10,7 @@ and cutaway beats) and a loop line, so offline runs exercise every Beat field.""
 from __future__ import annotations
 
 import json
+import random
 import re
 from typing import Any
 
@@ -56,11 +59,53 @@ _BEATS = [
 ]
 
 
+# Long-form narration: seeded, varied sentences so a 48-beat mock has no repeated openings and
+# little trigram repetition. Plain mechanical vocabulary that no brand policy rule touches.
+_DET = ("The", "Each", "That", "This")
+_ADJ = ("thin", "heavy", "curved", "hollow", "rigid", "flexible", "polished", "layered",
+        "tapered", "ribbed", "warm", "cool", "narrow", "broad", "sealed", "braided", "forged",
+        "smooth", "rough", "dense", "light", "angled", "stiff", "springy", "outer")
+_NOUN = ("beam", "joint", "panel", "cable", "frame", "plate", "column", "arch", "bearing",
+         "shaft", "rib", "truss", "spar", "hinge", "bracket", "flange", "gasket", "valve",
+         "nozzle", "duct", "vane", "rotor", "casing", "shell", "core", "layer", "coating", "seam",
+         "weld", "bolt", "anchor", "footing", "slab", "girder", "strut", "spring", "damper",
+         "pivot", "collar", "sleeve")
+_VERB = ("carries", "spreads", "guides", "resists", "absorbs", "redirects", "cushions",
+         "balances", "grips", "channels", "shields", "steadies", "braces", "supports",
+         "tightens", "releases", "bends", "pushes", "pulls", "holds", "lifts", "cools", "seals",
+         "turns", "meets")
+_PREP = ("against", "through", "around", "beneath", "beside", "across", "along", "inside")
+
+
+_LINK = ("Then", "Next", "Meanwhile", "Still", "Later", "Now", "Here")
+_CLOSE = ("So", "Thus", "Hence", "Therefore", "Finally", "Instead")
+
+
+def _long_text(i: int, rng: random.Random, used: set[tuple[str, ...]]) -> str:
+    def c(pool: tuple[str, ...]) -> str:
+        return rng.choice(pool)
+
+    def d() -> str:
+        return c(_DET).lower()
+
+    det = _DET[i % len(_DET)]  # rotate openers: no two adjacent beats start alike
+    while True:  # unique 3-word openings, and no 2-word opening used three times
+        adj, noun = c(_ADJ), c(_NOUN)
+        pairs = sum(1 for u in used if u[:2] == (det, adj))
+        if (det, adj, noun) not in used and pairs < 2:
+            used.add((det, adj, noun))
+            break
+    return (f"{det} {adj} {noun} {c(_VERB)} {d()} {c(_NOUN)} {c(_PREP)} {d()} {c(_ADJ)} "
+            f"{c(_NOUN)}. {c(_LINK)} {d()} {c(_ADJ)} {c(_NOUN)} {c(_VERB)} {d()} {c(_NOUN)} "
+            f"{c(_PREP)} {d()} {c(_NOUN)}. {c(_CLOSE)} {d()} {c(_NOUN)} {c(_VERB)} {d()} "
+            f"{c(_ADJ)} {c(_NOUN)}.")
+
+
 class MockChatClient:
     """Implements the `ChatClient` protocol from studio.contracts."""
 
     def __init__(self, beats: int | None = None) -> None:
-        self.beats = beats  # None: 10 for Shorts, 40 for long-form
+        self.beats = beats  # None: 10 for Shorts, 48 for long-form (gate-clean)
         self.calls: list[str] = []
 
     def complete(
@@ -82,6 +127,13 @@ class MockChatClient:
             return json.dumps({"claims": [
                 {"claim": line, "verdict": "correct", "fix": ""} for line in lines if line.strip()
             ]})
+        if role == "draft" and (json_schema or {}).get("title") == "AngleBrief":
+            return json.dumps({
+                "surprising_fact": "The parts that look solid are built to flex a little.",
+                "viewer": "A curious viewer who assumes strong structures never move.",
+                "promise": "Explain why controlled movement keeps the structure intact.",
+                "angle": "Improves on common coverage by following the load path step by step.",
+            })
         first = user.splitlines()[0] if user else ""
         topic = first.removeprefix("Topic:").strip() or "this topic"
         system = messages[0]["content"] if messages else ""
@@ -89,7 +141,8 @@ class MockChatClient:
         return json.dumps(self.script(topic, long))
 
     def script(self, topic: str, long: bool = False) -> dict[str, Any]:
-        n = self.beats or (40 if long else 10)
+        n = self.beats or (48 if long else 10)
+        rng, used = random.Random(f"mock-long:{topic}"), set()
         subject = topic.rstrip("?.!")
         keywords = [w.lower() for w in re.findall(r"[A-Za-z]+", subject) if len(w) > 3][:2]
         beats = []
@@ -98,6 +151,8 @@ class MockChatClient:
             query = " ".join([*keywords, stock]) if stock else ""
             if query and len(query.split()) < 2:
                 query = f"{query} closeup"
+            if long and self.beats is None:
+                text = _long_text(i, rng, used)
             beats.append({
                 "text": text, "shot": shot, "visual_prompt": visual.format(topic=subject.lower()),
                 "overlay": overlay, "stock_query": " ".join(query.split()[:4]),

@@ -12,6 +12,14 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-23 · YouTube script skill + script quality gate
+- Added: project skill `.claude/skills/youtube-script/`, vendored from the MIT-licensed `chaseraw/youtube-script-skill` (commit 7bfde3e; LICENSE and NOTICE kept). It outputs our `Script` JSON and adds our rules: faceless AI narration, no advice or credentials, brand red lines, no text in images, 150 wpm timing. `references/channel-rules.md` is generated from the brand packs, and a test fails if it goes stale. `scripts/validate_script.py` checks scripts and exits 0/1/2. The unlicensed skills we evaluated (valerymad, csalamida, Airpyk-98) were **not** copied.
+- Added: `studio/stages/script_quality.py`, a deterministic gate run after polish covering the hook, beat count, runtime, pacing, the loop ending, overlay ≤5 words, visual-prompt specificity, text-in-image requests, repetition and an AI-cliché list. It runs one repair pass via role=polish, then fails the job and writes `script.rejected.json`. Script stage also has an angle step (`angle.json`; `STUDIO_SCRIPT_ANGLE=0` turns it off). **script VERSION 5.** The policy lint is unchanged and remains the hard gate.
+- Aligned: skill hook limit is 4.8 s (≤ ~12 words), with the claim in the first ~5 words, the same as the pipeline gate.
+- Docs: `docs/4-production/25-script-workflow.md` (topic intake, automated and skill paths, reviewer checklist, feedback loop).
+- Real run (Bedrock gpt-oss-20b): both test scripts passed the gate, but they were **factually weak** ("heat cools the fuel", "car behaves like a wing lifting its weight"). The gate checks structure, not accuracy. A stronger QUALITY-tier model plus fact_check and human review are still needed.
+- Agents: `studio make` cannot take a pre-written script yet. A `--script-file PATH` option is planned (Flows & Orchestration). Dependency sync failed offline (en-core-web-sm download), so tests ran with `uv run --no-sync`.
+
 ## 2026-10-23 · FastWan 1.3B fast local text-to-video (user request)
 - Added: `scripts/generate_wan_video.py --preset fastwan-t2v`: stable-diffusion.cpp (pinned master-973-f0aac52, archive SHA-256 verified) with
   FastWan2.1-T2V-1.3B (3-step DMD distill, Apache-2.0), `lcm` sampler, sigmas `1.0,0.757,0.522,0.0`, cfg 1, tiny decoder.
