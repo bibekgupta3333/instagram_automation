@@ -12,6 +12,17 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-23 · FastWan 1.3B fast local text-to-video (user request)
+- Added: `scripts/generate_wan_video.py --preset fastwan-t2v`: stable-diffusion.cpp (pinned master-973-f0aac52, archive SHA-256 verified) with
+  FastWan2.1-T2V-1.3B (3-step DMD distill, Apache-2.0), `lcm` sampler, sigmas `1.0,0.757,0.522,0.0`, cfg 1, tiny decoder.
+  Allowed sizes are 320x576 and 480x832, frames 5–49 (4n+1). It rejects `--reference` and keeps every pilot guard (guarded/offline/3 threads, pinned digests, no overwrite).
+  Manifest entry `fastwan2.1-t2v-1.3b-gguf` (roller777 GGUF, revision and hash pinned); it reuses `wan-umt5-q3` and `wan2.1-tiny-vae`. 21 offline tests are in `tests/test_wan_fastwan.py`.
+- Why: the user asked for a WanGP-style but low-memory video generator at ≤1–2 min per clip. WanGP itself was rejected for this Mac: its MPS support is unofficial, it has open crash and noise bugs, every report is from a ≥32 GB Mac, and its smallest image-to-video setup is ~15 GB.
+- Installed (explicit user request): 3.718 GB (FastWan 0.836 + UMT5 Q3 2.858 + TAEW2.1 0.023), plus the sd.cpp runtime (36 MB) in git-ignored `output/`. Free disk afterwards: 17.7 GB.
+- Measured on M4 Pro under `make guarded`, all pressure samples green: 320x576 × 33 frames **44 s**; 320x576 × 49 frames **65 s**; 480x832 × 33 frames **106 s**. Max RSS ~5.8 GB.
+- Quality: smooth camera motion and a cinematic look with no flicker, but **scene physics are unreliable** (mist like fountains, spillways in the wrong place). It is **text-to-video only**, so clips won't match our stills. Use it for short generic cutaways only, always with human review. 320x576 output needs upscaling.
+- Agents: still not a pipeline stage (no images VERSION or contract change). The pull script fetches main while the generator verifies pinned hashes, so an upstream change stops the run before inference. Don't add WanGP or CUDA dependencies.
+
 ## 2026-10-18 · Project-installed model weights removed
 - Removed at the user's request: Z-Image q4, Kokoro, Parakeet, Depth Anything Small,
   Real-ESRGAN, Wan VACE v3 Q4, UMT5 Q3 and both Wan codecs from their nine HF cache

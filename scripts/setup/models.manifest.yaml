@@ -198,6 +198,24 @@ models:
     verified: true
     verified_how: "2026-10-18 exact v3 file 1346314016 bytes includes the missing vace_patch_embedding. M4 Pro guarded R2V passed, 17 frames at 320x384/20 steps, with full and tiny codecs. Requires wan-umt5-q3 and either wan2.1-vae or wan2.1-tiny-vae. Doc 24 records measurements."
 
+  # Explicitly requested 2026-10-23: fast low-memory text-to-video (FastWan pilot, beside doc 24).
+  # Pull with wan-umt5-q3 + wan2.1-tiny-vae; scripts/generate_wan_video.py --preset fastwan-t2v
+  # verifies this exact revision's LFS SHA-256 before inference (the pull script fetches main).
+  - name: fastwan2.1-t2v-1.3b-gguf
+    stage: video
+    purpose: "Text-to-video cutaways, 3-step DMD distill of Wan2.1-T2V-1.3B, via stable-diffusion.cpp Metal"
+    runtime: hf
+    source: "roller777/fastwan-t2v-1.3b-hostmix-gguf"
+    include: ["fastwan_t2v_1.3B_hostmix.gguf"]
+    revision: "2f9c647e06ebc3f91972d257d07c99c7e704af77"
+    sha256: "48b8abf7b4307fc4d54ee913de12bb2a74613a6c827a42f60c79eabdaa370062"
+    size_gb: 0.836
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-23 HF API: community q4_0/f16 conversion of FastVideo/FastWan2.1-T2V-1.3B-Diffusers (Apache-2.0), file 836356000 bytes, LFS sha256 pinned above. Bundle with UMT5 Q3 + TAEW2.1 = 3.717 GB."
+
   - name: wan-umt5-q3
     stage: video
     purpose: "Quantized text encoder shared by Wan video models"

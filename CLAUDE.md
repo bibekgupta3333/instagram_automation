@@ -8,7 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 and Rhubarb's bundled speech models were removed at the user's request. Code,
 dependencies, executables and generated media remain. Installed-stack descriptions
 below describe the previous setup, not current model availability. Do not reinstall
-models without an explicit new user request.
+models without an explicit new user request. **Exception (2026-10-23, user request):** FastWan2.1-T2V-1.3B
++ UMT5 Q3 + TAEW2.1 (3.7 GB) and the pinned sd.cpp runtime are installed for
+`scripts/generate_wan_video.py --preset fastwan-t2v` (text-to-video cutaways, ~44–106 s per clip, guarded).
 
 ## What this is
 

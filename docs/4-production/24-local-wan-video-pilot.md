@@ -152,3 +152,22 @@ Tests cover unknown/optional model selection, partial-cache handling, missing or
 corrupt full/tiny weights, offline guard settings and bounded native arguments.
 No tests load models, access real credentials or make network requests. No core
 pipeline stage, approval gate, publishing setting or brand default changed.
+
+## FastWan 1.3B fast preset (2026-10-23)
+
+The user asked for a WanGP-style generator with low memory use and ≤1–2 min per clip. WanGP itself was rejected for this Mac: MPS support is unofficial, there are open crash and noise bugs, and every report is from a ≥32 GB Mac. The chosen route is the same guarded sd.cpp runtime with **FastWan2.1-T2V-1.3B** (3-step DMD distill, Apache-2.0, `roller777/fastwan-t2v-1.3b-hostmix-gguf`, hash pinned).
+
+```bash
+.venv/bin/python scripts/run_guarded.py -- .venv/bin/python scripts/generate_wan_video.py \
+  --preset fastwan-t2v --runtime output/local-video-pilot/runtime/sd-cli \
+  --output-dir output/local-video-pilot/my-clip --width 320 --height 576 --frames 33 \
+  --prompt "slow aerial dolly over a concrete dam at golden hour, cinematic, no text"
+```
+
+| Size | Frames | Generation | Max RSS | Pressure |
+|---|---|---|---|---|
+| 320×576 | 33 (2.1 s) | **44 s** | 5.82 GB | 49/49 green |
+| 320×576 | 49 (3.1 s) | **65 s** | 5.70 GB | 69/69 green |
+| 480×832 | 33 (2.1 s) | **106 s** | 5.91 GB | 109/109 green |
+
+Quality: smooth motion and a cinematic look, but scene physics are unreliable. It is text-to-video only (it can't animate our stills). Use it for short generic cutaways with human review, and upscale 320×576 output. Total download 3.718 GB.
