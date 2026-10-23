@@ -32,7 +32,7 @@ from studio.stages.base import (
 )
 
 STAGE = "tts"
-VERSION = 4  # 4: streamed PCM output, finite delivery speed validation
+VERSION = 5  # 5: British English voices (bf_*/bm_*) with lang_code 'b'
 SAMPLE_RATE = 24_000
 WPM = 150
 GAP_S = 0.08  # "cut the air" (06 §3): only a breath between segments
@@ -45,6 +45,14 @@ KOKORO_US_VOICES = frozenset({
     "af_nova", "af_river", "af_sarah", "af_sky", "am_adam", "am_echo", "am_eric", "am_fenrir",
     "am_liam", "am_michael", "am_onyx", "am_puck", "am_santa",
 })
+# British-English voices (same repo; Kokoro lang_code "b", misaki en-GB G2P). For the UK/EU/AU
+# kids pilot (doc 26). Grades per hexgrad VOICES.md: bf_emma B-, bf_isabella C, bm_george C,
+# bm_fable C, the rest D.
+KOKORO_GB_VOICES = frozenset({
+    "bf_alice", "bf_emma", "bf_isabella", "bf_lily", "bm_daniel", "bm_fable", "bm_george",
+    "bm_lewis",
+})
+KOKORO_VOICES = KOKORO_US_VOICES | KOKORO_GB_VOICES
 
 # Grades from the Kokoro-82M model card (hexgrad/Kokoro-82M VOICES.md, "overall grade",
 # target quality x training duration). af_heart and af_bella are the only A-range US voices;
@@ -62,13 +70,22 @@ ENERGY_SPEED = 1.07
 MAX_SPEED = 1.25
 
 _kokoro: Any = None  # resident KokoroPipeline (holds the model), one per process / batch stage
+_kokoro_lang: str = ""  # lang_code of the resident pipeline
 
 
 def check_voice(voice: str) -> None:
-    unknown = [v for v in voice.split(",") if v.strip() not in KOKORO_US_VOICES]
+    names = [v.strip() for v in voice.split(",")]
+    unknown = [v for v in names if v not in KOKORO_VOICES]
     if unknown and os.environ.get("STUDIO_KOKORO_ANY_VOICE") != "1":
-        raise StageError(f"tts: unknown Kokoro US voice(s) {unknown}; choose from "
-                         f"{sorted(KOKORO_US_VOICES)} (STUDIO_KOKORO_ANY_VOICE=1 skips this)")
+        raise StageError(f"tts: unknown Kokoro voice(s) {unknown}; choose from "
+                         f"{sorted(KOKORO_VOICES)} (STUDIO_KOKORO_ANY_VOICE=1 skips this)")
+    if len({lang_code(v) for v in names}) > 1:
+        raise StageError(f"tts: can't blend US and British voices in one delivery: {voice!r}")
+
+
+def lang_code(voice: str) -> str:
+    """Kokoro pipeline language: 'b' (British English) for bf_/bm_ voices, else 'a' (US)."""
+    return "b" if voice.split(",")[0].strip().startswith("b") else "a"
 
 
 def delivery(brand: BrandPack) -> tuple[str, float]:
@@ -126,7 +143,7 @@ def _mock(segs: list[dict[str, Any]], out: Path, speed: float, tone: bool) -> li
     return durations
 
 
-def _load_kokoro() -> Any:
+def _load_kokoro(lang: str = "a") -> Any:
     """Load Kokoro once per process (or per batch stage) and return its English pipeline.
 
     Verified against mlx-audio 0.5.9: `mlx_audio.tts.utils.load(repo)` returns the Kokoro
@@ -135,7 +152,9 @@ def _load_kokoro() -> Any:
     each misaki token carries `start_ts`/`end_ts` (seconds, from the predicted durations
     that produced the audio) and `whitespace`. G2P is misaki + spacy en_core_web_sm.
     """
-    global _kokoro
+    global _kokoro, _kokoro_lang
+    if _kokoro is not None and _kokoro_lang != lang:
+        unload()  # one resident pipeline; switching US <-> British reloads it
     if _kokoro is None:
         try:  # lazy: heavy, optional (local-audio extra)
             from mlx_audio.tts.models.kokoro.pipeline import KokoroPipeline
@@ -148,11 +167,11 @@ def _load_kokoro() -> Any:
             ) from exc
         try:
             model = load(KOKORO_MODEL)
-            pipeline = KokoroPipeline(lang_code="a", model=model, repo_id=KOKORO_MODEL)
+            pipeline = KokoroPipeline(lang_code=lang, model=model, repo_id=KOKORO_MODEL)
         except ImportError as exc:  # misaki / spacy model missing
             raise EngineUnavailable(f"TTS engine 'kokoro': G2P not installed ({exc}). "
                                     "Run `uv sync --extra local-audio`.") from exc
-        _kokoro = pipeline
+        _kokoro, _kokoro_lang = pipeline, lang
     return _kokoro
 
 
@@ -189,7 +208,7 @@ def _kokoro_tts(
 ) -> tuple[list[float], list[dict[str, Any]]]:
     """Synthesise each segment; return per-segment durations and absolute word timings."""
     check_voice(voice)
-    pipeline = _load_kokoro()  # raises EngineUnavailable first if mlx-audio is missing
+    pipeline = _load_kokoro(lang_code(voice))  # raises EngineUnavailable if mlx-audio is missing
     import numpy as np  # installed with mlx-audio
 
     rate = int(getattr(pipeline.model, "sample_rate", SAMPLE_RATE))
@@ -248,8 +267,8 @@ def _clear_mlx_cache() -> None:
 
 def unload() -> None:
     """Free the resident TTS model (run_batch calls this after the TTS stage)."""
-    global _kokoro
-    _kokoro = None
+    global _kokoro, _kokoro_lang
+    _kokoro, _kokoro_lang = None, ""
     gc.collect()
     _clear_mlx_cache()
 

@@ -20,6 +20,8 @@ SLUGS = {
     "gravity-what-if", "megabuild-blueprint", "lock-screen-logic", "furnace-to-faucet",
     "wing-and-turbine", "rank-test-lab",
 }
+# Kids packs (made_for_kids=True) are local-only pilots; publishing stays blocked by the gate.
+KIDS_SLUGS = {"plinkety-pond"}
 ACCURACY_CRITICAL = {"square-foot-money", "lock-screen-logic", "furnace-to-faucet", "wing-and-turbine"}
 KOKORO_US = re.compile(r"^a[fm]_[a-z]+$")
 
@@ -30,7 +32,7 @@ def brands() -> dict[str, BrandPack]:
 
 
 def test_all_ten_packs_exist_and_validate(brands):
-    assert set(brands) == SLUGS
+    assert set(brands) == SLUGS | KIDS_SLUGS
     for path in DEFAULT_BRAND_DIR.glob("*.yaml"):
         BrandPack.model_validate(yaml.safe_load(path.read_text()))
 
@@ -77,3 +79,11 @@ def test_unknown_key_and_slug_mismatch_rejected(tmp_path: Path):
 def test_mock_script_is_lint_clean_for_every_brand(brands, slug):
     script = Script.model_validate(MockChatClient().script("What if the Moon disappeared?"))
     assert lint_script(script, brands[slug]) == []
+
+
+@pytest.mark.parametrize("slug", sorted(KIDS_SLUGS))
+def test_kids_pack_fields(brands, slug):
+    b = brands[slug]
+    assert b.made_for_kids is True and b.ai_disclosure is True
+    assert b.presenter == Presenter.FACELESS and not b.avatar_name
+    assert b.red_lines and b.banned_templates and "no text" in b.style_prompt

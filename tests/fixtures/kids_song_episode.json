@@ -1,0 +1,180 @@
+{
+ "title": "Little Cloud Test Song",
+ "slug": "little-cloud-test",
+ "bpm": 104,
+ "key": "C major",
+ "melody": [
+  {
+   "note": "E4",
+   "beats": 1,
+   "syllable": "Lit"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "tle"
+  },
+  {
+   "note": "C5",
+   "beats": 1,
+   "syllable": "cloud"
+  },
+  {
+   "note": "B4",
+   "beats": 1,
+   "syllable": "is"
+  },
+  {
+   "note": "A4",
+   "beats": 1,
+   "syllable": "float"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "ing"
+  },
+  {
+   "note": "E4",
+   "beats": 2,
+   "syllable": "by"
+  },
+  {
+   "note": "F4",
+   "beats": 1,
+   "syllable": "Rain"
+  },
+  {
+   "note": "A4",
+   "beats": 1,
+   "syllable": "drops"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "dan"
+  },
+  {
+   "note": "F4",
+   "beats": 1,
+   "syllable": "cing"
+  },
+  {
+   "note": "E4",
+   "beats": 1,
+   "syllable": "from"
+  },
+  {
+   "note": "D4",
+   "beats": 1,
+   "syllable": "the"
+  },
+  {
+   "note": "C4",
+   "beats": 2,
+   "syllable": "sky"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "Splash"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "and"
+  },
+  {
+   "note": "A4",
+   "beats": 1,
+   "syllable": "gig"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "gle"
+  },
+  {
+   "note": "E4",
+   "beats": 1,
+   "syllable": "jump"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "and"
+  },
+  {
+   "note": "D4",
+   "beats": 2,
+   "syllable": "play"
+  },
+  {
+   "note": "E4",
+   "beats": 1,
+   "syllable": "Sun"
+  },
+  {
+   "note": "F4",
+   "beats": 1,
+   "syllable": "shine"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "comes"
+  },
+  {
+   "note": "A4",
+   "beats": 1,
+   "syllable": "to"
+  },
+  {
+   "note": "G4",
+   "beats": 1,
+   "syllable": "dry"
+  },
+  {
+   "note": "D4",
+   "beats": 1,
+   "syllable": "the"
+  },
+  {
+   "note": "C4",
+   "beats": 2,
+   "syllable": "day"
+  }
+ ],
+ "lyrics_lines": [
+  "Little cloud is floating by",
+  "Raindrops dancing from the sky",
+  "Splash and giggle, jump and play",
+  "Sunshine comes to dry the day"
+ ],
+ "shots": [
+  {
+   "start_beat": 0,
+   "lyric": "Little cloud is floating by",
+   "prompt": "a small fluffy white cloud drifting slowly across a soft blue sky over a green meadow, gentle children's picture-book animation, pastel colours, no text",
+   "shot": "wide"
+  },
+  {
+   "start_beat": 8,
+   "lyric": "Raindrops dancing from the sky",
+   "prompt": "gentle raindrops falling onto bright flowers in a meadow, soft pastel children's animation, slow camera, no text",
+   "shot": "close"
+  },
+  {
+   "start_beat": 16,
+   "lyric": "Splash and giggle, jump and play",
+   "prompt": "a shallow puddle in a sunny garden with ripples and splashes, cheerful pastel children's animation, no text",
+   "shot": "medium"
+  },
+  {
+   "start_beat": 24,
+   "lyric": "Sunshine comes to dry the day",
+   "prompt": "warm sunshine breaking through clouds over a meadow with a soft rainbow, pastel children's animation, slow pan, no text",
+   "shot": "wide"
+  }
+ ]
+}

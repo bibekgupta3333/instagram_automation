@@ -1,0 +1,60 @@
+# Doc 27 · Kids pilot K02 (proposed 2026-10-23) · original nursery-song channel, ages 2–4 with a caregiver (WHO: no screen time under 2; doc 26)
+# Audience: UK/Ireland/EU and Australia/NZ English (UK spelling: mum, nappy, tummy, jumper).
+# Intended to be set "Made for kids" on YouTube (YouTube Kids-eligible). The Platform enum has
+# no youtube_kids value: YouTube Kids eligibility follows from the made-for-kids setting, not a
+# separate upload target. Instagram/Facebook are deliberately excluded (child audience).
+# PUBLISHING IS BLOCKED BY DESIGN: studio/publish/gate.py rejects made_for_kids=True. This pack is
+# for local production only until a human deliberately implements and reviews kids publishing.
+# Handle/.com checked 2026-10-23 (YouTube 404, Verisign RDAP 404); trademarks unverified.
+slug: plinkety-pond
+name: Plinkety Pond
+handle: "@plinketypond"
+niche: >-
+  Original sing-along nursery songs about gentle everyday routines (bath, teeth, nappy change,
+  tidy-up, bedtime) for toddlers aged 2-4 watching with a caregiver, starring an original 3D clay-style otter
+  family; UK English
+presenter: faceless
+palette: ["#5EC8C0", "#FFD25E", "#FF8C7A"]
+voice: {engine: kokoro, voice: bf_emma, speed: 0.95}  # British English (lang_code b), best-graded UK Kokoro voice (B-)
+platforms: [youtube_shorts, youtube_long]
+shorts_per_day: 0.5
+longform_per_week: 1.0
+hook_styles:
+  - "call-and-response opener: 'Is it bath time?' / 'Yes, it's bath time!'"
+  - "onomatopoeia hook in the first bar: 'drip, drip, drop', 'pop, pop, pop', 'swish, swish'"
+  - "counting hook: count three things on screen, slowly, one per beat"
+  - "routine-first: open on the familiar moment (tap running, toothbrush, pyjamas), never a shock"
+banned_templates:
+  - "like and subscribe"
+  - "don't forget to subscribe"
+  - "smash that like"
+  - "hit the bell"
+  - "ask your mum to buy"
+  - "ask your parents to buy"
+  - "buy it now"
+  - "watch till the end"
+  - "don't skip"
+  - "only brave kids"
+  - "if you're scared"
+  - "hey guys"
+  - "welcome back to"
+  - "in this video"
+red_lines:
+  - "original characters, songs and lyrics only; never imitate CoComelon/JJ, Little Baby Bum, Pinkfong, Bebefinn, Super Simple or any other show's characters, melodies, logos or look (no melon or fruit motifs, no human toddler lead)"
+  - "melodies are original or unquestionably public domain (e.g. Twinkle Twinkle, Baa Baa, Row Row Row Your Boat, London Bridge) and never a modern arrangement or recording"
+  - "no dangerous imitable acts: no climbing, jumping into or standing in the bath, no running with toothbrushes, no small loose parts, no pulling cords, no water play without a grown-up in frame"
+  - "a grown-up character is always present and supervising for bath, water, food and stairs scenes"
+  - "no scary content: no villains, peril, loud stings, sudden zooms, darkness, crying-as-punishment or monsters"
+  - "no commercial pressure: no product placement, no buy/unbox/ask-your-parents calls, no toys or brands named, no affiliate links"
+  - "no manipulative engagement: no 'watch till the end', no fake rewards, no subscribe/like prompts aimed at children"
+  - "gentle pacing: slow camera moves, no flashing or strobing light, no rapid colour flicker, soft audio levels"
+  - "positive routines only; no shaming, teasing or humiliation; nappies and potty shown discreetly and kindly"
+  - "no health, medical, sleep-training or developmental claims; not a substitute for caregiver advice"
+  - "no realistic human children, no real people's likeness or voice; animal characters only"
+  - "no text, letters or logos inside AI images; any labels are ffmpeg overlays"
+  - "no credential words or titles for any character or narrator (Dr, Teacher, Expert, Nurse)"
+  - "AI disclosure on every video; accurately classified as made for kids; never published by an agent"
+accuracy_critical: false
+ai_disclosure: true
+made_for_kids: true
+style_prompt: "soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel pond teal #5EC8C0, buttercup yellow #FFD25E and coral #FF8C7A, cosy otter cottage, garden and pond-side park, slow gentle camera, calm toddler-friendly mood, no text, no letters, no logos, no watermark"

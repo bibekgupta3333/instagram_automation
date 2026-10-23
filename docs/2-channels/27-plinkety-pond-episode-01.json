@@ -1,0 +1,707 @@
+{
+  "title": "Bubbles on My Tummy",
+  "bpm": 96,
+  "key": "C major",
+  "melody": [
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "Is"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "it"
+    },
+    {
+      "note": "A4",
+      "beats": 1,
+      "syllable": "bath"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "time?"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "Yes,"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "it's"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "bath"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "time!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "Mum"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "fills"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "the"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "tub"
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "up,"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "drip,"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "drip,"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "drop,"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "Mum"
+    },
+    {
+      "note": "F4",
+      "beats": 0.5,
+      "syllable": "checks"
+    },
+    {
+      "note": "F4",
+      "beats": 0.5,
+      "syllable": "it's"
+    },
+    {
+      "note": "E4",
+      "beats": 2,
+      "syllable": "warm,"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "then"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "sit"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "down,"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "plop!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "Bub"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bles"
+    },
+    {
+      "note": "A4",
+      "beats": 0.5,
+      "syllable": "on"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "my"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "tum"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "my,"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bub"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bles"
+    },
+    {
+      "note": "A4",
+      "beats": 0.5,
+      "syllable": "on"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "my"
+    },
+    {
+      "note": "E4",
+      "beats": 2,
+      "syllable": "nose,"
+    },
+    {
+      "note": "A4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "and"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "a"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "way"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "it"
+    },
+    {
+      "note": "C4",
+      "beats": 2,
+      "syllable": "goes!"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "Who's"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "got"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bub"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "bles?"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "A4",
+      "beats": 1,
+      "syllable": "Me,"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "me,"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "me!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "Count"
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "with"
+    },
+    {
+      "note": "E4",
+      "beats": 2,
+      "syllable": "Fern:"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "one,"
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "two,"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "three!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "Bub"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bles"
+    },
+    {
+      "note": "A4",
+      "beats": 0.5,
+      "syllable": "on"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "my"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "tum"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "my,"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bub"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "bles"
+    },
+    {
+      "note": "A4",
+      "beats": 0.5,
+      "syllable": "on"
+    },
+    {
+      "note": "G4",
+      "beats": 0.5,
+      "syllable": "my"
+    },
+    {
+      "note": "E4",
+      "beats": 2,
+      "syllable": "nose,"
+    },
+    {
+      "note": "A4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "and"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "a"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "way"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "it"
+    },
+    {
+      "note": "C4",
+      "beats": 2,
+      "syllable": "goes!"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "Wash"
+    },
+    {
+      "note": "F4",
+      "beats": 1,
+      "syllable": "my"
+    },
+    {
+      "note": "E4",
+      "beats": 2,
+      "syllable": "paws"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "and"
+    },
+    {
+      "note": "D4",
+      "beats": 0.5,
+      "syllable": "wash"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "my"
+    },
+    {
+      "note": "C4",
+      "beats": 2,
+      "syllable": "ears,"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "co"
+    },
+    {
+      "note": "F4",
+      "beats": 1,
+      "syllable": "sy"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "tow"
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "el,"
+    },
+    {
+      "note": "E4",
+      "beats": 1,
+      "syllable": "big"
+    },
+    {
+      "note": "D4",
+      "beats": 1,
+      "syllable": "cud"
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "dle!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "A4",
+      "beats": 1,
+      "syllable": "Bye-"
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "bye,"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "bub"
+    },
+    {
+      "note": "E4",
+      "beats": 0.5,
+      "syllable": "bles,"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "G4",
+      "beats": 1,
+      "syllable": "Pop!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    },
+    {
+      "note": "C4",
+      "beats": 1,
+      "syllable": "pop!"
+    },
+    {
+      "note": "R",
+      "beats": 1,
+      "syllable": ""
+    }
+  ],
+  "lyrics_lines": [
+    "Is it bath time? Yes, it's bath time!",
+    "Mum fills the tub up, drip, drip, drop,",
+    "Mum checks it's warm, then sit down, plop!",
+    "Bubbles on my tummy, bubbles on my nose,",
+    "Pop! Pop! Pop! And away it goes!",
+    "Who's got bubbles? Me, me, me!",
+    "Count with Fern: one, two, three!",
+    "Bubbles on my tummy, bubbles on my nose,",
+    "Pop! Pop! Pop! And away it goes!",
+    "Wash my paws and wash my ears,",
+    "Cosy towel, big cuddle!",
+    "Bye-bye, bubbles. Pop! ... pop!"
+  ],
+  "shots": [
+    {
+      "start_beat": 0,
+      "lyric": "Is it bath time?",
+      "prompt": "Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wearing teal dungarees with one round yellow button, stands in a cosy otter cottage hallway with a round wooden door, cream walls and a soft teal rug, tilts the head and holds a small yellow toy boat, curious smile. Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes sits on the rug beside Pebble. Slow gentle push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium wide"
+    },
+    {
+      "start_beat": 4,
+      "lyric": "Yes, it's bath time!",
+      "prompt": "Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up and Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper smile warmly in a cosy otter cottage hallway with a round wooden door, cream walls and a soft teal rug; Mum holds a folded buttercup-yellow towel and nods. Slow gentle pan right. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium two-shot"
+    },
+    {
+      "start_beat": 8,
+      "lyric": "Mum fills the tub up,",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up turns the tap and warm water gently fills the tub; Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wearing teal dungarees with one round yellow button, stands on the bathmat holding Mum's hand and watches. Slow static framing with soft drift. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium side"
+    },
+    {
+      "start_beat": 12,
+      "lyric": "drip, drip, drop,",
+      "prompt": "Close-up of three clear water droplets falling one by one from a shiny tap into warm bath water in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, soft round ripples spreading. Very slow push-in, no characters. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "macro cutaway"
+    },
+    {
+      "start_beat": 16,
+      "lyric": "Mum checks it's warm,",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up gently dips her elbow into the bath water to check it is warm, smiling; Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wearing teal dungarees with one round yellow button, watches beside her. Slow gentle tilt down. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    },
+    {
+      "start_beat": 20,
+      "lyric": "then sit down, plop!",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up gently lifts Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose into the bath and Pebble sits down in the shallow water with a tiny soft splash, giggling. Slow steady framing. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 24,
+      "lyric": "Bubbles on my tummy,",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the shallow water with soft white foam bubbles on the cream heart-shaped tummy patch, giggling; Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up kneels beside the tub. Slow gentle push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium close-up"
+    },
+    {
+      "start_beat": 28,
+      "lyric": "bubbles on my nose,",
+      "prompt": "Close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the bath with one round foam bubble on the tiny pink nose, looking at it cross-eyed and smiling. Very slow push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    },
+    {
+      "start_beat": 32,
+      "lyric": "Pop! Pop! Pop!",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the water and gently pats floating rainbow soap bubbles that softly pop; Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes sits on the edge of the tub watching; Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up kneels beside the tub. Slow gentle pan left. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 36,
+      "lyric": "and away it goes!",
+      "prompt": "A single shimmering soap bubble floats slowly up past the round window of a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, catching soft rainbow light. Slow tilt up, no characters. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "cutaway tilt"
+    },
+    {
+      "start_beat": 40,
+      "lyric": "Who's got bubbles?",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper kneels beside the bathtub, cupping soft white foam in her paws and asking a playful question with a big smile; Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up kneels beside her. Slow gentle push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 44,
+      "lyric": "Me, me, me!",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the water and happily raises both foamy paws; Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes sits on the edge of the tub with a tiny dab of foam on its head. Slow static framing with soft drift. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium close-up"
+    },
+    {
+      "start_beat": 48,
+      "lyric": "Count with Fern:",
+      "prompt": "Over the shoulder of Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper, who kneels beside the bath in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook and points at three small yellow toy boats floating in the foam; Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the water and looks at the boats. Slow gentle pan. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "over-the-shoulder"
+    },
+    {
+      "start_beat": 52,
+      "lyric": "one, two, three!",
+      "prompt": "Top-down close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: three small yellow toy boats bob in soft white foam and a caramel-brown otter paw gently touches each boat in turn. Very slow rotation. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "top-down close-up"
+    },
+    {
+      "start_beat": 56,
+      "lyric": "Bubbles on my tummy,",
+      "prompt": "Wide shot of a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up kneels beside the tub, Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper kneels next to her, Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes sits on the tub edge, and Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the water covered in soft foam bubbles, everyone laughing. Slow gentle pull-back. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "wide"
+    },
+    {
+      "start_beat": 60,
+      "lyric": "bubbles on my nose,",
+      "prompt": "Close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up gently dabs a little foam on the nose of Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, who sits in the bath; both laugh softly. Very slow push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    },
+    {
+      "start_beat": 64,
+      "lyric": "Pop! Pop! Pop!",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper kneels at the tub and Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the water; they gently pat floating rainbow soap bubbles together; Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes watches from the tub edge. Slow gentle pan right. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 68,
+      "lyric": "and away it goes!",
+      "prompt": "Soft rainbow soap bubbles drift slowly past the round window of a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook; outside, a calm pond glows in warm evening light. Slow tilt up, no characters. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "cutaway"
+    },
+    {
+      "start_beat": 72,
+      "lyric": "Wash my paws",
+      "prompt": "Close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, sits in the bath and rubs both paws together with a soft coral washcloth while Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up helps. Slow static framing. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    },
+    {
+      "start_beat": 76,
+      "lyric": "and wash my ears,",
+      "prompt": "Close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up gently washes behind the ear of Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose with a soft coral washcloth, keeping foam away from the eyes; Pebble smiles calmly. Very slow push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    },
+    {
+      "start_beat": 80,
+      "lyric": "cosy towel,",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up carefully lifts Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wrapped in a big buttercup-yellow hooded towel, out of the bath and holds Pebble close. Slow gentle tilt up. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 84,
+      "lyric": "big cuddle!",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up hugs Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wrapped in a big buttercup-yellow hooded towel; Fern, an older otter sister, taller and slimmer than Pebble, dark chocolate-brown fur, a cream face, a lilac bow on her left ear, a lilac-and-white striped jumper joins the cuddle with a big smile. Slow gentle push-in. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium close-up"
+    },
+    {
+      "start_beat": 88,
+      "lyric": "Bye-bye, bubbles,",
+      "prompt": "In a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook, Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wrapped in a big buttercup-yellow hooded towel, is held by Mum, a grown-up otter with soft grey-brown fur, a cream muzzle, a gentle smile, a coral-pink cardigan with round wooden buttons and the sleeves rolled up and waves goodbye to the last foam bubbles in the tub; Bloop, a tiny round mint-green pet frog the size of a teacup, a pale yellow belly, big shiny black eyes waves a tiny front foot from the tub edge. Slow gentle pan. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "medium"
+    },
+    {
+      "start_beat": 92,
+      "lyric": "Pop! ... pop!",
+      "prompt": "Close-up in a cosy bathroom in an otter cottage, pale teal tiles, a round window, a round white bathtub with shallow warm water and soft white foam bubbles, a buttercup-yellow towel on a hook: one last soap bubble floats near Pebble, a small toddler otter with a round chubby body and a big round head, caramel-brown fur, a cream heart-shaped tummy patch, a little three-tuft curl on top of the head, big round dark-brown eyes with white shine, a tiny pink nose, wrapped in a big buttercup-yellow hooded towel, and pops softly; Pebble giggles, held by Mum, in a warm cosy glow. Very slow push-in, gentle settle. Soft rounded 3D clay and plush animation style, big expressive eyes, bright warm soft lighting, pastel teal, buttercup yellow and coral palette, slow gentle camera movement, calm toddler-friendly mood, no text, no letters, no logos, no watermark.",
+      "shot": "close-up"
+    }
+  ]
+}

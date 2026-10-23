@@ -10,6 +10,8 @@
 
 > **Status:** current · **Updated:** 2026-10-17 · Master index for the planning docs.
 
+> **Nursery-song direction (2026-10-23):** [26 — Nursery-song channel](1-strategy/26-nursery-song-channel.md): a CoComelon-genre, original 3D sing-along channel for UK/IE/EU and AU/NZ English; genre playbook, IP and public-domain rules, compliance, the AI kids-content crackdown and realistic targets. Publishing remains blocked by the gate.
+
 > **New kids-channel research:** [19 — Opportunity and revenue experiment](1-strategy/19-kids-channel-opportunity.md), [20 — Pocket Meadow Question Club](2-channels/20-pocket-meadow-question-club.md), [21 — Production and publishing requirements](4-production/21-kids-pilot-production.md). This is a proposed original preschool pilot alongside the ten adult brands, with no guaranteed revenue. The current gate cannot publish it. Child-directed content must be classified accurately; the adult portfolio’s blanket audience setting does not apply.
 
 This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–22) as a stable ID, so citations like "04 §5" still work after the move into folders.
@@ -94,6 +96,7 @@ flowchart LR
 
 - [01 — Reality check and goals](1-strategy/01-reality-check-and-goals.md): growth base rates, the probability-weighted outcome table, North Star metrics.
 - [06 — Growth playbook](1-strategy/06-growth-playbook.md): hooks, retention, packaging, cross-posting, the experiment loop, KPIs, monetisation.
+- [26 — Nursery-song channel](1-strategy/26-nursery-song-channel.md): CoComelon-genre playbook, IP/public-domain rules, MFK compliance, monetisation reality and staged targets (proposed pilot).
 - [07 — Execution roadmap](1-strategy/07-execution-roadmap.md): phased Gantt from 19 Oct 2026, checklists, targets, budget, open decisions.
 
 ## 2-channels: what we publish ([folder](2-channels/README.md))
@@ -160,6 +163,7 @@ flowchart LR
 | 21 Kids pilot production and publishing | proposed pilot | 2026-10-17 |
 | 22 Directing and rights playbook | editorial plan | 2026-10-17 |
 | 25 Script workflow | current | 2026-10-23 |
+| 26 Nursery-song channel | proposed pilot | 2026-10-23 |
 
 **current** = plan from it · **reference** = research a current doc rests on · **archived** = superseded, kept for history.
 

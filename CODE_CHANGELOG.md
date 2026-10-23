@@ -12,6 +12,20 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-23 · Kids nursery-song pilot: Plinkety Pond (local only)
+- Direction (user): a CoComelon-**style** channel (original, no Moonbug/Pinkfong IP) in UK English for the UK/EU and Australia/NZ, focused on virality.
+- Docs: `docs/1-strategy/26-nursery-song-channel.md` (genre playbook, public-domain rhyme list with UK/EU/AU caveats, compliance: accurate made-for-kids, COPPA, UK Children's Code, GDPR Art 8, AU privacy, YouTube's 2025–26 enforcement against AI kids' content; realistic targets; 1B views is franchise-scale). `docs/2-channels/27-plinkety-pond-episode-01.{md,json}` (original song "Bubbles on My Tummy", 96 BPM C major, original melody, 24 shots = 60 s).
+- Brand: `brand_packs/plinkety-pond.yaml`: `made_for_kids: true`, ages 2–4 with a caregiver (WHO), original otter family (Pebble, Fern, Mum, Bloop), voice `bf_emma`.
+- Tool: `scripts/kids_song/` (`python -m scripts.kids_song.make --episode <json> --out <dir>`):
+  - a deterministic numpy backing track
+  - Kokoro vocal pitch-mapped to the melody (on pitch but **robotic**)
+  - guarded FastWan clips conformed to 1080x1920 and 16:9
+  - karaoke ASS captions (Fredoka, OFL, `assets/fonts/kids/`)
+  - −14 LUFS; `run.json` with `made_for_kids: true`, `approved: false`, `published: false`
+- tts: British voices `bf_*`/`bm_*` with Kokoro `lang_code="b"`; no US/UK blends. **tts VERSION 5.**
+- Kokoro reinstalled (342 MB) for this user-requested video.
+- Agents: **the publish gate still blocks made_for_kids=True by design.** Kids videos are local-only until a human reviews a kids publishing path; never mislabel to get past it. Adult channels keep "never kid-appealing". `references/channel-rules.md` is regenerated from the brand packs. Text-to-video can't keep characters consistent across shots, which is the main quality limit for this genre.
+
 ## 2026-10-23 · YouTube script skill + script quality gate
 - Added: project skill `.claude/skills/youtube-script/`, vendored from the MIT-licensed `chaseraw/youtube-script-skill` (commit 7bfde3e; LICENSE and NOTICE kept). It outputs our `Script` JSON and adds our rules: faceless AI narration, no advice or credentials, brand red lines, no text in images, 150 wpm timing. `references/channel-rules.md` is generated from the brand packs, and a test fails if it goes stale. `scripts/validate_script.py` checks scripts and exits 0/1/2. The unlicensed skills we evaluated (valerymad, csalamida, Airpyk-98) were **not** copied.
 - Added: `studio/stages/script_quality.py`, a deterministic gate run after polish covering the hook, beat count, runtime, pacing, the loop ending, overlay ≤5 words, visual-prompt specificity, text-in-image requests, repetition and an AI-cliché list. It runs one repair pass via role=polish, then fails the job and writes `script.rejected.json`. Script stage also has an angle step (`angle.json`; `STUDIO_SCRIPT_ANGLE=0` turns it off). **script VERSION 5.** The policy lint is unchanged and remains the hard gate.

@@ -38,7 +38,7 @@ def render(brand_dir: Path = BRAND_DIR) -> str:
         "",
         f"Summary of the {len(packs)} brand packs. The YAML files are the source of truth and the",
         "pipeline lint (`studio/stages/policy.py`) enforces `red_lines` and `banned_templates`.",
-        "Every channel is faceless with an AI-generated voice, Not made for kids and AI-disclosed.",
+        "Every channel is faceless with an AI-generated voice and AI-disclosed. Adult channels are Not made for kids; kids pilots (made_for_kids: true, e.g. plinkety-pond) are accurately classified as made for kids and stay local-only until a reviewed kids publishing path exists.",
         "",
         "## Rules for every channel",
         "",
