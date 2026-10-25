@@ -25,7 +25,7 @@ LITELLM_PORT ?= 4000
 UV_EXTRAS := --extra local-audio --extra local-image --extra bedrock --group dev
 
 .PHONY: help preflight tools tools-dry deps deps-audio models-dry models models-audio smoke smoke-mock \
-	test lint gateway ollama deps-web web test-web
+	test lint gateway ollama deps-web web test-web ubuntu-setup ubuntu-plan
 
 help: ## list targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -71,7 +71,13 @@ deps-web: ## install the isolated web app dependencies; preserves existing model
 	@test -x .venv-web/bin/python || uv venv .venv-web --python $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 	uv pip install --python .venv-web/bin/python --require-hashes -r infra/web/requirements.lock
 	uv pip install --python .venv-web/bin/python --no-deps -e .
-	uv pip install --python .venv-web/bin/python pytest
+	uv pip install --python .venv-web/bin/python pytest ruff
+
+ubuntu-plan: ## preview Ubuntu packages and developer CLI installation without changes
+	bash scripts/setup/50-ubuntu.sh --dry-run $(ARGS)
+
+ubuntu-setup: ## install Ubuntu web dependencies and developer CLIs (normal user with sudo)
+	bash scripts/setup/50-ubuntu.sh $(ARGS)
 
 web: ## serve the local creator studio at http://127.0.0.1:8080
 	.venv-web/bin/python -m studio.web --host 127.0.0.1 --port 8080

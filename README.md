@@ -2,6 +2,10 @@
 
 A prompt-to-short-video creator for original YouTube Shorts, Instagram Reels and Facebook Reels, alongside the original Pond Studio nursery editor and multi-channel CLI.
 
+**Ubuntu:** from this checkout, run `bash scripts/setup/50-ubuntu.sh --with-dev --run`. It installs the web dependencies, SQLite/FFmpeg, Claude Code (`claude`), GitHub CLI, Codex and the supported OpenCode version. See the [Ubuntu setup guide](docs/7-web-studio/35-ubuntu-setup.md) for dry-run, login, optional Claude Desktop and remote-access commands.
+
+With Node 22+ installed, use `npm run setup:plan`, `npm run setup` (Ubuntu), then `npm start`. `npm test` runs offline checks; `npm run` lists commands. For Node-only installation on Ubuntu, use `bash scripts/setup/05-node.sh`; see the guide for prerequisites and PATH activation. The full Ubuntu setup also installs Node when needed.
+
 ```sh
 make deps-web
 make web

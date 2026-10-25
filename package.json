@@ -1,0 +1,25 @@
+{
+  "name": "video-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Commands for the Python video studio and Ubuntu setup",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "start": "bash scripts/run-web.sh",
+    "dev": "bash scripts/run-web.sh",
+    "setup": "bash scripts/setup/50-ubuntu.sh --with-dev",
+    "setup:plan": "bash scripts/setup/50-ubuntu.sh --dry-run --with-dev",
+    "setup:node": "bash scripts/setup/05-node.sh",
+    "setup:node:plan": "bash scripts/setup/05-node.sh --dry-run",
+    "deps": "make deps-web",
+    "test": ".venv-web/bin/python -m pytest -q tests/test_web_*.py tests/test_creator_*.py tests/test_setup_ubuntu.py tests/test_setup_node.py",
+    "test:setup": ".venv-web/bin/python -m pytest -q tests/test_setup_ubuntu.py tests/test_setup_node.py",
+    "lint": ".venv-web/bin/python -m ruff check .",
+    "check:js": "node --check studio/web/static/app.js && node --check studio/web/static/create.js",
+    "check:shell": "bash -n scripts/setup/05-node.sh && bash -n scripts/setup/50-ubuntu.sh && bash -n scripts/run-web.sh",
+    "health": "curl --fail --show-error http://127.0.0.1:8080/api/health"
+  }
+}

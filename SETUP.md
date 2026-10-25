@@ -1,5 +1,7 @@
 # Local setup: Apple Silicon Mac (M4 Pro, 24 GB)
 
+**For Ubuntu, use [35 · Ubuntu setup](docs/7-web-studio/35-ubuntu-setup.md)** and `bash scripts/setup/50-ubuntu.sh`. The Mac ML dependency profile below is not the Ubuntu web profile.
+
 > **Current status — 2026-10-18:** local model weights installed for this project
 > were removed at the user's request, including bundled Rhubarb speech models and
 > the archive containing them. Code, dependencies, runtime executables and generated

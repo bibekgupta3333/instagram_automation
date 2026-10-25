@@ -10,6 +10,8 @@ Managed AI motion requires a configured provider and enabled server budget. A lo
 
 ## Start locally
 
+**Ubuntu:** follow [35 · Installation and developer CLIs](35-ubuntu-setup.md), or run `bash scripts/setup/50-ubuntu.sh --with-dev --run`. This uses the lightweight web profile rather than the Apple Silicon model dependencies.
+
 From the repository root, with the existing project Python environment and FFmpeg available:
 
 ```sh

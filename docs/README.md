@@ -18,6 +18,8 @@ This plan covers 10 faceless channels across YouTube, Instagram and Facebook, pr
 
 ## Local web app
 
+[35 — Ubuntu installation and running](7-web-studio/35-ubuntu-setup.md) includes the app dependencies, Claude Code, GitHub CLI, Codex, OpenCode and optional Claude Desktop.
+
 [Video Studio](7-web-studio/README.md) now includes a [general prompt-to-video creator](7-web-studio/33-universal-video-workflow.md) alongside the original nursery-video editor: characters, storyboard, guarded render jobs, review and downloads. Includes the [delivery plan](7-web-studio/29-web-studio-plan.md), [API contract](7-web-studio/30-api-contract.md) and [personal EC2 runbook](7-web-studio/31-ec2-runbook.md).
 
 ## Start here

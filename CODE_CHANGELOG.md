@@ -12,6 +12,16 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-25 · npm command interface and reusable Node bootstrap
+- Added: private `package.json`/lock and `.nvmrc`; commands for setup, Node bootstrap, Python dependencies, foreground app, tests, lint, syntax and health. No npm dependencies or install lifecycle hooks; `npm install` never triggers system installation.
+- Changed: `05-node.sh` extracts the official SHA-256-verified Linux Node 22 setup for reuse by `50-ubuntu.sh`; a complete Node 22+ installation is reused. `make deps-web` now includes Ruff for `npm run lint`. Documentation distinguishes the initial Bash bootstrap from commands requiring npm.
+- Validation: `npm test` passes 298 tests (including 11 installer/launcher checks); ShellCheck, Bash and JavaScript syntax checks pass. Actual Linux Node installation remains unverified; no runtime installation performed on this Mac.
+
+## 2026-10-25 · Ubuntu installer and foreground web launcher
+- Changed: `scripts/setup/50-ubuntu.sh` installs the Ubuntu CPU/web profile, SQLite, FFmpeg, espeak-ng, uv/Python 3.12 and optional developer CLIs. Node uses official checksum-verified binaries when needed; npm installs stay user-owned. OpenCode stays pinned at 1.19.4 for the app planner. Claude Desktop is an explicit GUI-only option.
+- Added: `scripts/run-web.sh`, Make targets `ubuntu-plan`/`ubuntu-setup`, doc 35 and setup links. The launcher preserves exported configuration and binds loopback by default; it never sources `.env`.
+- Validation: 7 offline installer/launcher tests, Bash syntax and ShellCheck pass. Full apt/npm execution on Ubuntu remains unverified; nothing was installed on this Mac. Agents: run as a normal user, never `sudo bash`; no model downloads, automatic auth, billing activation, public listener or Mac-only `make deps`.
+
 ## 2026-10-25 · Pond Studio local web editor and guarded export app
 - Changed: `studio/web/` adds same-origin FastAPI + buildless editor, SQLite projects/revisions, original four-otter character starter, scene/timeline editing, owned media uploads, queued worker cancellation, MP4 playback/download and review ZIPs with media hashes and saved project. No publish/approval endpoint.
 - Rendering: Pillow/FFmpeg create bounded 2D animation with guide instrumental or uploaded audio; optional cached mflux character generation and Linux Diffusers adapter are offline-only. No weights downloaded; real AI inference is unverified.
