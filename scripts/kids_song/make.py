@@ -2,6 +2,14 @@
 
   uv run --no-sync python -m scripts.kids_song.make --episode EP.json --out output/kids/SLUG \
       [--dry-run] [--mock-clips] [--mock-vocal] [--vocal sung|chant] [--shots 0,1] [--clips-only]
+      [--song [DIR]] [--visuals auto|fastwan|mock|scenes] [--characters DIR] [--backgrounds DIR]
+      [--renders DIR]
+
+--song uses a sung song (DIR/best.wav + DIR/words.json, default <out>/song) as the audio,
+skipping the synth music and vocal; captions follow words.json word by word, shots stay on
+the episode's beat grid (shifted to the first sung word) and the last shot ends with the
+song. A 1 s title card opens the video when the song has an intro. --visuals scenes (the
+default with --song) renders layered character scenes (scenes.py / render_scene.py).
 
 Heavy steps run in guarded child processes (scripts/run_guarded.py): Kokoro once for all
 lyric lines, then FastWan one shot at a time. Everything is cached under --out, so re-runs
@@ -21,10 +29,10 @@ from pathlib import Path
 
 import numpy as np
 
-from . import assemble, clips, episode, music, vocal
+from . import assemble, character_motion, clips, episode, music, render_scene, scenes, vocal
 
 REPO = Path(__file__).resolve().parents[2]
-VERSION = 1
+VERSION = 2
 
 
 def _digest(obj) -> str:
@@ -122,6 +130,84 @@ def build_clips(tl: episode.Timeline, out: Path, plan: list[dict], fmts: list[cl
     return conformed, raw
 
 
+def _code_digest(*mods) -> list[str]:
+    return [hashlib.sha256(Path(m.__file__).read_bytes()).hexdigest()[:8] for m in mods]
+
+
+def _asset_stamp(path: str | None) -> list:
+    if not path:
+        return [None]
+    try:
+        st = Path(path).stat()
+        return [path, st.st_size, st.st_mtime_ns]
+    except OSError:
+        return [path, None]
+
+
+def scene_stamp(sc: scenes.SceneSpec) -> list:
+    stamp = [_asset_stamp(sc.background)]
+    for c in sc.characters:
+        stamp += [_asset_stamp(c.base), *(_asset_stamp(v) for v in c.layers.values())]
+    return stamp
+
+
+def build_scene_clips(tl: episode.Timeline, out: Path, plan: list[dict],
+                      fmts: list[clips.Format], scene_list: list[scenes.SceneSpec],
+                      words: list[tuple[float, float]], beat_offset: float
+                      ) -> tuple[dict[str, list[Path]], list[dict]]:
+    """Render each scene once per format at its exact frame count (with fade overlap)."""
+    code = _code_digest(scenes, character_motion, render_scene)
+    wkey = _digest(words)
+    conformed: dict[str, list[Path]] = {f.name: [] for f in fmts}
+    report = []
+    for k, (sc, p) in enumerate(zip(scene_list, plan, strict=True)):
+        t0 = (p["start_frame"] - p["front"]) / clips.FPS
+        entry = {"shot": sc.index, "camera": sc.camera, "mock": sc.mock,
+                 "characters": [{"name": c.name, "source": c.source, "pose": c.pose,
+                                 "singing": c.singing, "z": c.z} for c in sc.characters],
+                 "background": sc.background, "render_seconds": {}}
+        for fmt in fmts:
+            key = _digest([VERSION, code, sc.to_dict(), scene_stamp(sc), p["need_frames"],
+                           round(t0, 4), asdict(fmt), wkey, tl.bpm, round(beat_offset, 4)])
+            dest = out / "scenes" / fmt.name / f"shot-{k:02d}-{key}.mp4"
+            if not dest.is_file():
+                rep = render_scene.render_scene(sc, (fmt.width, fmt.height), p["need_frames"],
+                                                dest, t0=t0, bpm=tl.bpm,
+                                                beat_offset=beat_offset, words=words)
+                entry["render_seconds"][fmt.name] = rep["seconds"]
+            conformed[fmt.name].append(dest)
+        report.append(entry)
+    return conformed, report
+
+
+def song_audio(song_wav: Path, out: Path) -> dict:
+    """Loudness-normalise the sung song (no synth music, no Kokoro vocal)."""
+    audio_dir = out / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha256(song_wav.read_bytes()).hexdigest()[:12]
+    final = audio_dir / f"song-sung-{key}.wav"
+    meta_path = audio_dir / f"song-sung-{key}.json"
+    if final.is_file() and meta_path.is_file():
+        return json.loads(meta_path.read_text())
+    report: dict = {"vocal_mode": "song", "source": str(song_wav)}
+    report.update(assemble.finalize_audio(song_wav, final))
+    report["final"] = assemble.audio_stats(final)
+    report["final"]["path"] = str(final)
+    meta_path.write_text(json.dumps(report, indent=1, default=_np_default))
+    return report
+
+
+def resolve_song(args: argparse.Namespace, out: Path) -> tuple[Path, Path] | None:
+    if not args.song:
+        return None
+    song_dir = out / "song" if args.song == "auto" else Path(args.song)
+    wav, words = song_dir / "best.wav", song_dir / "words.json"
+    missing = [str(p) for p in (wav, words) if not p.is_file()]
+    if missing:
+        raise SystemExit(f"--song needs {' and '.join(missing)}")
+    return wav, words
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -138,21 +224,57 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--shots", help="comma list of shot indices to generate (FastWan only)")
     ap.add_argument("--clips-only", action="store_true", help="generate raw clips, then stop")
     ap.add_argument("--formats", default="9x16,16x9")
+    ap.add_argument("--song", nargs="?", const="auto", metavar="DIR",
+                    help="sung song dir with best.wav + words.json (default <out>/song)")
+    ap.add_argument("--visuals", choices=("auto", "fastwan", "mock", "scenes"), default="auto",
+                    help="auto: scenes with --song, else fastwan (mock with --mock-clips)")
+    ap.add_argument("--characters", type=Path, default=scenes.CHARACTERS_DIR)
+    ap.add_argument("--backgrounds", type=Path, default=scenes.BACKGROUNDS_DIR)
+    ap.add_argument("--renders", type=Path, help="per-shot klein renders (default <out>/renders)")
     ap.add_argument("--scale", type=float, default=1.0, help=argparse.SUPPRESS)  # tests
     args = ap.parse_args(argv)
 
     tl = episode.load(args.episode)
     out = args.out
+    song = resolve_song(args, out)
+    visuals = args.visuals
+    if visuals == "auto":
+        visuals = "scenes" if song else ("mock" if args.mock_clips else "fastwan")
+    if song and visuals != "scenes":
+        ap.error("--song renders layered scenes; use --visuals scenes (or auto)")
+    if visuals == "mock":
+        args.mock_clips = True
+    song_info, words_obj = None, None
+    if song:
+        import soundfile as sf
+
+        song_sec = sf.info(str(song[0])).duration
+        words_obj = assemble.load_words(song[1], song_sec)
+        tl, song_info = assemble.song_timeline(tl, song_sec, words_obj)
     plan = assemble.plan_edit(tl)
     summary = plan_summary(tl, plan)
+    scene_list = None
+    if visuals == "scenes":
+        placeholder = args.mock_clips  # mock art: ignore the packs, draw stand-ins
+        nowhere = out / ".no-assets"
+        scene_list = scenes.plan_scenes(
+            tl, nowhere if placeholder else args.characters,
+            nowhere if placeholder else args.backgrounds,
+            None if placeholder else (args.renders or out / "renders"))
+        summary["scenes"] = [sc.to_dict() for sc in scene_list]
+    if song_info:
+        summary["song"] = song_info
     only = {int(x) for x in args.shots.split(",")} if args.shots else None
     if args.dry_run:
-        summary["fastwan"] = [] if args.mock_clips else clips.all_raw(tl, out, False, True, only)
+        summary["fastwan"] = ([] if visuals != "fastwan"
+                              else clips.all_raw(tl, out, False, True, only))
         print(json.dumps(summary, indent=1))
         return 0
     out.mkdir(parents=True, exist_ok=True)
     (out / "plan.json").write_text(json.dumps(summary, indent=1))
     if args.clips_only:
+        if visuals == "scenes":
+            ap.error("--clips-only is for FastWan/mock clips, not scenes")
         raw = clips.all_raw(tl, out, args.mock_clips, False, only)
         print(json.dumps(raw, indent=1))
         return 0
@@ -162,19 +284,36 @@ def main(argv: list[str] | None = None) -> int:
     started = time.monotonic()
     fmts = [scaled({"9x16": clips.VERTICAL, "16x9": clips.HORIZONTAL}[f.strip()], args.scale)
             for f in args.formats.split(",")]
-    audio = build_audio(tl, out, args)
-    conformed, raw = build_clips(tl, out, plan, fmts, args.mock_clips)
+    audio = song_audio(song[0], out) if song else build_audio(tl, out, args)
+    raw: list[dict] = []
+    scene_report = None
+    if visuals == "scenes":
+        if song:
+            mouth_words = [(w.start, w.end) for w in words_obj]
+            beat_offset = song_info["beat_shift"]
+        else:
+            mouth_words = [(n.start, n.start + n.dur) for n in tl.notes if n.sung]
+            beat_offset = 0.0
+        conformed, scene_report = build_scene_clips(tl, out, plan, fmts, scene_list,
+                                                    mouth_words, beat_offset)
+        mock_art = any(sc.mock for sc in scene_list)
+    else:
+        conformed, raw = build_clips(tl, out, plan, fmts, args.mock_clips)
+        mock_art = bool(args.mock_clips)
     final_audio = Path(audio["final"]["path"])
     videos = {}
     for fmt in fmts:
         name = "video.mp4" if fmt.name == "9x16" else f"video-{fmt.name}.mp4"
+        ass = (assemble.build_song_ass(tl, words_obj, fmt, mock_art) if song
+               else assemble.build_ass(tl, fmt, mock_art))
         videos[fmt.name] = assemble.render_format(tl, plan, conformed[fmt.name], final_audio,
-                                                  fmt, out, name, args.mock_clips)
+                                                  fmt, out, name, mock_art, ass_text=ass)
     run = {
         "tool": "scripts.kids_song.make", "version": VERSION, "episode": str(args.episode),
         **{k: summary[k] for k in ("title", "slug", "bpm", "key", "seconds", "chords")},
-        "videos": videos, "audio": audio, "clips": raw,
-        "mock_clips": args.mock_clips, "do_not_publish": bool(args.mock_clips),
+        "mode": "song" if song else "synth", "visuals": visuals, "song": song_info,
+        "videos": videos, "audio": audio, "clips": raw, "scenes": scene_report,
+        "mock_clips": args.mock_clips, "do_not_publish": mock_art,
         "made_for_kids": True, "ai_disclosure": True, "approved": False, "published": False,
         "notes": "Local prototype. Needs human review (visual drift, lyrics, audio) before "
                  "any use; the studio publish gate rejects made-for-kids content.",

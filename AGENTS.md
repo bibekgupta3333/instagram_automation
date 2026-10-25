@@ -146,3 +146,8 @@ Tests: `uv run pytest -q <yours>`, then `make test`. Offline only. Re-run unrela
 Heavy models: <none | GPU slot granted for X>. No uv sync, no downloads, no commits, no approve/publish.
 Finish with the protocol §6 report.
 ```
+
+
+## Pond Studio web app (2026-10-25)
+
+`studio/web/` provides a separate original nursery-video editor and single guarded worker queue. Start with `make deps-web` (isolated `.venv-web`), then `make web`; test with `make test-web`. See [doc 29](docs/7-web-studio/29-web-studio-plan.md) and [doc 30](docs/7-web-studio/30-api-contract.md). Do not wrap web jobs in an outer guard: the supervisor owns the shared resource lock and whole worker process group. Unknown or non-green pressure stops work; never bypass this. Runtime downloads remain disabled. Character providers use existing local files only; capability detection does not prove inference. No approval or publishing endpoints exist. Guide audio is instrumental and keeps exports draft. EC2 CPU packaging is in `infra/web/`; it has not been deployed or container-tested. HTTPS forwarded headers require exact trusted proxy IPs; default is no trust. Run a single API process, not multiple workers or replicas against the same SQLite directory.

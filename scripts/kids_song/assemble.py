@@ -15,10 +15,11 @@ import math
 import os
 import re
 import subprocess
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .clips import FPS, Format
-from .episode import Timeline, frame_boundaries
+from .episode import Shot, Timeline, frame_boundaries, letters
 
 REPO = Path(__file__).resolve().parents[2]
 FONTS_DIR = REPO / "assets" / "fonts" / "kids"
@@ -106,14 +107,14 @@ def line_markup(tl: Timeline, li: int, current: int | None, pop: int) -> str:
     return "".join(parts)
 
 
-def build_ass(tl: Timeline, fmt: Format, mock: bool = False) -> str:
+def ass_header(fmt: Format) -> str:
     w, h = fmt.width, fmt.height
     vertical = h >= w
     size = int(h * (0.052 if vertical else 0.078))
     margin_v = int(h * (0.20 if vertical else 0.07))
     margin_lr = int(w * 0.07)
     font = FONT if (FONTS_DIR / "Fredoka-SemiBold.ttf").is_file() else FALLBACK_FONT
-    head = f"""[Script Info]
+    return f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {w}
 PlayResY: {h}
@@ -134,6 +135,10 @@ Style: Note,{font},{max(18, size // 3)},&H40FFFFFF,{WHITE},&H80000000,&H00000000
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+
+
+def build_ass(tl: Timeline, fmt: Format, mock: bool = False) -> str:
+    head = ass_header(fmt)
     rows = []
     intro_end = tl.lines[0].start - 0.4 if tl.lines else min(3.0, tl.total_sec)
     if intro_end > 0.8:
@@ -146,6 +151,201 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         rows.append(f"Dialogue: 2,{ass_time(0)},{ass_time(tl.total_sec)},Note,,0,0,0,,"
                     "MOCK CLIPS - DO NOT PUBLISH")
     return head + "\n".join(rows) + "\n"
+
+
+# ---------------------------------------------------------------- song mode (sung WAV)
+
+TITLE_CARD_SEC = 1.0
+INTRO_MIN_SEC = 1.5  # a song whose first word starts at least this late "has an intro"
+MIN_SHOT_SEC = 0.5
+
+
+@dataclass
+class Word:
+    text: str
+    start: float
+    end: float
+
+
+def load_words(path: Path, song_sec: float | None = None) -> list[Word]:
+    """words.json: a list (or {"words": [...]}) of {word|text, start, end} in seconds, in
+    lyric order (scripts/kids_song/sing.py writes this). Words the aligner could not place
+    (start == end == 0) are interpolated between their aligned neighbours."""
+    data = json.loads(Path(path).read_text())
+    if isinstance(data, dict):
+        data = data.get("words") or data.get("segments") or []
+    raw: list[tuple[str, float | None, float | None]] = []
+    for i, item in enumerate(data):
+        text = str(item.get("word", item.get("text", ""))).strip()
+        try:
+            a, b = float(item["start"]), float(item["end"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"words.json item {i} needs numeric start/end ({exc})") from exc
+        if not text:
+            continue
+        ok = math.isfinite(a) and math.isfinite(b) and b > a and not (a == 0 and b == 0)
+        raw.append((text, a if ok else None, b if ok else None))
+    known = [i for i, (_, a, _) in enumerate(raw) if a is not None]
+    if not known:
+        raise ValueError(f"{path} has no timed words")
+    words: list[Word] = []
+    for i, (text, a, b) in enumerate(raw):
+        if a is None:  # spread unaligned words over the gap between aligned neighbours
+            prev = max((k for k in known if k < i), default=None)
+            nxt = min((k for k in known if k > i), default=None)
+            first = (prev + 1) if prev is not None else 0
+            count = ((nxt if nxt is not None else len(raw)) - first) or 1
+            lo = raw[prev][2] if prev is not None else max(0.0, raw[nxt][1] - 0.4 * count)
+            hi = raw[nxt][1] if nxt is not None else lo + 0.4 * count
+            step = max(0.0, hi - lo) / count
+            a, b = lo + step * (i - first), lo + step * (i - first + 1)
+        words.append(Word(text, a, max(b, a + 0.04)))
+    for k in range(1, len(words)):  # keep lyric order monotonic
+        if words[k].start < words[k - 1].start:
+            words[k].start = words[k - 1].start
+            words[k].end = max(words[k].end, words[k].start + 0.04)
+    if song_sec is not None:
+        for w in words:
+            w.start, w.end = min(w.start, song_sec), min(w.end, song_sec)
+    return words
+
+
+def song_timeline(tl: Timeline, song_sec: float, words: list[Word]) -> tuple[Timeline, dict]:
+    """Retime the episode's shots to the real song.
+
+    Boundaries stay on the episode's beat grid (BPM), shifted so the first sung note lands
+    on the first sung word. Shots that would start after the song are dropped; the last
+    kept shot is stretched or trimmed to the song end. If the song has an intro, a 1 s
+    title card (shot index -1) opens the video and shot 0 starts after it."""
+    sung = [n for n in tl.notes if n.sung]
+    first_note = sung[0].start if sung else tl.beat_time(tl.intro_beats)
+    shift = words[0].start - first_note
+    has_intro = words[0].start >= INTRO_MIN_SEC
+    starts = [0.0] + [s.start + shift for s in tl.shots[1:]]
+    kept: list[tuple[Shot, float]] = []
+    for shot, a in zip(tl.shots, starts, strict=True):
+        if a >= song_sec - MIN_SHOT_SEC:
+            break  # the song ends first: drop this and every later shot
+        if kept and a - kept[-1][1] < MIN_SHOT_SEC:
+            continue  # too short after the shift: the previous shot absorbs it
+        kept.append((shot, a))
+    shots: list[Shot] = []
+    title = False
+    if has_intro and kept:
+        first_end = kept[1][1] if len(kept) > 1 else song_sec
+        if first_end - TITLE_CARD_SEC >= MIN_SHOT_SEC:
+            title = True
+            shots.append(Shot(-1, 0.0, 0.0, 0.0, TITLE_CARD_SEC, tl.title, "", "title card", 0))
+            kept[0] = (kept[0][0], TITLE_CARD_SEC)
+    beat = tl.beat_sec
+    for k, (shot, a) in enumerate(kept):
+        b = kept[k + 1][1] if k + 1 < len(kept) else song_sec
+        shots.append(replace(shot, start=a, end=b, end_beat=shot.start_beat + (b - a) / beat))
+    planned_end = (kept[-1][0].end + shift) if kept else song_sec
+    new = replace(tl, shots=shots, total_beats=song_sec / beat)
+    info = {"song_seconds": round(song_sec, 3), "beat_shift": round(shift, 3),
+            "has_intro": has_intro, "title_card": title,
+            "shots_kept": len(kept), "shots_dropped": len(tl.shots) - len(kept),
+            "last_shot_delta": round(song_sec - planned_end, 3),
+            "first_word": round(words[0].start, 3)}
+    return new, info
+
+
+def display_tokens(text: str) -> list[str]:
+    """Printed lyric -> one token per aligned word (hyphenated words split, keeping the
+    hyphen; letterless pieces such as '...' ride on the previous token)."""
+    toks: list[str] = []
+    for piece in re.findall(r"[^\s-]+-?|-", text):
+        if letters(piece) or not toks:
+            toks.append(piece)
+        else:
+            toks[-1] += (" " if not toks[-1].endswith("-") else "") + piece
+    return toks
+
+
+def group_words(words: list[Word], lyrics_lines: list[str]) -> list[list[tuple[str, Word]]]:
+    """Caption lines of (display text, word). Matches the printed lyric lines by letters
+    (keeping their punctuation and capitals); falls back to splitting at pauses."""
+    lines: list[list[tuple[str, Word]]] = []
+    cursor = 0
+    for text in lyrics_lines:
+        target, acc, members = letters(text), "", []
+        while cursor < len(words) and len(acc) < len(target):
+            acc += letters(words[cursor].text)
+            members.append(words[cursor])
+            cursor += 1
+        if not target or acc != target:
+            lines = []
+            break
+        tokens = display_tokens(text)
+        shown = (tokens if len(tokens) == len(members)
+                 else [w.text.lower() for w in members])
+        lines.append(list(zip(shown, members, strict=True)))
+    if lines and cursor == len(words):
+        return lines
+    lines, cur = [], []
+    for w in words:
+        if cur and (w.start - cur[-1][1].end > 0.6 or len(cur) >= 6):
+            lines.append(cur)
+            cur = []
+        cur.append((w.text.lower(), w))
+    if cur:
+        lines.append(cur)
+    for line in lines:  # sentence-case the fallback lines
+        line[0] = (line[0][0][:1].upper() + line[0][0][1:], line[0][1])
+    return lines
+
+
+def song_caption_events(lines: list[list[tuple[str, Word]]], total: float
+                        ) -> list[tuple[float, float, int, int | None]]:
+    """(start, end, line index, current word rank | -1 all sung | None) per visible span."""
+    events = []
+    for li, line in enumerate(lines):
+        start, end = line[0][1].start, line[-1][1].end
+        prev_end = lines[li - 1][-1][1].end if li else 0.0
+        nxt = lines[li + 1][0][1].start if li + 1 < len(lines) else total
+        vis0 = max(start - 0.35, prev_end + 0.02 if li else 0.0)
+        vis1 = min(end + 0.45, nxt - 0.37 if li + 1 < len(lines) else total)
+        vis1 = max(vis1, end)
+        marks = [(vis0, None)] + [(w.start, k) for k, (_, w) in enumerate(line)]
+        marks += [(end, -1), (vis1, None)]
+        for (a, cur), (b, _) in itertools.pairwise(marks):
+            if b - a > 0.005:
+                events.append((a, b, li, cur))
+    return events
+
+
+def word_line_markup(line: list[tuple[str, Word]], current: int | None, pop: int) -> str:
+    cur_rank = len(line) if current == -1 else (-1 if current is None else current)
+    parts = []
+    for k, (text, _) in enumerate(line):
+        if k == cur_rank:
+            parts.append(f"{{\\1c{CURRENT}\\fscx{pop}\\fscy{pop}}}{_esc(text)}"
+                         f"{{\\1c{WHITE}\\fscx100\\fscy100}}")
+        elif k < cur_rank:
+            parts.append(f"{{\\1c{SUNG}}}{_esc(text)}{{\\1c{WHITE}}}")
+        else:
+            parts.append(_esc(text))
+        if k + 1 < len(line) and not text.endswith("-"):
+            parts.append(" ")
+    return "".join(parts)
+
+
+def build_song_ass(tl: Timeline, words: list[Word], fmt: Format, mock: bool = False,
+                   note: str = "PLACEHOLDER ART - DO NOT PUBLISH") -> str:
+    """Word-level karaoke from words.json (same Fredoka styles and safe areas)."""
+    lines = group_words(words, list(tl.raw.get("lyrics_lines") or []))
+    rows = []
+    intro_end = words[0].start - 0.4
+    if intro_end > 0.8:
+        rows.append(f"Dialogue: 1,{ass_time(0.1)},{ass_time(intro_end)},Title,,0,0,0,,"
+                    f"{{\\fad(250,350)}}{_esc(tl.title)}")
+    for a, b, li, cur in song_caption_events(lines, tl.total_sec):
+        rows.append(f"Dialogue: 0,{ass_time(a)},{ass_time(b)},Lyric,,0,0,0,,"
+                    f"{word_line_markup(lines[li], cur, 114)}")
+    if mock:
+        rows.append(f"Dialogue: 2,{ass_time(0)},{ass_time(tl.total_sec)},Note,,0,0,0,,{note}")
+    return ass_header(fmt) + "\n".join(rows) + "\n"
 
 
 # ---------------------------------------------------------------- audio
@@ -206,9 +406,9 @@ def video_graph(plan: list[dict], ass_name: str, fonts_rel: str | None) -> str:
 
 
 def render_format(tl: Timeline, plan: list[dict], clips: list[Path], audio: Path, fmt: Format,
-                  out_dir: Path, dest_name: str, mock: bool) -> dict:
+                  out_dir: Path, dest_name: str, mock: bool, ass_text: str | None = None) -> dict:
     ass_name = f"captions-{fmt.name}.ass"
-    (out_dir / ass_name).write_text(build_ass(tl, fmt, mock))
+    (out_dir / ass_name).write_text(ass_text if ass_text is not None else build_ass(tl, fmt, mock))
     fonts_rel = os.path.relpath(FONTS_DIR, out_dir) if FONTS_DIR.is_dir() else None
     total_frames = round(tl.total_sec * FPS)
     inputs = []

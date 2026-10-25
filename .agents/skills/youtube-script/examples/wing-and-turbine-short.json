@@ -1,0 +1,80 @@
+{
+  "title": "Why Most Jet Engine Thrust Never Touches the Fire",
+  "hook": "Most thrust bypasses the fire.",
+  "beats": [
+    {
+      "text": "A big airliner engine is mostly one giant fan up front.",
+      "shot": "wide",
+      "visual_prompt": "Generic unbranded airliner turbofan engine seen from the front on a wing, huge fan disc filling the frame, night ramp setting, low worm's-eye view with a wide lens, cool rim light outlining the fan blades",
+      "overlay": "Mostly fan",
+      "stock_query": "jet engine fan"
+    },
+    {
+      "text": "That fan pulls in far more air than the core can burn.",
+      "shot": "close-up",
+      "visual_prompt": "Swept titanium fan blades spinning with soft motion blur, streams of glowing blue airflow curving into the engine intake, three-quarter view from slightly above, subject centered with dark negative space, soft key light from upper left",
+      "overlay": "",
+      "stock_query": "turbofan blades closeup"
+    },
+    {
+      "text": "Only a small stream goes inside, into the compressor and combustor.",
+      "shot": "cutaway",
+      "visual_prompt": "Cutaway turbofan engine sliced lengthwise, a narrow inner airflow stream highlighted as it enters the compressor stages and the combustion chamber, side elevation view, clean studio lighting with a faint orange glow at the core",
+      "overlay": "Small core stream",
+      "stock_query": ""
+    },
+    {
+      "text": "There, fuel burns and the hot gas spins a set of turbines.",
+      "shot": "macro detail",
+      "visual_prompt": "Extreme close view of glowing turbine blades inside a jet engine core, heat shimmer and orange combustion light washing over curved metal edges, shallow depth of field, dark surroundings, warm rim light",
+      "overlay": "Fuel spins turbines",
+      "stock_query": "turbine blades glowing"
+    },
+    {
+      "text": "Those turbines turn a shaft that runs forward to the fan.",
+      "shot": "diagram",
+      "visual_prompt": "Simplified engine schematic showing one long central shaft connecting the rear turbines to the front fan, blue arrows tracing the rotation forward, flat side view on a dark background, even soft lighting",
+      "overlay": "",
+      "stock_query": ""
+    },
+    {
+      "text": "The rest of the air flows around the core, never touching flame.",
+      "shot": "medium",
+      "visual_prompt": "Translucent engine nacelle revealing a wide outer duct of cool blue air flowing around a sealed inner core, three-quarter view from the side, subject centered, soft studio key light and subtle blue glow",
+      "overlay": "Bypass air",
+      "stock_query": ""
+    },
+    {
+      "text": "This cool bypass air leaves the back as a wide, slow stream.",
+      "shot": "wide",
+      "visual_prompt": "Rear view of a generic airliner engine at takeoff power, a broad soft plume of cool air leaving the nozzle around a thin hot core jet, runway dusk setting, low angle, warm sunset backlight",
+      "overlay": "",
+      "stock_query": "airplane engine exhaust"
+    },
+    {
+      "text": "Pushing lots of air gently beats pushing a little air violently.",
+      "shot": "diagram",
+      "visual_prompt": "Side-by-side comparison of two engine silhouettes, one moving a broad gentle river of blue air, the other a thin fierce jet of orange gas, flat illustration on a dark background, even lighting",
+      "overlay": "Gentle beats violent",
+      "stock_query": ""
+    },
+    {
+      "text": "That trade makes the engine quieter and easier on fuel.",
+      "shot": "aerial",
+      "visual_prompt": "Generic unbranded airliner cruising above a calm sea of clouds, engines trailing soft airflow lines, high aerial view from above and behind, golden hour sunlight, wide open sky",
+      "overlay": "",
+      "stock_query": "airliner above clouds"
+    },
+    {
+      "text": "So the fire powers the fan, and the fan pushes.",
+      "shot": "macro detail",
+      "visual_prompt": "Close detail where the hot orange engine core meets the cool blue bypass duct, two airflows running side by side along polished metal, shallow depth of field, contrasting warm and cool rim light",
+      "overlay": "Fan does the work",
+      "stock_query": ""
+    }
+  ],
+  "cta": "That is why, on every flight,",
+  "sources": [],
+  "description": "Why a modern turbofan gets most of its push from a giant fan instead of the fire in its core. Narrated with an AI-generated voice.",
+  "hashtags": ["#aviation", "#jetengine", "#howitworks", "#engineering"]
+}

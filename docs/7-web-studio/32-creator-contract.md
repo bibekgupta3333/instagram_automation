@@ -1,0 +1,25 @@
+# 32 · General prompt-to-video contract
+
+This extends the app alongside the original nursery editor. Do not weaken its kids schema or publishing gate. General videos target YouTube, Instagram and Facebook; kids projects remain YouTube-only. No automatic publishing or human approval. API base `/api/creator`; app UI `/create`.
+
+Canonical Pydantic contracts: `studio/web/creator_models.py`. Styles: watercolor-anime (soft hand-painted fantasy; original characters, not a copied franchise), anime, cartoon, cinematic, live-action, motion-graphics. Brief: idea, style, audience, platforms, duration (5–60, multiple of 5), optional named character descriptions, language=en, audio=ambient|silent|narration, title. Automatic narration uses system synthetic speech, not singing or a cloned person. No models or endpoints in user input. Output 1080x1920 30fps H.264/AAC, honest source-resolution metadata; upscaling is not native HD.
+
+## Components and write ownership
+
+- Planner owns `creator_planner.py`, test_creator_planner.py: `plan_video(brief: VideoBrief) -> VideoPlan`, `planner_status() -> dict`. OpenCode CLI optional, fail visibly to labelled template only when unavailable/fails. No shell/tools/workspace access, bounded timeout/output, free-only models; never silently call paid models. No external user content treated as instructions. CLI availability/verification must be documented.
+- Media owns `creator_media.py`, test_creator_media.py: `cloud_status() -> dict`; `render_creation(creation:dict, request:dict, out:Path, progress:callable) -> dict`. Request mode preview|cloud. Cloud makes real managed open-weight model clips then assembles with FFmpeg, bounded API and downloads, cancellation via process group, no local ML. Preview is explicitly non-publishable motion-graphics animatic, not a fake anime/live-action result. Writes `video.mp4`, `poster.png`, `captions.srt`, `metadata.json`, `description.txt`. Return `{kind:"creation",guide_audio:bool,seconds,width,height,estimated_cost_usd,...}`. Track provider prediction IDs/events in job directory; never log secrets/raw provider responses. Billing gated off by default. Parent adds worker dispatch separately.
+- API/queue owns `creator_api.py`, test_creator_api.py: `register_creator(app,store,*,supervisor=None)` adds routes and returns service with start()/stop(). Creation records kind=`creation`, jobs kind=`creation_job` in existing Store SQLite. Lifecycle called by parent. Worker command `python -m studio.web.worker --project creation.json --request request.json --out JOB_DIR`, request `{kind:"creation",mode,...}`. Existing guard, no nested guard. One shared lock; parent can wire active job reporting.
+- Frontend owns `static/create.html`, `static/create.js`, `static/create.css`. Self-contained same-origin page; do not edit old app.js. No hardcoded keys/models. Session unlock uses existing `/api/session`. Friendly brief -> editable plan -> queued generate -> playback/download. Preview labelled. No forced brand/kids defaults. Main adds `/create` FileResponse + navigation link.
+- Docs owns doc33 and doc34 under this folder. Parent handles README/changelog/config/API mounts.
+
+## API
+
+GET `/status` -> `{planner:{available,...},cloud:{available,reason,...},resources:{pressure,free_disk_gb},active_job:null|string}`. Capabilities never imply actual inference success.
+GET `/projects` -> `{projects:[Creation]}`; POST `/projects` body VideoBrief -> Creation (no generation).
+GET `/projects/{id}` -> Creation; PUT same body SaveCreation -> Creation; 409 stale revision.
+POST `/projects/{id}/plan` -> Creation, calls planner and persists plan, invalidates old readiness; reject active job. Plan can be edited via PUT. No paid calls for planning.
+POST `/projects/{id}/jobs` body CreationRender -> Job; require saved plan; preview allowed, cloud only when configured/admin enabled and budget sufficient. Request must not itself enable cloud billing. POST `/jobs/{id}/cancel` -> Job.
+GET `/jobs?project_id=ID` -> `{jobs:[Job]}`; GET `/jobs/{id}` -> Job. Job fields id,project_id,project_revision,status,progress,message,error,mode,created_at,updated_at,video_url,download_url,poster_url,package_url,estimated_cost_usd,publishable=false. No approval statuses. Successful cloud outputs require human review; previews always draft.
+GET `/jobs/{id}/video` range MP4; `/download` attachment MP4; `/poster` PNG; `/package` ZIP including saved brief/plan, metadata, captions, title/description/hashtags and review notes. Not actual publication approval.
+
+All API routes use existing same-origin security middleware. SQLite persistence, restart marks interrupted failed with reconciliation warning; never replay billable submissions. Public errors sanitized. Generation is background, plan may initially be synchronous bounded (report UI spinner). Keep resources guarded and offline tests mocked. No .env access, no AWS profiles, no model downloads, no real paid calls. Tests must not need the other agents' unfinished modules: lazy imports and dependency injection.

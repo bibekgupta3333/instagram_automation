@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+.venv*
+output
+models
+cache
+.cache
+node_modules
+__pycache__
+*.pyc
+.aws
+.codex
+.agents
+.claude

@@ -12,6 +12,13 @@ Agent-facing log of **code** changes: what changed, why, and what it means for t
 
 ---
 
+## 2026-10-25 · Pond Studio local web editor and guarded export app
+- Changed: `studio/web/` adds same-origin FastAPI + buildless editor, SQLite projects/revisions, original four-otter character starter, scene/timeline editing, owned media uploads, queued worker cancellation, MP4 playback/download and review ZIPs with media hashes and saved project. No publish/approval endpoint.
+- Rendering: Pillow/FFmpeg create bounded 2D animation with guide instrumental or uploaded audio; optional cached mflux character generation and Linux Diffusers adapter are offline-only. No weights downloaded; real AI inference is unverified.
+- Safety: shared lock, three CPU threads, process-group cleanup, green-pressure and 10GB disk requirements, resource logs, upload validation, origin/host/token checks, narrowly trusted proxy IPs. Guide audio and stale revisions cannot become review-ready. No core publishing gates changed.
+- Setup: isolated `.venv-web`, `make deps-web/web/test-web`, hash-pinned CPU Docker/Compose skeleton and docs 29–31. Static files included in wheel. Containers/EC2/CUDA not run.
+- Validation: 109 offline web tests pass, including tiny real FFmpeg fixtures; browser create/edit/save and character screens checked. Live render refused at yellow macOS pressure, correctly; complete live playback/export acceptance remains pending. Agents: no nested guards, no multiple API workers, no runtime downloads. Existing kids-song changes preserved.
+
 ## 2026-10-23 · Private-only YouTube uploads + reviewed kids path; ACE-Step/klein plan; Oct–Nov calendar
 - Changed: `studio/publish/youtube.py` is rewritten as a real Data API v3 uploader. It covers OAuth with a Desktop client (token at `~/.config/studio/youtube-token.json`, mode 0600), resumable upload, thumbnail, playlist and a `youtube_uploads` ledger keyed on content_hash.
   - **Privacy is always private.** Any other value raises `PrivacyViolation`, and the upload fails if the API reports the video as anything but private. The old public path (`YOUTUBE_PROJECT_AUDITED`) is removed.

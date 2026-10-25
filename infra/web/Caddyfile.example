@@ -1,0 +1,13 @@
+# Optional HTTPS reverse proxy. Replace the domain and configure DNS first.
+# Keep the EC2 application port private; expose only 443 through your reverse proxy.
+studio.example.com {
+    encode zstd gzip
+    request_body {
+        max_size 30MB
+    }
+    reverse_proxy 127.0.0.1:8080
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+    }
+}

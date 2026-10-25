@@ -16,6 +16,10 @@
 
 This plan covers 10 faceless channels across YouTube, Instagram and Facebook, produced by an AI pipeline and published through Buffer. The research was done on 2026-10-16. Prices and policies change, so check the "verify" items in each doc before you rely on them. Docs keep their number prefix (01–22) as a stable ID, so citations like "04 §5" still work after the move into folders.
 
+## Local web app
+
+[Video Studio](7-web-studio/README.md) now includes a [general prompt-to-video creator](7-web-studio/33-universal-video-workflow.md) alongside the original nursery-video editor: characters, storyboard, guarded render jobs, review and downloads. Includes the [delivery plan](7-web-studio/29-web-studio-plan.md), [API contract](7-web-studio/30-api-contract.md) and [personal EC2 runbook](7-web-studio/31-ec2-runbook.md).
+
 ## Start here
 
 > **Script library:** [220 episode treatments across all portfolio channels](6-script-library/README.md), with hooks, timed story beats, payoffs, short cuts, thumbnail A/B concepts and evidence/rights checks. Start with [22 — Directing and rights](6-script-library/22-directing-and-rights-playbook.md). These are production plans, not completed research or videos.

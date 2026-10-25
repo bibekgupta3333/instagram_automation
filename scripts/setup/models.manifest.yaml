@@ -101,12 +101,44 @@ models:
     purpose: "Alternative local still model via mflux, 4-bit pre-quantized; faster, weaker text (doc 18 §1)"
     runtime: hf
     source: "mflux-community/flux2-klein-4b-mflux-q4"
+    revision: "794cd159538149ad9830848508c31f0ea7088e58"
     size_gb: 4.6
     licence: apache-2.0
     commercial_use: true
     optional: true   # Configuration A uses Z-Image-Turbo q4; pull klein only for A/B tests
     verified: true
     verified_how: "HF file-tree API via doc 18 research: 4.57 GB (transformer 2.15, Qwen3 TE 2.27, VAE 0.17). M1 Max 31.7 s/image measured (lilting.ch). mflux --model <repo> form NOT yet tested"
+
+  # Kids pilot character pack (user request 2026-10-23): BiRefNet_lite cut-outs and a
+  # DINOv2-small consistency check (scripts/kids_song/). `revision` is the HF commit checked
+  # on 2026-10-23; the pull script fetches main, so compare the cached snapshot dir to it.
+  - name: birefnet-lite
+    stage: image
+    purpose: "Character cut-outs (transparent PNG) for the kids character pack; trust_remote_code model"
+    runtime: hf
+    source: "ZhengPeng7/BiRefNet_lite"
+    revision: "aa62cd87eafb9cc43056d08ef3615a14628b831d"
+    include: ["config.json", "BiRefNet_config.py", "birefnet.py", "model.safetensors", "README.md"]
+    size_gb: 0.18
+    licence: mit
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-23 HF API: card licence mit, model.safetensors 177634392 bytes, config bb_pretrained false (no backbone download). Remote code imports timm.layers and kornia.filters (not installed; scripts/kids_song shims them)"
+
+  - name: dinov2-small
+    stage: image
+    purpose: "Image embeddings for the character consistency check (scripts/kids_song/consistency.py)"
+    runtime: hf
+    source: "facebook/dinov2-small"
+    revision: "ed25f3a31f01632728cabb09d1542f84ab7b0056"
+    include: ["config.json", "preprocessor_config.json", "model.safetensors", "README.md"]
+    size_gb: 0.09
+    licence: apache-2.0
+    commercial_use: true
+    optional: true
+    verified: true
+    verified_how: "2026-10-23 HF API: card licence apache-2.0, model.safetensors 88249960 bytes"
 
   - name: z-image-turbo-q4
     stage: image
@@ -139,6 +171,7 @@ models:
     purpose: "Monocular depth for 2.5D parallax b-roll, the default motion layer, run with torch/transformers on MPS by studio/stages/motion.py (doc 18 §2, §6)"
     runtime: hf
     source: "depth-anything/Depth-Anything-V2-Small-hf"
+    revision: "5426e4f0f36572d16453bbda7a8389317b1bef99"
     include: ["config.json", "preprocessor_config.json", "model.safetensors", "README.md"]
     size_gb: 0.1
     licence: apache-2.0
@@ -259,7 +292,8 @@ models:
     stage: image
     purpose: "Tiny 4x upscaler: render stills at 544x960 then upscale, about 2x faster (doc 18 §5)"
     runtime: hf
-    source: "Comfy-Org/Real-ESRGAN_repackaged"
+    source: "Comfy-Org/Real-ESRGAN_repackaged"   # HF now redirects to Comfy-Org/Real-ESRGAN
+    revision: "5fd49b7b278836f48af63ecd314d0f98ab336105"
     include: ["RealESRGAN_x4plus.safetensors", "README.md"]
     size_gb: 0.07
     licence: bsd-3-clause

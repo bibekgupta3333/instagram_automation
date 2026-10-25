@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>Video Studio · Create</title>
+<link rel="stylesheet" href="/static/create.css"><script src="/static/create.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to creation</a>
+<header class="topbar"><a class="brand" href="/create"><span class="mark" aria-hidden="true">▶</span> Video Studio</a><nav aria-label="Studio"><a href="/">Pond editor ↗</a><button id="projects-toggle" class="quiet" aria-expanded="false" aria-controls="library">Saved projects</button><button id="refresh" class="quiet">Reconnect</button></nav></header>
+<div class="workspace">
+<aside id="library" hidden><div class="section-heading"><h2>Your projects</h2><button id="new-project" class="quiet">+ New</button></div><p class="muted">Saved in your studio’s SQLite workspace.</p><div id="project-list"></div></aside>
+<main id="main">
+<div class="intro"><div><p class="eyebrow">FROM A THOUGHT TO A FILM</p><h1>What will you create?</h1><p class="lede">A tiny adventure. A product story. A world of your own.</p></div><span class="format">9:16 <span>·</span> Vertical video</span></div>
+<ol class="steps" aria-label="Creation progress"><li aria-current="step"><span>01</span> Idea</li><li><span>02</span> Plan</li><li><span>03</span> Generate</li><li><span>04</span> Download</li></ol>
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<div id="conflict" class="notice warning" hidden><strong>This project changed in another window.</strong><p>Your edits are still here. Copy them before loading the saved version.</p><button id="reload-project">Load saved version</button></div>
+<div class="columns"><div class="editor">
+<section class="card" aria-labelledby="idea-heading"><div class="section-heading"><h2 id="idea-heading">Start with an idea</h2><span id="save-state" class="muted">Not saved yet</span></div>
+<form id="brief-form">
+<label for="title">Project title <span class="muted">optional</span></label><input id="title" maxlength="120" placeholder="Give your next film a name">
+<label for="idea">Describe your video</label><textarea id="idea" required minlength="5" maxlength="4000" rows="4" placeholder="A young mapmaker follows a glowing paper bird through a floating mountain village at dusk…"></textarea>
+<div class="samples" aria-label="Try an idea"><span class="muted">Try a spark</span><button type="button" data-sample="fantasy">Floating village</button><button type="button" data-sample="cartoon">Space café</button><button type="button" data-sample="product">Product reveal</button><button type="button" data-sample="live">City in the rain</button></div>
+<fieldset><legend>Choose a visual style</legend><div class="style-grid">
+<label class="style"><input type="radio" name="style" value="watercolor-anime"><span class="swatch watercolor" aria-hidden="true"></span><strong>Watercolor anime</strong><small>Hand-painted fantasy</small></label>
+<label class="style"><input type="radio" name="style" value="anime"><span class="swatch anime" aria-hidden="true"></span><strong>Anime</strong><small>Expressive & illustrated</small></label>
+<label class="style"><input type="radio" name="style" value="cartoon"><span class="swatch cartoon" aria-hidden="true"></span><strong>Cartoon</strong><small>Playful & stylized</small></label>
+<label class="style"><input type="radio" name="style" value="live-action"><span class="swatch live" aria-hidden="true"></span><strong>Live action</strong><small>Natural & lifelike</small></label>
+<label class="style"><input type="radio" name="style" value="cinematic" checked><span class="swatch cinematic" aria-hidden="true"></span><strong>Cinematic</strong><small>Atmospheric & dramatic</small></label>
+<label class="style"><input type="radio" name="style" value="motion-graphics"><span class="swatch motion" aria-hidden="true"></span><strong>Motion graphics</strong><small>Shapes & visual rhythm</small></label>
+</div></fieldset>
+<div class="form-grid"><div><label for="duration">Length <output id="duration-value" for="duration">15 seconds</output></label><input id="duration" type="range" min="5" max="60" step="5" value="15"><div class="range-ends"><span>5 sec</span><span>60 sec</span></div></div><div><label for="audience">Audience</label><select id="audience"><option value="general">General audience</option><option value="kids">Made for kids</option></select></div></div>
+<fieldset><legend>Where is it headed?</legend><div class="platforms"><label><input type="checkbox" name="platform" value="youtube" checked> YouTube</label><label><input type="checkbox" name="platform" value="instagram" checked> Instagram</label><label><input type="checkbox" name="platform" value="facebook" checked> Facebook</label></div><p id="kids-note" class="help" hidden>Made-for-kids projects are YouTube-only. This studio does not publish videos.</p></fieldset>
+<details><summary>Characters <span class="muted">optional · up to 4</span></summary><p class="help">Describe original characters to guide the plan and visual prompts.</p><div id="characters"></div><button id="add-character" type="button" class="quiet">+ Add a character</button></details>
+<label for="audio">Audio</label><select id="audio"><option value="ambient">Ambient soundtrack</option><option value="silent">Silent</option><option value="narration">Automatic narration</option></select><p id="audio-note" class="help">Ambient audio has no spoken narration.</p>
+<div class="actions"><button type="submit" id="plan-button" class="primary">Create my plan <span aria-hidden="true">→</span></button><button type="button" id="save-brief" class="quiet">Save idea</button></div><p class="help">Planning does not generate video or authorize paid generation.</p>
+</form></section>
+<section id="plan-section" class="card" hidden aria-labelledby="plan-heading"><div class="section-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h2 id="plan-heading">Your scene-by-scene plan</h2></div><span id="planner-label" class="pill"></span></div><p id="narration-note" class="help"></p><div id="plan-fields"></div><div id="shots"></div><button id="save-plan" class="primary">Save plan</button></section>
+</div>
+<aside class="production" aria-label="Generation and studio status">
+<section class="card generate"><p class="eyebrow">THE NEXT CHAPTER</p><h2>Bring your plan to life</h2><p class="muted">Review the plan, then choose how to make it.</p>
+<fieldset class="modes"><legend class="sr-only">Generation mode</legend><label><input type="radio" name="mode" value="preview" checked><span><strong>Timing preview</strong><small>Draft animatic for pacing. Simple graphics, not generated scenes in your chosen style.</small></span><span class="pill">Draft</span></label><label><input type="radio" name="mode" value="cloud"><span><strong>Generate video</strong><small>Cloud-generated scenes in your selected style. Requires an available service and budget.</small></span></label></fieldset>
+<div id="budget-wrap" hidden><label for="budget">Job budget reservation · USD</label><input id="budget" type="number" min="0" max="20" step="0.01" value="0" inputmode="decimal"><p class="help">Reserves this amount against the app budget. Provider estimates are not a hard vendor billing cap; cancellation may still incur charges. You authorize cloud generation only when you click Generate video.</p></div><p id="generation-reason" class="help"></p><button id="generate" class="primary wide" disabled>Make timing preview</button>
+<div id="job-panel" hidden><div class="section-heading"><strong id="job-status"></strong><button id="cancel-job" class="quiet">Cancel</button></div><progress id="job-progress" max="100" value="0">0%</progress><p id="job-message" class="help"></p></div>
+</section>
+<section id="result" class="card" hidden><div class="section-heading"><h2>Your video</h2><span id="result-kind" class="pill"></span></div><p id="result-note" class="help"></p><video id="video" controls playsinline preload="metadata" aria-label="Generated video"></video><p id="result-meta" class="help"></p><div class="download-actions"><button id="download-video" class="primary">Download MP4</button><button id="download-package" class="quiet">Review package ↓</button></div><p class="help">Review visuals, rights, captions and audio before sharing. AI disclosure required. No automatic publishing.</p></section>
+<section class="card system"><div class="section-heading"><h2>Studio status</h2><span id="connection" class="pill">Connecting</span></div><dl><div><dt>Planning</dt><dd id="planner-status">Checking…</dd></div><div><dt>Cloud video</dt><dd id="cloud-status">Checking…</dd></div><div><dt>Resources</dt><dd id="resource-status">Checking…</dd></div></dl><p class="help">Availability is checked before generation. Successful generation still requires human review.</p><button id="check-status" class="quiet">Refresh status</button></section>
+</aside></div>
+<footer>YOUR IDEA. YOUR DIRECTION. <span>Video Studio · Private workspace</span></footer>
+</main></div>
+<dialog id="unlock"><form id="unlock-form"><p class="eyebrow">PRIVATE WORKSPACE</p><h2>Unlock Video Studio</h2><p class="muted">Enter your studio access token to start a secure session.</p><label for="token">Access token</label><input id="token" type="password" required autocomplete="off" maxlength="4096"><p id="unlock-error" role="alert" class="help"></p><button class="primary" type="submit">Unlock studio →</button></form></dialog>
+</body></html>

@@ -1,0 +1,17 @@
+{
+  "title": "Under 70 characters, same promise as the hook",
+  "hook": "Concrete claim, five words max.",
+  "beats": [
+    {
+      "text": "One idea per beat, six to fourteen spoken words.",
+      "shot": "wide",
+      "visual_prompt": "Subject with material and state, setting, viewpoint and composition, lighting; objects only, 25-45 words, no lettering or figures",
+      "overlay": "One to five words",
+      "stock_query": "two to four keywords"
+    }
+  ],
+  "cta": "Loop line that flows into the hook,",
+  "sources": [],
+  "description": "Two or three sentences for the platform caption, with any required disclosure.",
+  "hashtags": ["#topic", "#niche", "#howitworks"]
+}

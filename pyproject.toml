@@ -12,6 +12,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+web = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "python-multipart>=0.0.20,<1",
+  "pillow>=10,<13",
+]
 # Local ML (docs/4-production/14). Text runs on Bedrock / Claude Code, so no local LLMs.
 # local-audio: Kokoro-82M TTS (mlx-audio) + word-timestamp captions (parakeet-mlx).
 # mlx-audio does not declare Kokoro's G2P: it imports `misaki` at runtime. `misaki[en]` would
@@ -54,3 +60,7 @@ packages = ["studio"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["output", ".venv", ".venv-web", "node_modules"]

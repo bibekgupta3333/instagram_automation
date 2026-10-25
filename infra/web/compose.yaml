@@ -1,0 +1,31 @@
+services:
+  studio:
+    build:
+      context: ../..
+      dockerfile: infra/web/Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      STUDIO_WEB_TOKEN: ${STUDIO_WEB_TOKEN:?Set a long random personal studio access token}
+      STUDIO_WEB_ALLOWED_HOSTS: ${STUDIO_WEB_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      STUDIO_WEB_TRUSTED_PROXY_IPS: ${STUDIO_WEB_TRUSTED_PROXY_IPS:-}
+      STUDIO_WEB_DATA_DIR: /data/web-studio
+      STUDIO_CREATOR_CLOUD_ENABLED: ${STUDIO_CREATOR_CLOUD_ENABLED:-0}
+      STUDIO_CREATOR_CLOUD_BUDGET_USD: ${STUDIO_CREATOR_CLOUD_BUDGET_USD:-0}
+      STUDIO_CREATOR_FREE_MODEL: ${STUDIO_CREATOR_FREE_MODEL:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+    volumes:
+      - studio-data:/data/web-studio
+    cpus: "3.0"
+    mem_limit: 6g
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+volumes:
+  studio-data:

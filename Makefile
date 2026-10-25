@@ -25,7 +25,7 @@ LITELLM_PORT ?= 4000
 UV_EXTRAS := --extra local-audio --extra local-image --extra bedrock --group dev
 
 .PHONY: help preflight tools tools-dry deps deps-audio models-dry models models-audio smoke smoke-mock \
-	test lint gateway ollama
+	test lint gateway ollama deps-web web test-web
 
 help: ## list targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -66,6 +66,18 @@ guarded: ## macOS: run studio with 3 CPU threads, stop if memory leaves green or
 
 test: ## run the test suite
 	uv run pytest -q
+
+deps-web: ## install the isolated web app dependencies; preserves existing model runtimes
+	@test -x .venv-web/bin/python || uv venv .venv-web --python $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+	uv pip install --python .venv-web/bin/python --require-hashes -r infra/web/requirements.lock
+	uv pip install --python .venv-web/bin/python --no-deps -e .
+	uv pip install --python .venv-web/bin/python pytest
+
+web: ## serve the local creator studio at http://127.0.0.1:8080
+	.venv-web/bin/python -m studio.web --host 127.0.0.1 --port 8080
+
+test-web: ## offline web/API/render/resource tests
+	.venv-web/bin/python -m pytest -q tests/test_web_*.py tests/test_creator_*.py
 
 lint: ## ruff
 	uv run ruff check .
