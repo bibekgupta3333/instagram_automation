@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio Dashboard</title><link rel="stylesheet" href="/styles.css"></head>
+<body><div class="wrap">
+<div><h1>Studio dashboard <span class="tag">read-only data</span></h1><div class="sub" id="meta">connecting...</div>
+<div class="sub">Read-only data, actions are logged.</div></div>
+<div id="live" class="banner stop">checking...</div>
+<nav id="tabs">
+<button data-t="pipeline" class="on">Pipeline</button><button data-t="topics">Topics</button>
+<button data-t="gates">Gates</button><button data-t="publish">Publish</button>
+<button data-t="capacity">Capacity</button><button data-t="batches">Batches</button><button data-t="actions">Actions</button>
+</nav>
+<div id="statusbar" class="statusbar"><span id="sb-act" role="status" aria-live="polite">No action running</span><span id="sb-mem"></span><span id="sb-cap"></span></div>
+<div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+<div id="empty" class="banner stop" hidden></div>
+<main id="view"></main>
+</div><script src="/app.js"></script></body></html>

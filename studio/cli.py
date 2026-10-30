@@ -167,5 +167,63 @@ def status(job_id: Annotated[str | None, typer.Argument()] = None) -> None:
     console.print(table)
 
 
+track_app = typer.Typer(help="Tracking DB (output/pipeline.sqlite), rebuilt from job.json.",
+                        no_args_is_help=True)
+app.add_typer(track_app, name="track")
+
+from studio.topics.cli import topics_app
+
+app.add_typer(topics_app, name="topics")
+
+
+@track_app.command("sync")
+def track_sync(
+    output_dir: Annotated[Path, typer.Option("--output-dir")] = Path("output"),
+) -> None:
+    """Rebuild the tracking DB from output/*/job.json (read-only on job files)."""
+    from studio.pipeline.tracking import sync_from_jobs
+
+    counts = sync_from_jobs(output_dir)
+    console.print(", ".join(f"{k}={v}" for k, v in counts.items()))
+
+
+@track_app.command("report")
+def track_report(
+    json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
+) -> None:
+    """Counts by channel/status, failed jobs, invalid approvals and drafts."""
+    import json as _json
+    import sqlite3
+
+    from studio.pipeline.tracking import build_report
+
+    try:
+        rep = build_report()
+    except sqlite3.Error as exc:
+        console.print(f"[red]no tracking DB yet ({exc}); run `studio track sync`[/red]")
+        raise typer.Exit(1) from exc
+    if json_out:
+        typer.echo(_json.dumps(rep, indent=2))
+        return
+    t = Table(title="jobs by channel / status")
+    for col in ("channel", "status", "n"):
+        t.add_column(col)
+    for r in rep["by_channel_status"]:
+        t.add_row(str(r["channel"]), str(r["status"]), str(r["n"]))
+    console.print(t)
+    for key, title in (("failed", "failed jobs"),
+                       ("approval_invalid", "approved but approval not valid"),
+                       ("drafts", "drafts")):
+        rows = rep[key]
+        if not rows:
+            continue
+        t = Table(title=title)
+        for col in rows[0]:
+            t.add_column(col, overflow="fold")
+        for r in rows:
+            t.add_row(*(str(v)[:160] if v is not None else "" for v in r.values()))
+        console.print(t)
+
+
 if __name__ == "__main__":
     app()

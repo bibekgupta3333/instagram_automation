@@ -356,8 +356,8 @@ class MockChatClient:
         return f"[mock {role}] " + (messages[-1].get("content", "")[:80] if messages else "")
 
 
-Backend = Literal["bedrock", "claude-code", "gateway", "ollama", "mock"]
-BACKENDS: tuple[str, ...] = ("bedrock", "claude-code", "gateway", "ollama", "mock")
+Backend = Literal["bedrock", "claude-code", "opencode", "gateway", "ollama", "mock"]
+BACKENDS: tuple[str, ...] = ("bedrock", "claude-code", "opencode", "gateway", "ollama", "mock")
 
 
 def get_client(
@@ -369,6 +369,9 @@ def get_client(
                       else AWS_PROFILE / default chain. Budget guard on.
     - ``claude-code`` ``claude -p`` headless (studio.llm.claude_code); uses the user's Claude
                       subscription limits, no $ ledger.
+    - ``opencode``    ``opencode run`` CLI (studio.llm.opencode); free hosted model
+                      (STUDIO_OPENCODE_MODEL, default opencode/deepseek-v4.1-flash-free),
+                      no $ ledger. Prompt text goes to the hosted model.
     - ``gateway``     LiteLLM proxy at LITELLM_BASE_URL (default http://localhost:4000), which
                       fronts the same Bedrock models. Budget guard on.
     - ``ollama``      opt-in local Ollama at OLLAMA_BASE_URL, bulk roles only.
@@ -395,6 +398,10 @@ def get_client(
         from studio.llm.claude_code import ClaudeCodeClient
 
         return ClaudeCodeClient()
+    if backend == "opencode":
+        from studio.llm.opencode import OpenCodeClient
+
+        return OpenCodeClient()
     if backend == "gateway":
         return OpenAICompatClient(
             e.get("LITELLM_BASE_URL") or "http://localhost:4000",

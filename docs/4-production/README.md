@@ -12,4 +12,8 @@ How videos get made. Reading order:
 4. [24 — Local Wan video pilot](24-local-wan-video-pilot.md): optional quantized reference-to-video setup, exact component downloads and guarded testing on the 24 GB Mac.
 5. [25 — Script workflow](25-script-workflow.md): topic intake, the automated and `/youtube-script` paths, the reviewer checklist before `studio approve`, and the 24 h/72 h iteration loop.
 
+6. [36 — Slot-based video technique](36-slot-video-technique.md): study of slotstudio.app, mapped onto this repo with diagrams and a proposed build order. Research and design only, nothing implemented.
+
+7. [37 — Trend-driven topic pipeline, tracking DB and dashboard](37-trend-pipeline-and-dashboard.md): platform limits (verified 2026-10-29), topic triage, SQLite schema, config-driven batches and a read-only dashboard. Design only, nothing implemented.
+
 Archived: [09 — AI avatar presenters](../archive/09-ai-avatar-presenters.md) moved to `archive/` on 2026-10-16, when HeyGen and the avatars were removed.
